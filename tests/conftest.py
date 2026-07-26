@@ -12,6 +12,8 @@ from seoagents.config import ConfigStore
 @pytest.fixture()
 def temp_config(tmp_path, monkeypatch):
     config_path = tmp_path / "agents.yaml"
+    # Paths are interpolated as POSIX: on Windows the backslashes in e.g. C:\Users\...
+    # are invalid escape sequences inside a double-quoted YAML scalar.
     config_path.write_text(
         textwrap.dedent(
             f"""
@@ -35,8 +37,8 @@ def temp_config(tmp_path, monkeypatch):
               execution_timeout_seconds: 30
             scheduler: {{enabled: false}}
             storage:
-              data_dir: "{tmp_path / 'data'}"
-              skills_dir: "{tmp_path / 'skills'}"
+              data_dir: "{(tmp_path / 'data').as_posix()}"
+              skills_dir: "{(tmp_path / 'skills').as_posix()}"
             """
         ),
         encoding="utf-8",
