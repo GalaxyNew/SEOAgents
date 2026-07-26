@@ -1,0 +1,95 @@
+# ============================================================
+# SEOAgents 统一配置 (L7 基础设施层)
+# 复制到 ~/.dojo/agents.yaml 后填入真实密钥;
+# 全部留空也可运行 —— 系统自动降级为确定性 mock 模式。
+# 支持 ${ENV_VAR} 环境变量引用。
+# ============================================================
+
+app:
+  host: "127.0.0.1"
+  port: 8765
+
+llm_providers:
+  default_provider: "anthropic"          # anthropic | openai_compat
+  anthropic:
+    api_key: ""                          # 留空 = mock 模式;或 ${ANTHROPIC_API_KEY}
+    model: "claude-sonnet-4-5"
+  openai_compat:                         # DeepSeek / GLM / 本地端点等
+    api_key: ""
+    base_url: "https://api.deepseek.com/v1"
+    model: "deepseek-chat"
+
+# 1. 挂载 DataForSEO 等原生 MCP 节点 (L4 MCP Registry, 需 pip install 'seoagents[mcp]')
+mcp_servers: {}
+#  dataseo:
+#    command: "npx"
+#    args: ["-y", "dataforseo-mcp-server"]
+#    env:
+#      DATAFORSEO_USERNAME: "${DATAFORSEO_LOGIN}"
+#      DATAFORSEO_PASSWORD: "${DATAFORSEO_PASSWORD}"
+
+# 2. 第三方 SEO 服务与自建容器凭证 (L7 ConfigStore)
+seo_credentials:
+  google_search_console:
+    client_secrets_path: "~/.dojo/gsc_client_secrets.json"
+    token_path: "~/.dojo/gsc_token.json"
+  google_pagespeed_api_key: ""
+  openserp_endpoint: "http://localhost:7000"   # karust/openserp 默认端口为 7000
+  seonaut_endpoint: "http://localhost:9000"    # docker-compose.seo.yml 映射端口
+
+# 3. 优化目标站点
+sites:
+  site_url: "https://example.com"
+  gsc_property: "sc-domain:example.com"
+  brand_name: "Example"
+  tracked_keywords:
+    - "seo agent"
+    - "aeo monitoring"
+    - "technical seo audit"
+  content_pages:                         # 内链目标页面库 (Linker 智能体使用)
+    - url: "https://example.com/features"
+      anchor_candidates: ["seo agent", "features", "site audit"]
+    - url: "https://example.com/pricing"
+      anchor_candidates: ["pricing", "plans"]
+
+# 4. M_t 自进化评分权重 (L6): M_t = α·C + β·I + γ·ΣW/R − δ·E
+scoring:
+  alpha: 0.4
+  beta: 0.2
+  gamma: 0.3
+  delta: 0.1
+  skill_compile_threshold: 150.0         # M_t 超过该值触发 L5 技能固化
+
+# 5. AEO 引擎市场占有率权重 S_e (归一化后参与 V_t = Σ S_e·M_e)
+aeo:
+  engine_shares:
+    chatgpt: 0.42
+    claude: 0.18
+    perplexity: 0.22
+    google_aio: 0.18
+
+# 6. 执行沙箱物理与网络安全约束 (L4 SandboxPolicy)
+sandbox:
+  allow_network_hosts:
+    - "localhost"
+    - "127.0.0.1"
+    - "www.googleapis.com"
+    - "trends.google.com"
+  restricted_builtins: true
+  execution_timeout_seconds: 60
+
+# 7. 推送网关 (L2)
+gateway:
+  feishu_webhook_url: ""                 # 飞书群机器人 webhook;留空 = dry-run
+  slack_webhook_url: ""
+
+# 8. 定时进化调度 (L2, UTC 时间)
+scheduler:
+  enabled: true
+  evolution_hour: 2
+  evolution_minute: 0
+
+# 9. 持久化 (L7)
+storage:
+  data_dir: "~/.dojo/seoagents"
+  skills_dir: "~/.dojo/skills"

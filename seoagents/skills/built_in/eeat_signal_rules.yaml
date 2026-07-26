@@ -1,0 +1,50 @@
+id: EEATSignalRules
+kind: rules
+description: >-
+  E-E-A-T 信号评估规则集 (Experience / Expertise / Authoritativeness / Trust)。
+  Writer 智能体在内容诊断与整改时依据这些规则打分并输出改进项。
+version: 1
+rules:
+  - id: author_byline
+    dimension: expertise
+    weight: 0.15
+    check: "页面包含真实作者署名与作者简介链接 (rel=author 或 schema Person)"
+    fix_hint: "为文章添加作者卡片,链接到含资质说明的作者页"
+  - id: first_hand_experience
+    dimension: experience
+    weight: 0.15
+    check: "内容包含第一手经验证据: 实测数据、截图、案例过程描述"
+    fix_hint: "补充实测步骤/数据表/前后对比,避免纯改写聚合"
+  - id: citations_outbound
+    dimension: authoritativeness
+    weight: 0.1
+    check: "关键论断引用权威来源 (官方文档/研究/统计) 并外链"
+    fix_hint: "为统计数字与结论添加可核验的权威外链"
+  - id: about_contact_pages
+    dimension: trust
+    weight: 0.1
+    check: "站点具备 About / Contact / 隐私政策页并可从页脚到达"
+    fix_hint: "补齐信任页面并在全站页脚暴露入口"
+  - id: content_freshness
+    dimension: trust
+    weight: 0.1
+    check: "页面展示最近更新时间且核心数据在 12 个月内"
+    fix_hint: "更新过期数据并暴露 dateModified (Article schema)"
+  - id: topical_depth
+    dimension: expertise
+    weight: 0.15
+    check: "主题簇覆盖: 页面与站内相关子主题互链形成内容枢纽"
+    fix_hint: "通过 nlp_internal_linker 建立主题簇内链"
+  - id: transparency_disclosure
+    dimension: trust
+    weight: 0.1
+    check: "联盟/广告内容有明确披露声明"
+    fix_hint: "在受益内容顶部添加披露区块"
+  - id: structured_data_present
+    dimension: authoritativeness
+    weight: 0.15
+    check: "页面携带与内容类型匹配的 Schema.org 结构化数据"
+    fix_hint: "套用 SchemaTemplates 技能中的 JSON-LD 模版"
+scoring:
+  pass_threshold: 0.7
+  note: "加权命中率 >= 阈值视为通过; 未命中项按 fix_hint 生成整改任务"

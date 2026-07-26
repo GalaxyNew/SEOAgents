@@ -1,0 +1,82 @@
+"""ToolExecutor (L4) — the golden execution pattern from DojoAgents AGENTS.md.
+
+Bounded async execution, structured error handling, unified logging:
+registry lookup -> sandbox check -> timeout-guarded handler -> coerced ToolResult.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import time
+from contextvars import ContextVar
+from typing import Any
+
+from seoagents.agent.models import ToolCall, ToolResult
+from seoagents.logging import LOGGER
+from seoagents.tools.base import ToolRegistry
+from seoagents.tools.environments.sandbox import SandboxPolicy, SandboxViolation
+
+active_session_id: ContextVar[str] = ContextVar("active_session_id", default="")
+
+
+class ToolExecutor:
+    def __init__(self, registry: ToolRegistry, sandbox: SandboxPolicy) -> None:
+        self.registry = registry
+        self.sandbox = sandbox
+
+    async def execute_one(self, call: ToolCall, *, session_id: str = "") -> ToolResult:
+        spec = self.registry.get(call.name)
+        if spec is None:
+            LOGGER.error(f"Tool '{call.name}' is not registered")
+            return ToolResult(
+                call_id=call.id, name=call.name, ok=False,
+                error=f"Tool '{call.name}' is not registered",
+            )
+
+        token = active_session_id.set(session_id)
+        try:
+            self.sandbox.check_tool(call.name)
+            started_at = time.perf_counter()
+            raw = await asyncio.wait_for(
+                spec.execute(dict(call.arguments), session_id),
+                timeout=self.sandbox.timeout_seconds,
+            )
+            latency_ms = int((time.perf_counter() - started_at) * 1000)
+            return self._coerce_result(call, raw, latency_ms=latency_ms)
+        except SandboxViolation as exc:
+            LOGGER.warning(f"Sandbox violation on '{call.name}': {exc}")
+            return ToolResult(call_id=call.id, name=call.name, ok=False, error=str(exc))
+        except asyncio.TimeoutError:
+            LOGGER.error(
+                f"Tool '{call.name}' exceeded sandbox limit of {self.sandbox.timeout_seconds}s"
+            )
+            return ToolResult(
+                call_id=call.id, name=call.name, ok=False,
+                error=f"Execution exceeded sandbox limit of {self.sandbox.timeout_seconds}s",
+            )
+        except Exception as exc:  # noqa: BLE001 - boundary logging, never silent
+            LOGGER.exception(f"Error executing tool '{call.name}' (call_id: {call.id})")
+            return ToolResult(call_id=call.id, name=call.name, ok=False, error=str(exc))
+        finally:
+            active_session_id.reset(token)
+
+    async def execute_many(self, calls: list[ToolCall], *, session_id: str = "") -> list[ToolResult]:
+        return [await self.execute_one(call, session_id=session_id) for call in calls]
+
+    @staticmethod
+    def _coerce_result(call: ToolCall, raw: Any, *, latency_ms: int) -> ToolResult:
+        if isinstance(raw, ToolResult):
+            raw.latency_ms = latency_ms
+            return raw
+        if isinstance(raw, str):
+            content = raw
+        else:
+            try:
+                content = json.dumps(raw, ensure_ascii=False, default=str)
+            except (TypeError, ValueError):
+                content = str(raw)
+        return ToolResult(call_id=call.id, name=call.name, ok=True, content=content,
+                          latency_ms=latency_ms)
+
+
+__all__ = ["ToolExecutor", "active_session_id"]
