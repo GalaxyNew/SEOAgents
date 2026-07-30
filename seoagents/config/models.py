@@ -125,6 +125,28 @@ class ContentPageConfig:
 
 
 @dataclass(frozen=True)
+class SiteItemConfig:
+    """Individual site definition in multi-site monitoring."""
+
+    site_url: str = "https://example.com"
+    gsc_property: str = "sc-domain:example.com"
+    brand_name: str = "Example"
+    tracked_keywords: tuple[str, ...] = ("seo agent", "aeo monitoring")
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any] | None) -> "SiteItemConfig":
+        if not isinstance(d, Mapping):
+            return cls()
+        kws = tuple(str(k) for k in (_get(d, "tracked_keywords", []) or [])) or ("seo agent", "aeo monitoring")
+        return cls(
+            site_url=str(_get(d, "site_url", cls.site_url)).rstrip("/"),
+            gsc_property=str(_get(d, "gsc_property", cls.gsc_property)),
+            brand_name=str(_get(d, "brand_name", cls.brand_name)),
+            tracked_keywords=kws,
+        )
+
+
+@dataclass(frozen=True)
 class SitesConfig:
     """Target property under optimization."""
 
@@ -133,6 +155,7 @@ class SitesConfig:
     brand_name: str = "Example"
     tracked_keywords: tuple[str, ...] = ("seo agent", "aeo monitoring")
     content_pages: tuple[ContentPageConfig, ...] = ()
+    monitored_sites: tuple[SiteItemConfig, ...] = ()
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> "SitesConfig":
@@ -140,13 +163,32 @@ class SitesConfig:
             ContentPageConfig.from_dict(p) for p in (_get(d, "content_pages", []) or []) if isinstance(p, Mapping)
         )
         kws = tuple(str(k) for k in (_get(d, "tracked_keywords", []) or [])) or cls.tracked_keywords
-        return cls(
+        raw_monitored = _get(d, "monitored_sites", []) or []
+        sites_list = []
+        if isinstance(raw_monitored, list):
+            for s in raw_monitored:
+                if isinstance(s, Mapping):
+                    sites_list.append(SiteItemConfig.from_dict(s))
+
+        primary_site = SiteItemConfig(
             site_url=str(_get(d, "site_url", cls.site_url)).rstrip("/"),
             gsc_property=str(_get(d, "gsc_property", cls.gsc_property)),
             brand_name=str(_get(d, "brand_name", cls.brand_name)),
             tracked_keywords=kws,
-            content_pages=pages,
         )
+
+        if not sites_list:
+            sites_list.append(primary_site)
+
+        return cls(
+            site_url=primary_site.site_url,
+            gsc_property=primary_site.gsc_property,
+            brand_name=primary_site.brand_name,
+            tracked_keywords=primary_site.tracked_keywords,
+            content_pages=pages,
+            monitored_sites=tuple(sites_list),
+        )
+
 
 
 @dataclass(frozen=True)

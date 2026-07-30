@@ -10,6 +10,7 @@ Fixed rewrite of manual §4.1:
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from typing import Any
 
@@ -89,7 +90,9 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         LOGGER.info(f"SEO Monitor action={action} session={session_id}")
 
         if action == "query_gsc_performance":
-            return self._query_gsc_performance(target_site, days_limit)
+            dims = arguments.get("dimensions")
+            return self._query_gsc_performance(target_site, days_limit, dimensions=dims)
+
         if action == "query_rising_keywords":
             return self._query_rising_keywords(keywords)
         return f"Error: unknown action '{action}'"
@@ -98,20 +101,87 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
     def _init_gsc_client(self) -> Any:
         if self._gsc_service is not None:
             return self._gsc_service
-        if not os.path.exists(self.token_path):
-            raise FileNotFoundError(f"Missing GSC OAuth token at: {self.token_path}")
-        from google.oauth2.credentials import Credentials  # lazy optional import
+
+        cred_path = None
+        candidates = [
+            r"F:\SEO\SEOAgents\Docs\grounded-style-501621-k3-4b32f0885386.json",
+            r"F:\SEO\SEOAgents\Docs\grounded-style-501621-k3-b8a789200400(1).json",
+            self.secrets_path,
+            self.token_path,
+        ]
+        for p in candidates:
+            if p and os.path.exists(p):
+                cred_path = p
+                break
+        if not cred_path:
+            raise FileNotFoundError(
+                f"Missing GSC credentials at candidates ({candidates})"
+            )
+
+
         from googleapiclient.discovery import build
 
-        creds = Credentials.from_authorized_user_file(self.token_path, scopes=_GSC_SCOPES)
+        # Auto-detect Service Account vs User OAuth Token
+        try:
+            with open(cred_path, "r", encoding="utf-8") as f:
+                data = json.load(f)
+            if isinstance(data, dict) and data.get("type") == "service_account":
+                from google.oauth2 import service_account
+                creds = service_account.Credentials.from_service_account_file(cred_path, scopes=_GSC_SCOPES)
+                LOGGER.info(f"Loaded GSC Service Account: {creds.service_account_email}")
+            else:
+                from google.oauth2.credentials import Credentials
+                creds = Credentials.from_authorized_user_file(cred_path, scopes=_GSC_SCOPES)
+        except Exception as err:
+            LOGGER.warning(f"Fallback credential parsing for {cred_path}: {err}")
+            from google.oauth2 import service_account
+            try:
+                creds = service_account.Credentials.from_service_account_file(cred_path, scopes=_GSC_SCOPES)
+            except Exception:
+                from google.oauth2.credentials import Credentials
+                creds = Credentials.from_authorized_user_file(cred_path, scopes=_GSC_SCOPES)
+
         self._gsc_service = build("searchconsole", "v1", credentials=creds)
         return self._gsc_service
 
-    def _query_gsc_performance(self, target_site: str, days_limit: int) -> str:
+    def query_gsc_raw(
+        self,
+        target_site: str,
+        days_limit: int,
+        dimensions: list[str] | None = None,
+        start_date_str: str | None = None,
+        end_date_str: str | None = None,
+    ) -> list[dict[str, Any]]:
+        if not target_site:
+            return []
+        dims = dimensions or ["query", "page"]
+        gsc = self._init_gsc_client()
+        if start_date_str and end_date_str:
+            s_str, e_str = start_date_str, end_date_str
+        else:
+            end = pd.Timestamp.now() - pd.Timedelta(days=2)
+            start = end - pd.Timedelta(days=days_limit)
+            s_str, e_str = start.strftime("%Y-%m-%d"), end.strftime("%Y-%m-%d")
+
+        request_body = {
+            "startDate": s_str,
+            "endDate": e_str,
+            "dimensions": dims,
+            "rowLimit": 25000,
+        }
+        response = gsc.searchanalytics().query(siteUrl=target_site, body=request_body).execute()
+        return response.get("rows", [])
+
+
+    def _query_gsc_performance(
+        self, target_site: str, days_limit: int, dimensions: list[str] | None = None
+    ) -> str:
+
         if not target_site:
             return "Error: target_site must be provided for GSC query."
         rows = None
         source = "gsc_api"
+        dims = dimensions or ["query", "page"]
         try:
             gsc = self._init_gsc_client()
             end = pd.Timestamp.now()
@@ -119,13 +189,14 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             request_body = {
                 "startDate": start.strftime("%Y-%m-%d"),
                 "endDate": end.strftime("%Y-%m-%d"),
-                "dimensions": ["query", "page"],
-                "rowLimit": 1000,
+                "dimensions": dims,
+                "rowLimit": 25000,
             }
             response = (
                 gsc.searchanalytics().query(siteUrl=target_site, body=request_body).execute()
             )
             rows = response.get("rows", [])
+
         except FileNotFoundError as exc:
             LOGGER.warning(f"GSC credentials missing ({exc}); using deterministic mock dataset")
             rows, source = self._mock_gsc_rows(target_site), "mock"

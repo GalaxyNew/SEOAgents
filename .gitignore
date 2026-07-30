@@ -15,3 +15,5 @@ seoagents/dashboard/static/app/
 *.sqlite3-wal
 *.sqlite3-shm
 .env
+*.tsbuildinfo
+Docs/*.json

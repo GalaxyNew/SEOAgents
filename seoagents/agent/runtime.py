@@ -99,6 +99,23 @@ class Runtime:
 
         return await mount_mcp_servers(self.registry, self.config.mcp_servers)
 
+    def reload_config(self) -> "Runtime":
+        """Reload configuration snapshot and rebuild runtime sub-objects."""
+        self.config_store.reload()
+        new_rt = Runtime.from_config_store(self.config_store)
+        self.config = new_rt.config
+        self.sandbox = new_rt.sandbox
+        self.registry = new_rt.registry
+        self.executor = new_rt.executor
+        self.provider = new_rt.provider
+        self.loop = new_rt.loop
+        self.skill_manager = new_rt.skill_manager
+        self.skill_compiler = new_rt.skill_compiler
+        self.orchestrator = new_rt.orchestrator
+        self.notifier = new_rt.notifier
+        self.score_engine = new_rt.score_engine
+        return self
+
 
 def get_runtime(refresh: bool = False) -> Runtime:
     """Process-wide runtime accessor."""

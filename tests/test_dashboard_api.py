@@ -75,3 +75,17 @@ async def test_index_served(client: httpx.AsyncClient):
     res = await client.get("/")
     assert res.status_code == 200
     assert "SEOAgents" in res.text
+
+
+async def test_config_update_endpoint(client: httpx.AsyncClient):
+    patch = {
+        "sites": {"brand_name": "TestBrand", "tracked_keywords": ["seo", "aeo"]},
+        "scoring": {"alpha": 0.5},
+    }
+    res = await client.post("/api/config", json=patch)
+    assert res.status_code == 200
+    body = res.json()
+    assert body["ok"] is True
+    assert body["resolved"]["scoring"]["alpha"] == 0.5
+    assert body["resolved"]["tracked_keywords"] == ["seo", "aeo"]
+

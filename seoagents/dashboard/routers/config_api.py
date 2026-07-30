@@ -11,12 +11,22 @@ router = APIRouter(prefix="/api/config", tags=["config"])
 
 @router.get("")
 def get_config(rt: Runtime = Depends(runtime_dep)) -> dict:
+    monitored = [
+        {
+            "site_url": s.site_url,
+            "gsc_property": s.gsc_property,
+            "brand_name": s.brand_name,
+            "tracked_keywords": list(s.tracked_keywords),
+        }
+        for s in rt.config.sites.monitored_sites
+    ]
     return {
         "redacted": rt.config_store.redacted(),
         "resolved": {
             "site": rt.config.sites.site_url,
             "gsc_property": rt.config.sites.gsc_property,
             "tracked_keywords": list(rt.config.sites.tracked_keywords),
+            "monitored_sites": monitored,
             "provider": rt.provider.name,
             "seonaut_endpoint": rt.config.seo_credentials.seonaut_endpoint,
             "openserp_endpoint": rt.config.seo_credentials.openserp_endpoint,
@@ -30,3 +40,18 @@ def get_config(rt: Runtime = Depends(runtime_dep)) -> dict:
             },
         },
     }
+
+
+
+@router.post("")
+def update_config(patch: dict, rt: Runtime = Depends(runtime_dep)) -> dict:
+    """Update configuration patch, persist to agents.yaml, and reload runtime."""
+    if not isinstance(patch, dict):
+        return {"ok": False, "error": "Invalid payload; expected JSON object"}
+    rt.config_store.update(patch)
+    rt.reload_config()
+    res = get_config(rt)
+    res["ok"] = True
+    res["message"] = "Configuration updated and persisted successfully"
+    return res
+

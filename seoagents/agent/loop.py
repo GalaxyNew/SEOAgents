@@ -8,13 +8,17 @@ the L5 RuntimeSkillCompiler distills into static skills.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from seoagents.agent.models import AgentRunResult, ChatMessage, TraceStep
 from seoagents.agent.providers import BaseLLMProvider
 from seoagents.logging import LOGGER
-from seoagents.tools.executor import ToolExecutor
 from seoagents.utils.event_bus import EventBus
+
+
+if TYPE_CHECKING:
+    from seoagents.tools.executor import ToolExecutor
+
 
 
 class UniversalAgentLoop:

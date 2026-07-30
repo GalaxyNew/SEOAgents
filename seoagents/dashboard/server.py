@@ -45,14 +45,22 @@ def create_app() -> FastAPI:
         app.include_router(router)
 
     app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+    app_dir = _STATIC_DIR / "app"
+    if (app_dir / "assets").exists():
+        app.mount("/assets", StaticFiles(directory=app_dir / "assets"), name="assets")
+
 
     @app.get("/", include_in_schema=False)
     def index() -> FileResponse:
+        react_app = _STATIC_DIR / "app" / "index.html"
+        if react_app.exists():
+            return FileResponse(react_app)
         return FileResponse(_STATIC_DIR / "index.html")
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         return {"ok": True, "version": __version__}
+
 
     return app
 
