@@ -84,14 +84,32 @@ class MCPServerConfig:
 
 @dataclass(frozen=True)
 class GSCCredentialsConfig:
+    """Search Console credentials.
+
+    Two mutually exclusive auth modes, both explicit:
+
+    * **service account** — ``service_account_path`` points at the JSON key.
+      Preferred for unattended servers: no browser consent, no token refresh.
+      The service-account email must be added as a user on the GSC property.
+    * **user OAuth** — ``client_secrets_path`` + ``token_path``, for local
+      interactive use.
+
+    ``service_account_email`` is optional and only used for display (so the
+    dashboard can tell you *which* identity to authorise on the property).
+    """
+
+    service_account_path: str = ""
     client_secrets_path: str = "~/.dojo/gsc_client_secrets.json"
     token_path: str = "~/.dojo/gsc_token.json"
+    service_account_email: str = ""
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> GSCCredentialsConfig:
         return cls(
+            service_account_path=str(_get(d, "service_account_path", "") or ""),
             client_secrets_path=str(_get(d, "client_secrets_path", cls.client_secrets_path)),
             token_path=str(_get(d, "token_path", cls.token_path)),
+            service_account_email=str(_get(d, "service_account_email", "") or ""),
         )
 
 

@@ -56,7 +56,16 @@ def _previous_window_totals(rt, site: str, start_date, days: int, single_day: st
         LOGGER.info(f"GSC 对照窗口不可用,同比将显示为 —: {exc}")
         return {}
 
-SERVICE_ACCOUNT_EMAIL = "igoriptv2-gsc-reader@grounded-style-501621-k3.iam.gserviceaccount.com"
+def _service_account_email(rt) -> str:
+    """Which identity must be authorised on the GSC property.
+
+    Read from config rather than hardcoded: the previous constant pinned one
+    customer's service account (and its GCP project name) into the source.
+    """
+    try:
+        return rt.config.seo_credentials.google_search_console.service_account_email
+    except Exception:  # noqa: BLE001 - display-only
+        return ""
 
 
 def _fill_days(daily_map: dict[str, dict], start_date: datetime.date, days: int) -> list[dict[str, Any]]:
@@ -334,7 +343,7 @@ async def get_gsc_overview(
         "domain_name": domain,
         "gsc_property": target_prop,
         "brand_name": brand_name,
-        "service_account_email": SERVICE_ACCOUNT_EMAIL,
+        "service_account_email": _service_account_email(rt),
         "date_range": f"锁定单日 ({target_single_day})" if target_single_day else date_range_str,
         "single_date": target_single_day,
         "range_type": range_type,

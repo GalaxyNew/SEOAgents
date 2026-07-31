@@ -32,6 +32,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
     def __init__(self, config: SeoAgentsConfig, store: SeoHistoryStore | None = None) -> None:
         gsc = config.seo_credentials.google_search_console
         self.token_path = os.path.expanduser(gsc.token_path)
+        self.service_account_path = config.seo_credentials.google_search_console.service_account_path
         self.secrets_path = os.path.expanduser(gsc.client_secrets_path)
         self.default_site = config.sites.gsc_property
         self.tracked_keywords = list(config.sites.tracked_keywords)
@@ -100,20 +101,31 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         if self._gsc_service is not None:
             return self._gsc_service
 
-        cred_path = None
+        # Credential resolution, in priority order. The previous version led
+        # with two absolute paths on a developer's Windows box — dead on every
+        # other machine, and they leaked the GCP project name into the repo.
         candidates = [
-            r"F:\SEO\SEOAgents\Docs\grounded-style-501621-k3-4b32f0885386.json",
-            r"F:\SEO\SEOAgents\Docs\grounded-style-501621-k3-b8a789200400(1).json",
-            self.secrets_path,
-            self.token_path,
+            ("service_account_path", self.service_account_path),
+            ("SEOAGENTS_GSC_SERVICE_ACCOUNT (env)", os.environ.get("SEOAGENTS_GSC_SERVICE_ACCOUNT", "")),
+            ("client_secrets_path", self.secrets_path),
+            ("token_path", self.token_path),
         ]
-        for p in candidates:
-            if p and os.path.exists(p):
-                cred_path = p
+        cred_path = None
+        for label, raw in candidates:
+            if not raw:
+                continue
+            expanded = os.path.expanduser(str(raw))
+            if os.path.exists(expanded):
+                cred_path = expanded
+                LOGGER.info(f"GSC credentials resolved from {label}: {expanded}")
                 break
         if not cred_path:
+            tried = ", ".join(f"{lbl}={val or '(unset)'}" for lbl, val in candidates)
             raise FileNotFoundError(
-                f"Missing GSC credentials at candidates ({candidates})"
+                "未找到 GSC 凭证。请在 agents.yaml 的 "
+                "seo_credentials.google_search_console.service_account_path 指向"
+                "服务账号 JSON,或设置环境变量 SEOAGENTS_GSC_SERVICE_ACCOUNT。"
+                f"已尝试: {tried}"
             )
 
 
