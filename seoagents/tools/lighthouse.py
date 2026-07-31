@@ -1,7 +1,6 @@
 """LighthouseAuditSpec (L4) — agent-facing wrapper over the sandbox executor."""
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from seoagents.config.models import SeoAgentsConfig
@@ -26,7 +25,7 @@ class LighthouseAuditSpec(BaseToolSpec):
             "name": "lighthouse_audit",
             "description": (
                 "在隔离沙箱中运行 Lighthouse 无头审计,返回 performance/SEO 评分与 "
-                "LCP/CLS 核心指标;Node 或网络不可用时返回确定性离线估算。"
+                "LCP/CLS 核心指标;Node 或网络不可用时返回 DATA_UNAVAILABLE,不产生估算值。"
             ),
             "parameters": {
                 "type": "object",
@@ -37,10 +36,9 @@ class LighthouseAuditSpec(BaseToolSpec):
             },
         }
 
-    async def execute(self, arguments: dict[str, Any], session_id: str) -> str:
+    async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         target = str(arguments.get("target_url") or self.site_url)
-        result = await self.executor.run_lighthouse_audit(target)
-        return json.dumps(result, ensure_ascii=False)
+        return await self.executor.run_lighthouse_audit(target)
 
 
 __all__ = ["LighthouseAuditSpec"]

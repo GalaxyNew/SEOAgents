@@ -5,9 +5,9 @@ providing full iframe compatibility without requiring Docker container setup.
 """
 from __future__ import annotations
 
+import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse
-import uvicorn
 
 app = FastAPI(title="Seonaut Audit Service", version="1.0.0")
 

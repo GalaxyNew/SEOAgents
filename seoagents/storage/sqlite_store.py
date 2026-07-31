@@ -12,8 +12,6 @@ import time
 from pathlib import Path
 from typing import Any
 
-from seoagents.logging import LOGGER
-
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS audit_runs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -75,6 +73,26 @@ class SeoHistoryStore:
         return conn
 
     # -- writers -----------------------------------------------------------
+    def previous_clicks(self, *, site: str) -> float | None:
+        """Clicks recorded for the most recent scored run of ``site``.
+
+        Returns None when there is no baseline yet. The caller must treat that
+        as "C_t not computable" rather than substituting zero — a first run
+        would otherwise report its entire traffic as growth.
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT clicks FROM audit_runs WHERE site = ? AND m_t IS NOT NULL"
+                " ORDER BY ts DESC LIMIT 1",
+                (site,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            return float(row[0])
+        except (TypeError, ValueError):
+            return None
+
     def record_audit_run(
         self,
         *,

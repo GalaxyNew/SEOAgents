@@ -42,15 +42,20 @@ async def test_audit_run_endpoint(client: httpx.AsyncClient):
 
 
 async def test_evolution_then_metrics(client: httpx.AsyncClient):
+    """Keyless run completes, and the dashboard shows an empty state — not a zero.
+
+    The endpoint succeeding is not the same as data existing. Without
+    credentials there is nothing real to score, so `latest_m_t` must stay null
+    and the history must stay empty rather than gaining a fabricated point.
+    """
     res = await client.post("/api/jobs/evolution/run")
     assert res.status_code == 200
     assert res.json()["ok"] is True
 
     res2 = await client.get("/api/metrics/summary")
     body = res2.json()
-    assert body["latest_m_t"] is not None
-    assert body["v_t"] is not None
-    assert len(body["m_t_history"]) == 1
+    assert body["latest_m_t"] is None
+    assert body["m_t_history"] == []
 
 
 async def test_config_redacted(client: httpx.AsyncClient):

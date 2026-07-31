@@ -47,7 +47,7 @@ class LocalEnvironmentAdapter(BaseEnvironmentAdapter):
         )
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):  # noqa: UP041 - 3.10 compat
             process.kill()
             await process.wait()
             raise
@@ -58,4 +58,4 @@ class LocalEnvironmentAdapter(BaseEnvironmentAdapter):
         )
 
 
-__all__ = ["BaseEnvironmentAdapter", "LocalEnvironmentAdapter", "CommandResult"]
+__all__ = ["BaseEnvironmentAdapter", "CommandResult", "LocalEnvironmentAdapter"]

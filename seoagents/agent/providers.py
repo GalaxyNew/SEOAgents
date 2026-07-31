@@ -349,9 +349,9 @@ def build_provider(config: LLMProvidersConfig) -> BaseLLMProvider:
 
 
 __all__ = [
-    "BaseLLMProvider",
     "AnthropicProvider",
-    "OpenAICompatProvider",
+    "BaseLLMProvider",
     "MockLLMProvider",
+    "OpenAICompatProvider",
     "build_provider",
 ]

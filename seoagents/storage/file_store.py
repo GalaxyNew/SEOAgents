@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import json
 import os
+from collections.abc import Iterable, Iterator
 from pathlib import Path
-from typing import Any, Iterable, Iterator
+from typing import Any
 
 from seoagents.logging import LOGGER
 from seoagents.storage.locks import file_lock
@@ -34,7 +35,7 @@ class _BaseStore:
             with file_lock(self._lock_path, timeout=10):
                 tmp.write_text(text, encoding="utf-8")
                 os.replace(tmp, self.path)
-        except Exception as exc:  # noqa: BLE001 - boundary translation
+        except Exception as exc:
             LOGGER.exception(f"Atomic write failed for {self.path}")
             raise FileStoreError(f"write failed for {self.path}: {exc}") from exc
 
@@ -47,7 +48,7 @@ class AtomicJsonStore(_BaseStore):
             return default
         try:
             return json.loads(self.path.read_text(encoding="utf-8"))
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise FileStoreError(f"read failed for {self.path}: {exc}") from exc
 
     def save(self, data: Any) -> None:
@@ -62,7 +63,7 @@ class AtomicJsonlStore(_BaseStore):
             with file_lock(self._lock_path, timeout=10):
                 with open(self.path, "a", encoding="utf-8") as fh:
                     fh.write(json.dumps(record, ensure_ascii=False) + "\n")
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:
             raise FileStoreError(f"append failed for {self.path}: {exc}") from exc
 
     def append_many(self, records: Iterable[dict[str, Any]]) -> None:

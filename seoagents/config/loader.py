@@ -14,8 +14,9 @@ import copy
 import os
 import re
 import threading
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any
 
 import yaml
 
@@ -64,7 +65,7 @@ def _redact(value: Any, key_hint: str = "") -> Any:
 class ConfigStore:
     """Loads, caches, merges and persists ``agents.yaml``."""
 
-    _instance: "ConfigStore | None" = None
+    _instance: ConfigStore | None = None
     _instance_lock = threading.Lock()
 
     def __init__(self, path: str | os.PathLike[str] | None = None) -> None:
@@ -77,7 +78,7 @@ class ConfigStore:
 
     # -- singleton access -------------------------------------------------
     @classmethod
-    def get_instance(cls, path: str | os.PathLike[str] | None = None) -> "ConfigStore":
+    def get_instance(cls, path: str | os.PathLike[str] | None = None) -> ConfigStore:
         with cls._instance_lock:
             if cls._instance is None:
                 cls._instance = cls(path)

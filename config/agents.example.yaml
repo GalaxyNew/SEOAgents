@@ -31,6 +31,12 @@ mcp_servers: {}
 # 2. 第三方 SEO 服务与自建容器凭证 (L7 ConfigStore)
 seo_credentials:
   google_search_console:
+    # 二选一。服务账号适合无人值守的服务器:无浏览器授权、无 token 刷新。
+    # 拿到 JSON 后,必须把下面的 service_account_email 添加为 GSC 资源的用户,
+    # 否则 API 返回 403(凭证有效但无权访问该资源,是两回事)。
+    service_account_path: "${SEOAGENTS_GSC_SERVICE_ACCOUNT}"   # 例:/opt/seo-stack/credentials/gsc-sa.json
+    service_account_email: ""                                   # 仅用于界面提示该授权给谁
+    # 本地交互式 OAuth(可选,与上面互斥)
     client_secrets_path: "~/.dojo/gsc_client_secrets.json"
     token_path: "~/.dojo/gsc_token.json"
   google_pagespeed_api_key: ""

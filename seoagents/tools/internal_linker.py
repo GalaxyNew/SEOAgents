@@ -11,7 +11,6 @@ Fixed rewrite of manual §4.2:
 """
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -20,6 +19,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 from seoagents.logging import LOGGER
+from seoagents.quality import real, unavailable
 from seoagents.tools.base import BaseToolSpec
 
 
@@ -69,7 +69,7 @@ class InternalLinkerSpec(BaseToolSpec):
             },
         }
 
-    async def execute(self, arguments: dict[str, Any], session_id: str) -> str:
+    async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         source_html: str = arguments["source_html"]
         target_pages: list[dict[str, Any]] = list(arguments["target_pages"])
         max_links = int(arguments.get("max_links", 5))
@@ -80,9 +80,9 @@ class InternalLinkerSpec(BaseToolSpec):
         soup = BeautifulSoup(source_html, "html.parser")
         text_content = soup.get_text(" ", strip=True)
         if not text_content or not target_pages:
-            return json.dumps(
-                {"status": "Skipped", "reason": "empty source text or no target pages"},
-                ensure_ascii=False,
+            return unavailable(
+                source="nlp_internal_linker",
+                reason="source_html 无正文文本,或 target_pages 为空",
             )
 
         ranked = self._rank_pages_by_similarity(text_content, target_pages)
@@ -109,14 +109,15 @@ class InternalLinkerSpec(BaseToolSpec):
                     )
                     break  # 每个目标落地页只建立一条最优锚文本,规避过度链接惩罚
 
-        return json.dumps(
+        # Pure local computation over caller-supplied input: always REAL,
+        # there is no external source that could degrade.
+        return real(
             {
-                "status": "Success",
                 "linked_links_injected": linked_count,
                 "injections": injections,
                 "optimized_html": modified_html,
             },
-            ensure_ascii=False,
+            source="nlp_internal_linker",
         )
 
     # -- internals ---------------------------------------------------------

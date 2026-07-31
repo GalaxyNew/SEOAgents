@@ -40,10 +40,9 @@ class McpProxySpec(BaseToolSpec):
         params = StdioServerParameters(
             command=self.server.command, args=list(self.server.args), env=dict(self.server.env)
         )
-        async with stdio_client(params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
-                result = await session.call_tool(self.tool_name, arguments)
+        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+            await session.initialize()
+            result = await session.call_tool(self.tool_name, arguments)
         chunks: list[str] = []
         for block in getattr(result, "content", []) or []:
             text = getattr(block, "text", None)
@@ -56,8 +55,8 @@ async def mount_mcp_servers(registry: ToolRegistry, servers: tuple[MCPServerConf
     if not servers:
         return 0
     try:
-        from mcp import ClientSession, StdioServerParameters  # noqa: F401
-        from mcp.client.stdio import stdio_client  # noqa: F401
+        from mcp import ClientSession, StdioServerParameters
+        from mcp.client.stdio import stdio_client
     except ImportError:
         LOGGER.warning(
             "mcp package not installed — skipping MCP server mounting "
@@ -91,4 +90,4 @@ async def mount_mcp_servers(registry: ToolRegistry, servers: tuple[MCPServerConf
     return mounted
 
 
-__all__ = ["mount_mcp_servers", "McpProxySpec"]
+__all__ = ["McpProxySpec", "mount_mcp_servers"]

@@ -10,26 +10,19 @@ Fixed and hardened version of manual §5:
 """
 from __future__ import annotations
 
-import asyncio
-import hashlib
 import json
 import shutil
 from typing import Any
 
 from seoagents.logging import LOGGER
+from seoagents.quality import real, unavailable
 from seoagents.tools.environments import LocalEnvironmentAdapter
-
-
-def _stable_unit(seed: str) -> float:
-    """Deterministic pseudo-measurement in [0,1) derived from a seed string."""
-    digest = hashlib.sha256(seed.encode("utf-8")).digest()
-    return int.from_bytes(digest[:4], "big") / 2**32
 
 
 class TechnicalSeoSandboxExecutor:
     """Safely runs Lighthouse / analyzer subprocesses inside the L4 sandbox."""
 
-    def __init__(self, timeout_seconds: int = 60, *, allow_mock_fallback: bool = True) -> None:
+    def __init__(self, timeout_seconds: int = 60, *, allow_mock_fallback: bool = False) -> None:
         self.timeout = timeout_seconds
         self.allow_mock_fallback = allow_mock_fallback
         self.env = LocalEnvironmentAdapter()
@@ -51,7 +44,7 @@ class TechnicalSeoSandboxExecutor:
         LOGGER.info(f"Sandbox launching Lighthouse subprocess for: {target_url}")
         try:
             result = await self.env.run(cmd, timeout=self.timeout)
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):  # noqa: UP041 - 3.10 compat
             LOGGER.error(f"Lighthouse timeout threshold breached for: {target_url}")
             return self._fallback(
                 target_url, reason=f"Execution exceeded sandbox limit of {self.timeout}s"
@@ -75,34 +68,48 @@ class TechnicalSeoSandboxExecutor:
         lcp = audits.get("largest-contentful-paint", {}).get("displayValue", "N/A")
         cls_val = audits.get("cumulative-layout-shift", {}).get("displayValue", "N/A")
 
-        return {
-            "success": True,
-            "source": "lighthouse",
-            "performance_score": round(perf_score, 1),
-            "seo_score": round(seo_score, 1),
-            "largest_contentful_paint": lcp,
-            "cumulative_layout_shift": cls_val,
-        }
+        return real(
+            {
+                "performance_score": round(perf_score, 1),
+                "seo_score": round(seo_score, 1),
+                "largest_contentful_paint": lcp,
+                "cumulative_layout_shift": cls_val,
+                "target_url": target_url,
+            },
+            source="lighthouse",
+        )
 
-    # -- offline estimate --------------------------------------------------
+    # -- unavailable path --------------------------------------------------
     def _fallback(self, target_url: str, *, reason: str) -> dict[str, Any]:
+        """No synthetic Core Web Vitals.
+
+        The old fallback returned ``performance_score`` derived from
+        ``sha256(url)`` in the 62-95 range, labelled ``source:
+        "offline_estimate"``. Downstream, ``seo_evo_jobs`` compares that number
+        against 90 and adds a technical-defect penalty when it falls short — so
+        a machine with no Node installed silently produced a CWV verdict.
+
+        ``allow_mock_fallback=True`` is retained only for fixtures that need a
+        deterministic shape; it is off by default and still reports DEGRADED.
+        """
         if not self.allow_mock_fallback:
-            return {"success": False, "source": "lighthouse", "error": reason}
-        perf = 62 + _stable_unit(f"perf::{target_url}") * 33   # 62-95
-        seo = 70 + _stable_unit(f"seo::{target_url}") * 28     # 70-98
-        lcp_s = 1.2 + _stable_unit(f"lcp::{target_url}") * 2.8
+            LOGGER.warning(f"Lighthouse unavailable for {target_url}: {reason}")
+            return unavailable(
+                source="lighthouse", reason=reason, target_url=target_url
+            )
         LOGGER.warning(
-            f"Lighthouse unavailable ({reason}); returning deterministic offline estimate "
-            f"for {target_url}"
+            f"Lighthouse unavailable ({reason}); emitting DEGRADED placeholder for {target_url}"
         )
         return {
-            "success": True,
-            "source": "offline_estimate",
+            "performance_score": None,
+            "seo_score": None,
+            "largest_contentful_paint": None,
+            "cumulative_layout_shift": None,
+            "target_url": target_url,
+            "data_status": "DEGRADED",
+            "source": "lighthouse:placeholder",
+            "data_window": "",
             "degraded_reason": reason,
-            "performance_score": round(perf, 1),
-            "seo_score": round(seo, 1),
-            "largest_contentful_paint": f"{lcp_s:.1f} s",
-            "cumulative_layout_shift": f"{_stable_unit('cls::' + target_url) * 0.25:.3f}",
         }
 
 

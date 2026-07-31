@@ -155,4 +155,4 @@ class RuntimeSkillCompiler:
         return results
 
 
-__all__ = ["SkillManager", "RuntimeSkillCompiler"]
+__all__ = ["RuntimeSkillCompiler", "SkillManager"]

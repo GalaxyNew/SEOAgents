@@ -9,7 +9,6 @@ Strictly implements design principles & data schema v1.3:
 from __future__ import annotations
 
 import datetime
-import random
 from typing import Any
 from urllib.parse import urlparse
 
@@ -20,7 +19,53 @@ from seoagents.logging import LOGGER
 
 router = APIRouter(prefix="/api/gsc", tags=["gsc"])
 
-SERVICE_ACCOUNT_EMAIL = "igoriptv2-gsc-reader@grounded-style-501621-k3.iam.gserviceaccount.com"
+
+def _previous_window_totals(rt, site: str, start_date, days: int, single_day: str | None) -> dict:
+    """Totals for the equal-length window immediately before the current one.
+
+    Returns an empty dict when the comparison window cannot be fetched, which
+    makes every delta render as "—" instead of inventing a percentage.
+    """
+    try:
+        monitor = rt.registry.get("google_seo_monitor")
+        if monitor is None:
+            return {}
+        span = 1 if single_day else max(int(days), 1)
+        prev_end = start_date - datetime.timedelta(days=1)
+        prev_start = prev_end - datetime.timedelta(days=span - 1)
+        rows = monitor.query_gsc_raw(
+            site_url=site,
+            start_date=prev_start.strftime("%Y-%m-%d"),
+            end_date=prev_end.strftime("%Y-%m-%d"),
+            dimensions=["date"],
+        )
+        if not rows:
+            return {}
+        clicks = float(sum(r.get("clicks", 0) for r in rows))
+        impressions = float(sum(r.get("impressions", 0) for r in rows))
+        weighted = sum(
+            float(r.get("position", 0)) * float(r.get("impressions", 0)) for r in rows
+        )
+        return {
+            "clicks": clicks,
+            "impressions": impressions,
+            "ctr": (clicks / impressions * 100) if impressions else 0.0,
+            "position": (weighted / impressions) if impressions else None,
+        }
+    except Exception as exc:  # noqa: BLE001 - comparison window is best-effort
+        LOGGER.info(f"GSC 对照窗口不可用,同比将显示为 —: {exc}")
+        return {}
+
+def _service_account_email(rt) -> str:
+    """Which identity must be authorised on the GSC property.
+
+    Read from config rather than hardcoded: the previous constant pinned one
+    customer's service account (and its GCP project name) into the source.
+    """
+    try:
+        return rt.config.seo_credentials.google_search_console.service_account_email
+    except Exception:  # noqa: BLE001 - display-only
+        return ""
 
 
 def _fill_days(daily_map: dict[str, dict], start_date: datetime.date, days: int) -> list[dict[str, Any]]:
@@ -173,26 +218,34 @@ async def get_gsc_overview(
 
     sample_status = "INSUFFICIENT_DATA" if total_impressions < 10 else "NORMAL"
 
-    if range_type == "30d":
-        clicks_change, clicks_down = "+700%" if total_clicks > 10 else "+200%", False
-        impr_change, impr_down = "+287%", False
-        ctr_change, ctr_down = "+107%", False
-        pos_change, pos_up = "+76%", True
-    elif range_type == "3m":
-        clicks_change, clicks_down = "+1200%", False
-        impr_change, impr_down = "+450%", False
-        ctr_change, ctr_down = "+85%", False
-        pos_change, pos_up = "+82%", True
-    elif range_type == "24h":
-        clicks_change, clicks_down = "0%", False
-        impr_change, impr_down = "-10%", True
-        ctr_change, ctr_down = "0%", False
-        pos_change, pos_up = "+5%", True
-    else:  # 7d
-        clicks_change, clicks_down = "↓ 71%", True
-        impr_change, impr_down = "↓ 29%", True
-        ctr_change, ctr_down = "↓ 60%", True
-        pos_change, pos_up = "↓ 23%", True
+    # NOTE (data integrity): these four deltas used to be literals selected by
+    # `range_type` — i.e. a function of which button was clicked, not of the
+    # data. They are now computed against a real comparison window of equal
+    # length, and render as "—" when that window is unavailable.
+    prev_totals = _previous_window_totals(rt, site, start_date, days, target_single_day)
+
+    def _delta(current, previous, *, lower_is_better: bool = False):
+        if current is None or previous is None:
+            return {"display": "—", "value": None, "down": False,
+                    "reason": "无等长对照窗口数据,同比不可计算"}
+        if previous == 0:
+            return {"display": "新增" if current else "—", "value": None, "down": False,
+                    "reason": "对照窗口为 0,百分比无定义"}
+        pct = (current - previous) / previous * 100
+        improved = (pct < 0) if lower_is_better else (pct > 0)
+        arrow = "↑" if pct >= 0 else "↓"
+        return {"display": f"{arrow} {abs(pct):.0f}%", "value": round(pct, 1),
+                "down": not improved, "reason": ""}
+
+    clicks_d = _delta(total_clicks, prev_totals.get("clicks"))
+    impr_d = _delta(total_impressions, prev_totals.get("impressions"))
+    ctr_d = _delta(ctr_num, prev_totals.get("ctr"))
+    pos_d = _delta(avg_position, prev_totals.get("position"), lower_is_better=True)
+
+    clicks_change, clicks_down = clicks_d["display"], clicks_d["down"]
+    impr_change, impr_down = impr_d["display"], impr_d["down"]
+    ctr_change, ctr_down = ctr_d["display"], ctr_d["down"]
+    pos_change, pos_up = pos_d["display"], not pos_d["down"]
 
     # Build Real Keywords Dataset from GSC
     top_keywords = []
@@ -215,35 +268,20 @@ async def get_gsc_overview(
                 "delta_position": "-",
             })
 
-    # Fallback/Supplemental site-filtered keywords if anonymized or empty on single date
-    if not top_keywords:
-        site_kw_templates = [
-            f"{domain} iptv",
-            f"{domain} iptv legales españa",
-            f"iptv prueba {brand_name.lower()}",
-            f"{brand_name.lower()} listas m3u",
-            f"que es {brand_name.lower()}",
-            f"hola {domain} es legal",
-            f"{domain} tv legal",
-            f"iptv de pago españa legal",
-            f"contratar {domain} españa legal",
-        ]
-        kw_rng = random.Random(sum(ord(c) for c in domain) + (hash(target_single_day) if target_single_day else days))
-        for idx, template in enumerate(site_kw_templates):
-            kw_c = kw_rng.randint(0, max(1, int(total_clicks * 0.4))) if idx == 0 else kw_rng.randint(0, max(1, int(total_clicks * 0.15)))
-            kw_impr = kw_rng.randint(1, max(2, int(total_impressions * 0.3))) if idx < 3 else kw_rng.randint(1, 10)
-            kw_ctr = f"{round((kw_c / kw_impr * 100), 1)}%" if kw_impr > 0 else "0.0%"
-            kw_pos = round(1.2 + idx * 2.5 + kw_rng.random() * 1.5, 1)
-            top_keywords.append({
-                "keyword": template,
-                "is_new": idx < 3,
-                "clicks": kw_c,
-                "delta_clicks": f"+{kw_c}" if kw_c > 0 else "0",
-                "impressions": kw_impr,
-                "ctr": kw_ctr,
-                "position": kw_pos,
-                "delta_position": "-",
-            })
+    # NOTE (data integrity): this block used to synthesise 9 plausible Spanish
+    # IPTV keywords with seeded-random clicks/impressions/positions whenever GSC
+    # returned nothing, and the rows were indistinguishable from real ones in
+    # the UI. GSC legitimately returns nothing for low-volume or anonymised
+    # queries — normal Google behaviour, not a failure. The honest rendering is
+    # an empty state carrying the reason.
+    keywords_status = "REAL" if top_keywords else "DATA_UNAVAILABLE"
+    keywords_reason = (
+        ""
+        if top_keywords
+        else (
+            "GSC 在该时间窗返回空,或查询已被 Google 匿名化(低量查询的正常行为,不是故障)。"
+        )
+    )
 
     # Build Real Landing Pages Dataset from GSC
     landing_pages = []
@@ -305,7 +343,7 @@ async def get_gsc_overview(
         "domain_name": domain,
         "gsc_property": target_prop,
         "brand_name": brand_name,
-        "service_account_email": SERVICE_ACCOUNT_EMAIL,
+        "service_account_email": _service_account_email(rt),
         "date_range": f"锁定单日 ({target_single_day})" if target_single_day else date_range_str,
         "single_date": target_single_day,
         "range_type": range_type,
@@ -324,8 +362,14 @@ async def get_gsc_overview(
                 "is_up": pos_up,
             },
         },
+        "data_status": "REAL" if is_real else "UNAVAILABLE",
+        "data_status_reason": (
+            "" if is_real else "未接入真实 GSC 数据源,面板不展示任何推算值"
+        ),
         "trend_series": trend_series,
         "top_keywords": top_keywords,
+        "keywords_status": keywords_status,
+        "keywords_reason": keywords_reason,
         "landing_pages": landing_pages,
         "countries": countries,
         "footer_status": {

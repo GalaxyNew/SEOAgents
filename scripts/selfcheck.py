@@ -129,7 +129,9 @@ async def check_executor():
     class Echo(BaseToolSpec):
         def get_name(self): return "echo"
         def get_schema(self): return {"name": "echo", "description": "", "parameters": {}}
-        async def execute(self, arguments, session_id): return {"ok": True}
+        async def execute(self, arguments, session_id):
+            from seoagents.quality import real
+            return real({"ok": True}, source="echo")
 
     class Slow(BaseToolSpec):
         def get_name(self): return "slow"
@@ -143,7 +145,17 @@ async def check_executor():
     ex = ToolExecutor(reg, SandboxPolicy(SandboxConfig(execution_timeout_seconds=1,
                                                        denied_tools=("echo2",))))
     ok = await ex.execute_one(ToolCall(name="echo"))
-    assert ok.ok and '"ok": true' in ok.content
+    assert ok.ok and '"ok": true' in ok.content and '"data_status": "REAL"' in ok.content
+
+    # Gate 1: a spec that omits data_status must be refused, loudly.
+    class Sloppy(BaseToolSpec):
+        def get_name(self): return "sloppy"
+        def get_schema(self): return {"name": "sloppy", "description": "", "parameters": {}}
+        async def execute(self, arguments, session_id): return {"value": 42}
+
+    reg.register(Sloppy())
+    bad = await ex.execute_one(ToolCall(name="sloppy"))
+    assert not bad.ok and "data_status" in bad.error, bad
     slow = await ex.execute_one(ToolCall(name="slow"))
     assert not slow.ok and "exceeded" in slow.error
     missing = await ex.execute_one(ToolCall(name="ghost"))
@@ -155,7 +167,7 @@ async def check_linker():
     from seoagents.tools.internal_linker import InternalLinkerSpec
 
     spec = InternalLinkerSpec()
-    out = json.loads(await spec.execute(
+    out = (await spec.execute(
         {"source_html": "<p>Try our seo agent with flexible pricing.</p>",
          "target_pages": [
              {"url": "/features", "anchor_candidates": ["seo agent"]},
@@ -165,7 +177,7 @@ async def check_linker():
     assert out["linked_links_injected"] == 2, out
     assert '<a href="/features"' in out["optimized_html"]
 
-    out2 = json.loads(await spec.execute(
+    out2 = (await spec.execute(
         {"source_html": '<a href="/f">seo agent</a>',
          "target_pages": [{"url": "/x", "anchor_candidates": ["seo agent"]}]},
         "sc",
@@ -197,27 +209,33 @@ async def check_pipeline():
     assert "<a href=" in pipe.optimized_html, pipe.optimized_html[:200]
 
 
-@check("L2+L5+L6+L7 evolution pipeline: score, persist, fix links, compile & replay skill")
+@check("L2+L6 evolution pipeline: closes the loop, refuses to score unreal data")
 async def check_evolution():
+    """Without credentials the loop must complete and produce NO score.
+
+    Every input is UNAVAILABLE, so an M_t here could only be assembled from
+    substituted values — which is exactly what this build removed.
+    """
     from seoagents.agent.runtime import Runtime
     from seoagents.config import ConfigStore
     from seoagents.cron.seo_evo_jobs import FIX_SKILL_ID, run_seo_self_evolution_pipeline
 
-    ConfigStore.get_instance().update({"scoring": {"skill_compile_threshold": 1.0}})
+    # Threshold 0 would compile a skill on any score at all; nothing should be
+    # compiled anyway, because there is no score.
+    ConfigStore.get_instance().update({"scoring": {"skill_compile_threshold": 0.0}})
     rt = Runtime.from_config_store(ConfigStore.get_instance())
     summary = await run_seo_self_evolution_pipeline(rt)
 
-    assert summary["clicks"] > 0
-    assert summary["dead_links"] >= 1 and summary["links_fixed"] == summary["dead_links"]
-    assert summary["v_t"] is not None
-    assert summary["compiled_skill"] == FIX_SKILL_ID
+    assert summary["trace_len"] >= 5, "流水线必须跑完"
+    assert summary["m_t"] is None, f"无凭证却产出了分数: {summary['m_t']}"
+    assert summary["score_status"] == "PARTIAL"
+    assert summary["excluded_inputs"], "必须说明哪些输入导致拒绝计分"
+    assert summary["v_t"] is None, "AEO 不得补零"
+    assert summary["links_fixed"] == 0, "未经线上验证不得标记修复"
+    assert summary["compiled_skill"] is None, "不得从不可计分的 trace 固化技能"
 
-    runs = rt.store.recent_audit_runs()
-    assert runs and runs[0]["m_t"] == summary["m_t"]
-    assert rt.store.latest_serp_positions() and rt.store.latest_aeo_visibility()
-
-    replay = await rt.skill_compiler.execute_skill(FIX_SKILL_ID, rt.executor)
-    assert replay and all(step["ok"] for step in replay)
+    assert rt.store.recent_audit_runs() == [], "不得写入 NULL 分数记录"
+    assert rt.skill_manager.get(FIX_SKILL_ID) is None
 
 
 @check("L7 storage: AtomicJsonStore / AtomicJsonlStore")

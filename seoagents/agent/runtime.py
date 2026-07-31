@@ -26,7 +26,7 @@ from seoagents.tools.executor import ToolExecutor
 from seoagents.utils.event_bus import EventBus
 
 _runtime_lock = threading.Lock()
-_runtime: "Runtime | None" = None
+_runtime: Runtime | None = None
 
 
 @dataclass
@@ -47,7 +47,7 @@ class Runtime:
     event_bus: EventBus
 
     @classmethod
-    def from_config_store(cls, config_store: ConfigStore | None = None) -> "Runtime":
+    def from_config_store(cls, config_store: ConfigStore | None = None) -> Runtime:
         config_store = config_store or ConfigStore.get_instance()
         config = config_store.snapshot()
 
@@ -99,7 +99,7 @@ class Runtime:
 
         return await mount_mcp_servers(self.registry, self.config.mcp_servers)
 
-    def reload_config(self) -> "Runtime":
+    def reload_config(self) -> Runtime:
         """Reload configuration snapshot and rebuild runtime sub-objects."""
         self.config_store.reload()
         new_rt = Runtime.from_config_store(self.config_store)

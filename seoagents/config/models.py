@@ -6,8 +6,9 @@ Unknown YAML keys are ignored so the file may carry forward-compat sections.
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Any, Mapping
+from typing import Any
 
 
 def _get(d: Mapping[str, Any] | None, key: str, default: Any = None) -> Any:
@@ -22,7 +23,7 @@ class AppConfig:
     port: int = 8765
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "AppConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> AppConfig:
         return cls(host=str(_get(d, "host", cls.host)), port=int(_get(d, "port", cls.port)))
 
 
@@ -33,7 +34,7 @@ class LLMProviderConfig:
     base_url: str = ""
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "LLMProviderConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> LLMProviderConfig:
         return cls(
             api_key=str(_get(d, "api_key", "") or ""),
             model=str(_get(d, "model", "") or ""),
@@ -53,7 +54,7 @@ class LLMProvidersConfig:
     openai_compat: LLMProviderConfig = field(default_factory=LLMProviderConfig)
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "LLMProvidersConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> LLMProvidersConfig:
         return cls(
             default_provider=str(_get(d, "default_provider", "anthropic")),
             anthropic=LLMProviderConfig.from_dict(_get(d, "anthropic")),
@@ -72,7 +73,7 @@ class MCPServerConfig:
     env: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_dict(cls, name: str, d: Mapping[str, Any] | None) -> "MCPServerConfig":
+    def from_dict(cls, name: str, d: Mapping[str, Any] | None) -> MCPServerConfig:
         return cls(
             name=name,
             command=str(_get(d, "command", "")),
@@ -83,14 +84,32 @@ class MCPServerConfig:
 
 @dataclass(frozen=True)
 class GSCCredentialsConfig:
+    """Search Console credentials.
+
+    Two mutually exclusive auth modes, both explicit:
+
+    * **service account** — ``service_account_path`` points at the JSON key.
+      Preferred for unattended servers: no browser consent, no token refresh.
+      The service-account email must be added as a user on the GSC property.
+    * **user OAuth** — ``client_secrets_path`` + ``token_path``, for local
+      interactive use.
+
+    ``service_account_email`` is optional and only used for display (so the
+    dashboard can tell you *which* identity to authorise on the property).
+    """
+
+    service_account_path: str = ""
     client_secrets_path: str = "~/.dojo/gsc_client_secrets.json"
     token_path: str = "~/.dojo/gsc_token.json"
+    service_account_email: str = ""
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "GSCCredentialsConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> GSCCredentialsConfig:
         return cls(
+            service_account_path=str(_get(d, "service_account_path", "") or ""),
             client_secrets_path=str(_get(d, "client_secrets_path", cls.client_secrets_path)),
             token_path=str(_get(d, "token_path", cls.token_path)),
+            service_account_email=str(_get(d, "service_account_email", "") or ""),
         )
 
 
@@ -102,7 +121,7 @@ class SeoCredentialsConfig:
     seonaut_endpoint: str = "http://localhost:8080"
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "SeoCredentialsConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SeoCredentialsConfig:
         return cls(
             google_search_console=GSCCredentialsConfig.from_dict(_get(d, "google_search_console")),
             google_pagespeed_api_key=str(_get(d, "google_pagespeed_api_key", "") or ""),
@@ -117,7 +136,7 @@ class ContentPageConfig:
     anchor_candidates: tuple[str, ...] = ()
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any]) -> "ContentPageConfig":
+    def from_dict(cls, d: Mapping[str, Any]) -> ContentPageConfig:
         return cls(
             url=str(_get(d, "url", "")),
             anchor_candidates=tuple(str(a) for a in (_get(d, "anchor_candidates", []) or [])),
@@ -134,7 +153,7 @@ class SiteItemConfig:
     tracked_keywords: tuple[str, ...] = ("seo agent", "aeo monitoring")
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "SiteItemConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SiteItemConfig:
         if not isinstance(d, Mapping):
             return cls()
         kws = tuple(str(k) for k in (_get(d, "tracked_keywords", []) or [])) or ("seo agent", "aeo monitoring")
@@ -158,7 +177,7 @@ class SitesConfig:
     monitored_sites: tuple[SiteItemConfig, ...] = ()
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "SitesConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SitesConfig:
         pages = tuple(
             ContentPageConfig.from_dict(p) for p in (_get(d, "content_pages", []) or []) if isinstance(p, Mapping)
         )
@@ -202,7 +221,7 @@ class ScoringConfig:
     skill_compile_threshold: float = 150.0
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "ScoringConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> ScoringConfig:
         return cls(
             alpha=float(_get(d, "alpha", cls.alpha)),
             beta=float(_get(d, "beta", cls.beta)),
@@ -221,7 +240,7 @@ class AEOConfig:
     )
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "AEOConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> AEOConfig:
         shares = _get(d, "engine_shares")
         if isinstance(shares, Mapping) and shares:
             return cls(engine_shares={str(k): float(v) for k, v in shares.items()})
@@ -241,7 +260,7 @@ class SandboxConfig:
     denied_tools: tuple[str, ...] = ()
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "SandboxConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SandboxConfig:
         hosts = tuple(str(h) for h in (_get(d, "allow_network_hosts", []) or [])) or cls.allow_network_hosts
         return cls(
             allow_network_hosts=hosts,
@@ -257,7 +276,7 @@ class GatewayConfig:
     slack_webhook_url: str = ""
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "GatewayConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> GatewayConfig:
         return cls(
             feishu_webhook_url=str(_get(d, "feishu_webhook_url", "") or ""),
             slack_webhook_url=str(_get(d, "slack_webhook_url", "") or ""),
@@ -271,7 +290,7 @@ class SchedulerConfig:
     enabled: bool = True
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "SchedulerConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SchedulerConfig:
         return cls(
             evolution_hour=int(_get(d, "evolution_hour", 2)),
             evolution_minute=int(_get(d, "evolution_minute", 0)),
@@ -285,7 +304,7 @@ class StorageConfig:
     skills_dir: str = "~/.dojo/skills"
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "StorageConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> StorageConfig:
         return cls(
             data_dir=str(_get(d, "data_dir", cls.data_dir)),
             skills_dir=str(_get(d, "skills_dir", cls.skills_dir)),
@@ -307,7 +326,7 @@ class SeoAgentsConfig:
     storage: StorageConfig = field(default_factory=StorageConfig)
 
     @classmethod
-    def from_dict(cls, d: Mapping[str, Any] | None) -> "SeoAgentsConfig":
+    def from_dict(cls, d: Mapping[str, Any] | None) -> SeoAgentsConfig:
         d = d or {}
         mcp_raw = _get(d, "mcp_servers", {}) or {}
         mcp = tuple(
