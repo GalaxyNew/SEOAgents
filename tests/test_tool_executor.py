@@ -8,6 +8,7 @@ import pytest
 
 from seoagents.agent.models import ToolCall
 from seoagents.config.models import SandboxConfig
+from seoagents.quality import real
 from seoagents.tools.base import BaseToolSpec, ToolRegistry
 from seoagents.tools.environments.sandbox import SandboxPolicy
 from seoagents.tools.executor import ToolExecutor, active_session_id
@@ -21,7 +22,7 @@ class _EchoSpec(BaseToolSpec):
         return {"name": "echo", "description": "", "parameters": {"type": "object", "properties": {}}}
 
     async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
-        return {"echo": arguments.get("msg", ""), "session": active_session_id.get()}
+        return real({"echo": arguments.get("msg", ""), "session": active_session_id.get()}, source="echo")
 
 
 class _SlowSpec(BaseToolSpec):

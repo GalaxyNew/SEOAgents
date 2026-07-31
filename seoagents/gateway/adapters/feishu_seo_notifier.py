@@ -24,21 +24,41 @@ class FeishuSeoNotifierAdapter(BaseGatewayAdapter):
         self.webhook_url = webhook_url.strip()
 
     def _build_card(
-        self, *, m_t_score: float, performance: float, links_fixed: int,
+        self, *, m_t_score: float | None, performance: float | None, links_fixed: int,
         extra: dict[str, Any] | None,
     ) -> dict[str, Any]:
+        """Render the evolution digest.
+
+        ``None`` metrics are rendered as an explicit "not computable" line with
+        the reason. They are never formatted as 0.00 — a zero here reads as
+        "measured, and it is bad", which is a different and much worse message
+        than "we could not measure".
+        """
         extra = extra or {}
-        healthy = m_t_score > 100
-        lines = [
-            f"**📈 综合演化评分 M_t:** {m_t_score:.2f}",
-            f"**⚡ Lighthouse 性能分:** {performance:.0f} / 100",
-            f"**🔗 本轮修复死链:** {links_fixed} 条",
-        ]
-        if "v_t" in extra:
+        healthy = m_t_score is not None and m_t_score > 100
+        if m_t_score is None:
+            excluded = ", ".join(extra.get("excluded_inputs", [])) or "未知"
+            lines = [
+                "**📈 综合演化评分 M_t:** 不可计算(DATA_UNAVAILABLE)",
+                f"**⚠️ 原因:** 以下输入非 REAL —— {excluded}",
+            ]
+        else:
+            lines = [f"**📈 综合演化评分 M_t:** {m_t_score:.2f}"]
+        lines.append(
+            f"**⚡ Lighthouse 性能分:** {performance:.0f} / 100"
+            if performance is not None
+            else "**⚡ Lighthouse 性能分:** 未采集到"
+        )
+        lines.append(f"**🔗 本轮已验证修复死链:** {links_fixed} 条")
+        if extra.get("links_proposed"):
+            lines.append(
+                f"**📝 待部署 301 提案:** {extra['links_proposed']} 条(未部署前不计入修复)"
+            )
+        if extra.get("v_t") is not None:
             lines.append(f"**🤖 AEO 品牌可见度 V_t:** {extra['v_t']:.2%}")
         if "issues" in extra:
             lines.append(f"**🧪 技术审计问题数:** {extra['issues']}")
-        if "compiled_skill" in extra and extra["compiled_skill"]:
+        if extra.get("compiled_skill"):
             lines.append(f"**🧬 新固化技能:** `{extra['compiled_skill']}`")
         lines.append(f"\n_生成时间: {time.strftime('%Y-%m-%d %H:%M:%S')}_")
 
@@ -66,7 +86,7 @@ class FeishuSeoNotifierAdapter(BaseGatewayAdapter):
         }
 
     async def broadcast_evolution_alert(
-        self, *, m_t_score: float, performance: float, links_fixed: int,
+        self, *, m_t_score: float | None, performance: float | None, links_fixed: int,
         extra: dict[str, Any] | None = None,
     ) -> bool:
         payload = self._build_card(

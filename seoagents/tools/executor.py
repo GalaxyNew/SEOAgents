@@ -13,6 +13,7 @@ from typing import Any
 
 from seoagents.agent.models import ToolCall, ToolResult
 from seoagents.logging import LOGGER
+from seoagents.quality import DataIntegrityError, validate_tool_output
 from seoagents.tools.base import ToolRegistry
 from seoagents.tools.environments.sandbox import SandboxPolicy, SandboxViolation
 
@@ -20,9 +21,23 @@ active_session_id: ContextVar[str] = ContextVar("active_session_id", default="")
 
 
 class ToolExecutor:
-    def __init__(self, registry: ToolRegistry, sandbox: SandboxPolicy) -> None:
+    """Gate 1 of the data-integrity contract lives here.
+
+    Validating centrally (rather than per-spec) means a newly added tool cannot
+    bypass the ``data_status`` requirement by forgetting to declare it — the
+    executor refuses the result and the failure is loud instead of silent.
+    """
+
+    def __init__(
+        self,
+        registry: ToolRegistry,
+        sandbox: SandboxPolicy,
+        *,
+        enforce_data_status: bool = True,
+    ) -> None:
         self.registry = registry
         self.sandbox = sandbox
+        self.enforce_data_status = enforce_data_status
 
     async def execute_one(self, call: ToolCall, *, session_id: str = "") -> ToolResult:
         spec = self.registry.get(call.name)
@@ -42,11 +57,17 @@ class ToolExecutor:
                 timeout=self.sandbox.timeout_seconds,
             )
             latency_ms = int((time.perf_counter() - started_at) * 1000)
-            return self._coerce_result(call, raw, latency_ms=latency_ms)
+            result = self._coerce_result(call, raw, latency_ms=latency_ms)
+            if self.enforce_data_status and result.ok:
+                validate_tool_output(call.name, result.content)
+            return result
+        except DataIntegrityError as exc:
+            LOGGER.error(f"Data-integrity violation from '{call.name}': {exc}")
+            return ToolResult(call_id=call.id, name=call.name, ok=False, error=str(exc))
         except SandboxViolation as exc:
             LOGGER.warning(f"Sandbox violation on '{call.name}': {exc}")
             return ToolResult(call_id=call.id, name=call.name, ok=False, error=str(exc))
-        except asyncio.TimeoutError:
+        except (TimeoutError, asyncio.TimeoutError):  # noqa: UP041 - 3.10 compat
             LOGGER.error(
                 f"Tool '{call.name}' exceeded sandbox limit of {self.sandbox.timeout_seconds}s"
             )

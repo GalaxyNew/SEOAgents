@@ -17,3 +17,7 @@ seoagents/dashboard/static/app/
 .env
 *.tsbuildinfo
 Docs/*.json
+
+# local dev virtualenvs
+.venv*/
+venv/

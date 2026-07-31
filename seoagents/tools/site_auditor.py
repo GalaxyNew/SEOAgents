@@ -9,7 +9,6 @@ audited instead so the pipeline always produces findings.
 from __future__ import annotations
 
 import asyncio
-import json
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
@@ -18,9 +17,10 @@ from bs4 import BeautifulSoup
 
 from seoagents.config.models import SeoAgentsConfig
 from seoagents.logging import LOGGER
+from seoagents.quality import degraded, real, window_iso
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
-from seoagents.tools.environments.sandbox import SandboxPolicy
+from seoagents.tools.environments.sandbox import SandboxPolicy, SandboxViolation
 
 # RFC 2606 reserved documentation domains always audit the built-in demo
 # snapshot — the placeholder config stays deterministic and offline-safe.
@@ -88,10 +88,22 @@ class SiteAuditorSpec(BaseToolSpec):
         start_url = str(arguments.get("start_url") or self.site_url).rstrip("/") or self.site_url
         max_pages = min(int(arguments.get("max_pages", 25)), 100)
         host = urlparse(start_url).hostname or ""
+        started = window_iso()
 
-        use_live = host not in DEMO_HOSTS and self.sandbox.is_host_allowed(start_url)
+        # Two very different situations used to collapse into one silent
+        # fallback. Auditing example.com against the built-in snapshot is
+        # intended. Auditing a *real* site that someone forgot to allowlist and
+        # silently getting the snapshot's planted defects back is not — you
+        # receive a "3 broken links" report about a site that does not exist.
+        is_demo = host in DEMO_HOSTS
+        if not is_demo and not self.sandbox.is_host_allowed(start_url):
+            raise SandboxViolation(
+                f"host '{host}' 不在沙箱白名单中,拒绝审计。"
+                f"这不是降级路径:若确需审计该站点,请将其加入 sandbox.allowed_hosts。"
+            )
+        use_live = not is_demo
         if not use_live:
-            reason = "reserved demo domain" if host in DEMO_HOSTS else "not in sandbox allowlist"
+            reason = "reserved demo domain (RFC 2606)"
             LOGGER.info(f"Host '{host}' {reason} — auditing built-in demo snapshot")
         report = await self._crawl(start_url, max_pages, live=use_live)
 
@@ -105,7 +117,18 @@ class SiteAuditorSpec(BaseToolSpec):
             f"{len(report['issues'])} issues, {len(report['dead_links'])} dead links "
             f"session={session_id}"
         )
-        return json.dumps(report, ensure_ascii=False)
+        report["mode"] = "live_crawl" if use_live else "demo_snapshot"
+        if use_live:
+            return real(report, source=f"site_auditor:{host}", data_window=started)
+        return degraded(
+            report,
+            source="site_auditor:demo_snapshot",
+            reason=(
+                "审计的是内置演示快照(RFC 2606 保留域),不是真实站点。"
+                "其中的死链与缺陷是刻意植入的测试数据,不得作为任何结论的依据。"
+            ),
+            data_window=started,
+        )
 
     # -- crawling ----------------------------------------------------------
     async def _crawl(self, start_url: str, max_pages: int, *, live: bool) -> dict[str, Any]:
@@ -218,4 +241,4 @@ class SiteAuditorSpec(BaseToolSpec):
         return issues
 
 
-__all__ = ["SiteAuditorSpec", "DEMO_SITE", "DEMO_HOSTS"]
+__all__ = ["DEMO_HOSTS", "DEMO_SITE", "SiteAuditorSpec"]

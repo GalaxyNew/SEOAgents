@@ -9,10 +9,10 @@ import re
 from typing import Any
 from urllib.parse import parse_qs, unquote, urlparse
 
-from fastapi import FastAPI, Query
-from bs4 import BeautifulSoup
 import httpx
 import uvicorn
+from bs4 import BeautifulSoup
+from fastapi import FastAPI, Query
 
 app = FastAPI(title="OpenSERP Native Service", version="1.0.0")
 

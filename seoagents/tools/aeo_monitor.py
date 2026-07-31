@@ -1,49 +1,86 @@
 """AeoVisibilitySpec (L4) — GEO/AEO brand visibility across AI answer engines.
 
-Implements the manual §6.1 V_t model (searchstack-aeo style probing):
-each engine e in {chatgpt, claude, perplexity, google_aio} is probed for the
-brand's first-screen mention rate M_e, then V_t = Σ S_e · M_e is computed by
-the L6 scoring engine and persisted. Real probing requires per-engine API
-access; without credentials the spec produces deterministic mock rates with a
-gentle upward drift by day so dashboards show a meaningful series.
+Implements the V_t model::
+
+    V_t = Σ_e S_e · M_e     e ∈ {chatgpt, claude, perplexity, google_aio}
+
+**What changed and why.** The previous implementation derived every mention rate
+from ``sha256(engine + brand + query)`` plus ``drift = (day_bucket % 30) * 0.005``
+— a hash with a built-in daily upward trend. It reported ``"source": "mock_probe"``
+in its own payload, but that field was dropped as the number travelled into the
+M_t summary and the Feishu digest. The visible effect was an "AI visibility"
+metric that improved every single day regardless of anything anyone did.
+
+There is no acceptable synthetic substitute for this measurement, so there is no
+fallback any more. Without a configured probe the tool reports UNAVAILABLE.
+
+Real probes plug in through :class:`EngineProbe`. Each probe must return the
+brand mention rate *and* the evidence needed to re-check it later: AI answers
+change fast, so a rate without a model version and a timestamp is not a
+measurement, it is a rumour.
 """
 from __future__ import annotations
 
-import hashlib
-import json
-import time
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from seoagents.config.models import SeoAgentsConfig
 from seoagents.logging import LOGGER
+from seoagents.quality import DataStatus, real, unavailable, window_iso, worst_status
 from seoagents.quant.scoring import SeoScoreEngine
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
 
 
-def _stable_rate(seed: str) -> float:
-    digest = hashlib.sha256(seed.encode("utf-8")).digest()
-    return int.from_bytes(digest[:4], "big") / 2**32
+class ProbeUnavailable(RuntimeError):
+    """Raised by a probe that cannot measure right now (no creds, quota, outage)."""
+
+
+@runtime_checkable
+class EngineProbe(Protocol):
+    """One AI answer engine's visibility probe.
+
+    Implementations live outside this module (DataForSEO AI Overview parsing,
+    OpenAI / Perplexity / Gemini APIs with a fixed prompt set, ...).
+    """
+
+    engine: str
+    model_version: str
+
+    async def measure(self, brand: str, queries: list[str]) -> dict[str, Any]:
+        """Return ``{"mention_rate": float, "hits": int, "total": int, "evidence": {...}}``.
+
+        Raise :class:`ProbeUnavailable` when the measurement cannot be taken.
+        """
+        ...
 
 
 class AeoVisibilitySpec(BaseToolSpec):
     """AI 搜索引擎品牌可见度探测 (AEO/GEO 监控)."""
 
-    def __init__(self, config: SeoAgentsConfig, store: SeoHistoryStore | None = None) -> None:
+    def __init__(
+        self,
+        config: SeoAgentsConfig,
+        store: SeoHistoryStore | None = None,
+        probes: dict[str, EngineProbe] | None = None,
+    ) -> None:
         self.brand = config.sites.brand_name
         self.keywords = list(config.sites.tracked_keywords)
         self.engine_shares = dict(config.aeo.engine_shares)
         self.store = store
+        self.probes: dict[str, EngineProbe] = dict(probes or {})
 
     def get_name(self) -> str:
         return "aeo_visibility_monitor"
 
     def get_schema(self) -> dict[str, Any]:
+        configured = sorted(self.probes) or ["(none configured)"]
         return {
             "name": "aeo_visibility_monitor",
             "description": (
                 "探测品牌在 ChatGPT/Claude/Perplexity/Google AIO 等 AI 引擎首屏摘要中的"
                 "提及展现率 M_e,并按市场占有率权重 S_e 计算综合可见度 V_t = Σ S_e·M_e。"
+                f" 当前已配置探测器: {', '.join(configured)}。"
+                " 未配置探测器时返回 DATA_UNAVAILABLE,不产生任何估算值。"
             ),
             "parameters": {
                 "type": "object",
@@ -59,44 +96,109 @@ class AeoVisibilitySpec(BaseToolSpec):
             },
         }
 
-    async def execute(self, arguments: dict[str, Any], session_id: str) -> str:
+    def register_probe(self, probe: EngineProbe) -> None:
+        """Attach a real engine probe. Called during runtime composition."""
+        self.probes[probe.engine] = probe
+        LOGGER.info(f"AEO probe registered: {probe.engine} ({probe.model_version})")
+
+    async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         brand = str(arguments.get("brand") or self.brand)
         queries = list(arguments.get("queries") or [f"best {kw}" for kw in self.keywords])
 
-        mention_rates = self._probe_mention_rates(brand, queries)
-        visibility = SeoScoreEngine.compute_aeo_visibility(self.engine_shares, mention_rates)
+        if not self.probes:
+            LOGGER.warning("AEO visibility requested but no engine probes are configured")
+            return unavailable(
+                source="aeo_visibility_monitor",
+                reason=(
+                    "未配置任何 AI 引擎探测器。AEO 可见度无法估算,只能实测。"
+                    "接入方式见方案 07 号文 §5(Google AIO 走 DataForSEO SERP;"
+                    "ChatGPT/Perplexity/Gemini 走各自 API + 固定 prompt 集)。"
+                ),
+                brand=brand,
+                queries=queries,
+                engines_expected=sorted(self.engine_shares),
+            )
 
-        if self.store is not None:
-            for engine, rate in mention_rates.items():
+        started = window_iso()
+        mention_rates: dict[str, float] = {}
+        per_engine_meta: dict[str, dict[str, Any]] = {}
+        statuses: list[DataStatus] = []
+
+        for engine in self.engine_shares:
+            probe = self.probes.get(engine)
+            if probe is None:
+                per_engine_meta[engine] = {
+                    "data_status": DataStatus.UNAVAILABLE.value,
+                    "reason": "该引擎无探测器",
+                }
+                statuses.append(DataStatus.UNAVAILABLE)
+                continue
+            try:
+                measured = await probe.measure(brand, queries)
+            except ProbeUnavailable as exc:
+                per_engine_meta[engine] = {
+                    "data_status": DataStatus.UNAVAILABLE.value,
+                    "reason": str(exc),
+                }
+                statuses.append(DataStatus.UNAVAILABLE)
+                continue
+            except Exception as exc:  # noqa: BLE001 - probe boundary
+                LOGGER.exception(f"AEO probe '{engine}' failed")
+                per_engine_meta[engine] = {
+                    "data_status": DataStatus.UNAVAILABLE.value,
+                    "reason": f"探测异常: {exc}",
+                }
+                statuses.append(DataStatus.UNAVAILABLE)
+                continue
+
+            rate = float(measured["mention_rate"])
+            mention_rates[engine] = rate
+            per_engine_meta[engine] = {
+                "data_status": DataStatus.REAL.value,
+                "hits": measured.get("hits"),
+                "total": measured.get("total"),
+                "model_version": probe.model_version,
+                "evidence": measured.get("evidence", {}),
+            }
+            statuses.append(DataStatus.REAL)
+            if self.store is not None:
                 self.store.record_aeo_visibility(engine=engine, mention_rate=rate, brand=brand)
 
-        LOGGER.info(
-            f"AEO visibility computed V_t={visibility['v_t']} brand={brand} session={session_id}"
-        )
-        return json.dumps(
-            {
-                "brand": brand,
-                "queries": queries,
-                "source": "mock_probe",
-                "mention_rates": mention_rates,
-                **visibility,
-            },
-            ensure_ascii=False,
-        )
+        if not mention_rates:
+            return unavailable(
+                source="aeo_visibility_monitor",
+                reason="所有已配置的探测器均不可用,详见 per_engine",
+                brand=brand,
+                per_engine=per_engine_meta,
+            )
 
-    def _probe_mention_rates(self, brand: str, queries: list[str]) -> dict[str, float]:
-        """Deterministic mock probe. Real engine adapters plug in here."""
-        day_bucket = int(time.time() // 86400)
-        rates: dict[str, float] = {}
-        for engine in self.engine_shares:
-            hits = 0
-            for q in queries or [brand]:
-                base = _stable_rate(f"aeo::{engine}::{brand}::{q}")
-                drift = min(0.25, (day_bucket % 30) * 0.005)  # slow simulated improvement
-                if base + drift > 0.55:
-                    hits += 1
-            rates[engine] = round(hits / max(len(queries), 1), 4)
-        return rates
+        # Only engines that actually reported are weighted, so a dead probe does
+        # not silently drag V_t toward zero.
+        measured_shares = {e: s for e, s in self.engine_shares.items() if e in mention_rates}
+        visibility = SeoScoreEngine.compute_aeo_visibility(measured_shares, mention_rates)
+        overall = worst_status(statuses)
+        payload = {
+            "brand": brand,
+            "queries": queries,
+            "mention_rates": mention_rates,
+            "per_engine": per_engine_meta,
+            "engines_measured": sorted(mention_rates),
+            "engines_missing": sorted(set(self.engine_shares) - set(mention_rates)),
+            **visibility,
+        }
+
+        if overall is DataStatus.REAL:
+            return real(payload, source="aeo_visibility_monitor", data_window=started)
+        return {
+            **payload,
+            "data_status": DataStatus.DEGRADED.value,
+            "source": "aeo_visibility_monitor",
+            "data_window": started,
+            "degraded_reason": (
+                "部分引擎无数据,V_t 仅覆盖 "
+                f"{sorted(mention_rates)};缺失 {sorted(set(self.engine_shares) - set(mention_rates))}"
+            ),
+        }
 
 
-__all__ = ["AeoVisibilitySpec"]
+__all__ = ["AeoVisibilitySpec", "EngineProbe", "ProbeUnavailable"]

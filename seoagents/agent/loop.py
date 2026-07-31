@@ -15,7 +15,6 @@ from seoagents.agent.providers import BaseLLMProvider
 from seoagents.logging import LOGGER
 from seoagents.utils.event_bus import EventBus
 
-
 if TYPE_CHECKING:
     from seoagents.tools.executor import ToolExecutor
 

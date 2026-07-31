@@ -1,0 +1,260 @@
+# SEOAgents tool catalog
+#
+# Every tool the project knows about, installed or not. Verified 2026-07-31
+# against upstream repositories; `status: not_found` entries were named in the
+# source manual but could not be located, and are kept here deliberately so the
+# gap stays visible rather than being quietly dropped from a design document.
+#
+# Adding an entry reserves a slot on the dashboard. It costs nothing: catalog
+# cards issue no requests and consume no resources until the tool is installed.
+
+version: 1
+verified_at: "2026-07-31"
+
+tools:
+  # ───────────────────────── verified & usable ─────────────────────────
+  - id: dataforseo
+    display_name: DataForSEO
+    capabilities: [serp_rank, keyword_research, backlink, aeo_visibility]
+    summary: 商业 SEO 数据 API,官方提供托管 MCP 端点,零部署
+    homepage: https://github.com/dataforseo/mcp-server-typescript
+    license: proprietary (API)
+    cost: per_call
+    what_it_does:
+      - SERP 分析:按 location_code 地理定位抓取,出口 IP 不影响结果
+      - 关键词研究:搜索量、难度、相关词、长尾扩展
+      - 外链审计:引用域、锚文本、新增/流失
+      - On-Page 与域名分析
+      - SERP features 解析,含 Google AI Overview
+    deploy_modes: [hosted_saas, local_docker]
+    recommended_mode: hosted_saas
+    memory_mb: 200
+    disk_mb: 150
+    caveats:
+      - 按调用计费,需设配额上限
+      - 官方托管端点 https://mcp.dataforseo.com/mcp 零部署零内存,优先用它
+    notes: >
+      本项目 SERP/关键词数据链的主力。它从自建基础设施抓取并做地理定位,
+      因此部署节点的出口 IP 不影响结果 —— 这一条让「服务器必须在境外」
+      的约束对 SERP 数据不再成立。
+    status: available
+    verified_at: "2026-07-31"
+
+  - id: openserp
+    display_name: OpenSERP (karust)
+    capabilities: [serp_rank]
+    summary: 自托管多引擎 SERP API,浏览器渲染
+    homepage: https://github.com/karust/openserp
+    license: MIT
+    popularity: 自托管,Docker 镜像 karust/openserp
+    what_it_does:
+      - 六引擎统一 JSON:Google / Bing / Yandex / Baidu / DuckDuckGo / Ecosia
+      - megasearch:一次查询跑多引擎,合并去重
+      - URL 提取:搜索结果 + 目标页 markdown 正文
+      - SERP features 解析(AI summaries / answer boxes)
+      - 代理池、缓存、resilient mode
+    deploy_modes: [local_docker, remote_http]
+    recommended_mode: local_docker
+    memory_mb: 1500
+    disk_mb: 300
+    cost: free
+    caveats:
+      - 浏览器渲染需 shm_size 1GB,否则容器崩溃
+      - 默认端口 7000(手册写的 7070 是错的)
+      - 内存紧张时可选 remote_http 指向另一台机器
+    replaces: [self_written_scraper]
+    notes: >
+      用于交叉验证 DataForSEO。自写的 httpx 直抓版本已删除:固定 UA + 硬编码
+      div.g 类名解析,Google 改前端即静默返回空,而空结果会被上游读成
+      「没排上」→ 名次记 100 → 一次前端改版被记录成排名暴跌。
+    status: available
+    verified_at: "2026-07-31"
+
+  - id: seonaut
+    display_name: SEOnaut
+    capabilities: [site_audit]
+    summary: 开源全站技术审计,按严重度分级
+    homepage: https://github.com/StJudeWasHere/seonaut
+    license: MIT
+    popularity: 710★ · 115 fork · 904 commits
+    what_it_does:
+      - 全站爬取,问题按 critical / high / low 分级
+      - 死链(404)检测
+      - 重定向问题:临时 / 永久 / 循环
+      - meta 标签缺失或重复
+      - 标题层级顺序错误
+      - 历史留存(自带 MySQL)
+    deploy_modes: [local_docker, remote_http]
+    recommended_mode: local_docker
+    memory_mb: 1300
+    disk_mb: 2000
+    cost: free
+    caveats:
+      - 官方镜像在 GHCR:ghcr.io/stjudewashere/seonaut,不在 Docker Hub
+      - 环境变量是 SEONAUT_DATABASE_*,不是 SEONAUT_DB_*
+      - 需要 command 'sh -c "/bin/wait && /app/seonaut"' + WAIT_HOSTS 做启动等待
+      - 需搭配 MySQL 8.4,内存占用含数据库
+      - 是否提供可编程调用的 REST API 待实测确认;若无则从 MySQL 直读结果表
+    status: available
+    verified_at: "2026-07-31"
+
+  - id: python_seo_analyzer
+    display_name: python-seo-analyzer
+    capabilities: [page_audit, site_audit]
+    summary: 站点结构分析 + 正文词频 + 技术问题告警
+    homepage: https://github.com/sethblack/python-seo-analyzer
+    license: BSD
+    popularity: 1.3k★
+    what_it_does:
+      - 爬取站点并统计正文词频
+      - on-page 技术问题告警
+      - 支持 sitemap 播种 URL 列表
+      - 可选 LLM 内容分析(需 ANTHROPIC_API_KEY)
+    deploy_modes: [local_pip, local_docker]
+    recommended_mode: local_pip
+    memory_mb: 150
+    disk_mb: 80
+    cost: free
+    notes: 与 SEOnaut 分工:SEOnaut 重(全站+历史+UI),本工具轻(单次+词频+JSON)
+    status: available
+    verified_at: "2026-07-31"
+
+  - id: pytrends
+    display_name: pytrends
+    capabilities: [keyword_research]
+    summary: Google Trends 非官方 Python 封装
+    homepage: https://github.com/GeneralMills/pytrends
+    license: Apache-2.0
+    what_it_does:
+      - 关键词飙升趋势(rising queries)
+      - 相关查询与地区热度
+    deploy_modes: [local_pip]
+    recommended_mode: local_pip
+    memory_mb: 80
+    disk_mb: 40
+    cost: free
+    caveats:
+      - 非官方封装,Google Trends 无官方 API,存在限流与随时失效风险
+      - 失败必须标 DATA_UNAVAILABLE,不得回落估算值
+    status: available
+    verified_at: "2026-07-31"
+
+  - id: lighthouse
+    display_name: Lighthouse
+    capabilities: [cwv]
+    summary: Core Web Vitals 与性能/SEO 评分
+    homepage: https://github.com/GoogleChrome/lighthouse
+    license: Apache-2.0
+    what_it_does:
+      - performance / SEO 评分
+      - LCP、CLS 等 Core Web Vitals
+      - 无头 Chromium 实测
+    deploy_modes: [local_docker, hosted_saas]
+    recommended_mode: local_docker
+    memory_mb: 1200
+    disk_mb: 400
+    cost: free
+    caveats:
+      - 本机模式需 Node + Chromium,约 1.2GB 内存
+      - hosted_saas 指 PageSpeed Insights API,本机零占用
+      - npx 缺失时返回 DATA_UNAVAILABLE,不再产生哈希估算值
+    status: available
+    verified_at: "2026-07-31"
+
+  - id: google_search_console
+    display_name: Google Search Console API
+    capabilities: [traffic, indexing]
+    summary: 站点真实流量、查询、收录状态的唯一权威源
+    homepage: https://developers.google.com/webmaster-tools
+    license: proprietary (API)
+    what_it_does:
+      - 点击、展现、CTR、平均排名
+      - 按 query / page / country / device 维度下钻
+      - 收录覆盖与 sitemap 提交
+    deploy_modes: [hosted_saas]
+    recommended_mode: hosted_saas
+    cost: free
+    caveats:
+      - 中国大陆节点不可达,需境外服务器
+      - 低量查询会被匿名化,返回空是正常行为而非故障
+      - 单一数据源,无交叉验证手段 —— 结论需注明「未经交叉验证」
+    status: available
+    verified_at: "2026-07-31"
+
+  # ───────────────────── verified, deliberately not adopted ─────────────────
+  - id: google_searchconsole_wrapper
+    display_name: joshcarty/google-searchconsole
+    capabilities: [traffic]
+    summary: GSC API 的 Python 封装(链式查询 + pandas 输出)
+    homepage: https://github.com/joshcarty/google-searchconsole
+    license: MIT
+    what_it_does:
+      - 简化认证(凭证文件 + 交互式 OAuth2)
+      - 按日期区间与维度过滤的链式查询
+      - 输出 JSON 与 pandas.DataFrame
+    deploy_modes: [local_pip]
+    cost: free
+    notes: >
+      未采用。现有实现直接用 google-api-python-client 调 searchconsole v1,
+      功能等价;多一层封装多一个依赖。保留作参考实现,日后重构查询构造逻辑
+      时可借鉴其链式 query 设计。
+    status: unverified
+    verified_at: "2026-07-31"
+
+  - id: dataseo_mcp_ahrefs
+    display_name: egebese/dataseo-mcp
+    capabilities: [backlink, keyword_research]
+    summary: 基于 Ahrefs 免费工具的 MCP,与 DataForSEO 无关
+    homepage: https://github.com/egebese/dataseo-mcp
+    license: MIT
+    what_it_does:
+      - 外链数据(来自 Ahrefs 免费工具)
+      - 关键词难度、流量估算、关键词建议
+    deploy_modes: [local_pip]
+    cost: free
+    caveats:
+      - 手册把它写成 DataForSEO 数据源,是张冠李戴 —— 它抓的是 Ahrefs 免费页
+      - 依赖免费页面结构,随时可能失效
+    notes: 未采用。已有 DataForSEO 付费凭证,没有理由用抓免费页的社区实现。
+    status: unverified
+    verified_at: "2026-07-31"
+
+  # ─────────────────────────── named but not found ──────────────────────────
+  - id: rankwise
+    display_name: RankWise
+    capabilities: [serp_rank]
+    summary: 手册点名但多轮搜索无任何命中
+    caveats:
+      - 2026-07-31 多轮检索未找到任何对应开源项目
+      - 手册中仅出现一次,且未说明其功能
+      - 不建议依赖;排名追踪已由 DataForSEO + openserp 覆盖
+    notes: 保留此条目是为了让「文档宣称拥有但实际不存在」这件事保持可见。
+    status: not_found
+    verified_at: "2026-07-31"
+
+  - id: claude_seo
+    display_name: akvise/claude-seo
+    capabilities: [page_audit]
+    summary: 手册点名的 E-E-A-T 规则库,未找到
+    caveats:
+      - 2026-07-31 多轮检索未找到该仓库
+    notes: >
+      内置的 eeat_signal_rules.yaml / schema_templates.yaml 保持自写。
+      规则来源应引用 Google 官方 Search Quality Rater Guidelines 与
+      schema.org 官方词表,比引用一个查不到的仓库可靠。
+    status: not_found
+    verified_at: "2026-07-31"
+
+  - id: searchstack_aeo
+    display_name: alexpospekhov/searchstack-aeo
+    capabilities: [aeo_visibility]
+    summary: 手册用于 V_t 模型的 AI 引擎探测器,未找到
+    caveats:
+      - 2026-07-31 多轮检索未找到该仓库
+      - AEO 可见度目前无成熟开源替代,只能自建探测器
+    notes: >
+      自建路径:Google AIO 走 DataForSEO SERP features;ChatGPT / Perplexity /
+      Gemini 走各自 API + 固定 prompt 集。每次探测必须留存证据快照
+      (查询词 + 日期 + 模型版本 + 原始答案),否则结论无法复核。
+    status: not_found
+    verified_at: "2026-07-31"

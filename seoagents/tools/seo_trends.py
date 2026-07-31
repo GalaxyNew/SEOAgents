@@ -9,7 +9,6 @@ Fixed rewrite of manual §4.1:
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 from typing import Any
@@ -18,17 +17,13 @@ import pandas as pd
 
 from seoagents.config.models import SeoAgentsConfig
 from seoagents.logging import LOGGER
+from seoagents.quality import real, unavailable, window_iso
 from seoagents.quant.frames import gsc_rows_to_frame
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
 
 _GSC_SCOPES = ["https://www.googleapis.com/auth/webmasters.readonly"]
 
-
-def _stable_int(seed: str, lo: int, hi: int) -> int:
-    digest = hashlib.sha256(seed.encode("utf-8")).digest()
-    span = max(hi - lo, 1)
-    return lo + int.from_bytes(digest[:4], "big") % span
 
 
 class GoogleSEOMonitorSpec(BaseToolSpec):
@@ -43,6 +38,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         self.store = store
         self._gsc_service: Any = None
         self._pytrends: Any = None
+        self._trend_weights: dict[str, float] = {}
 
     # -- ToolSpec surface --------------------------------------------------
     def get_name(self) -> str:
@@ -82,7 +78,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             },
         }
 
-    async def execute(self, arguments: dict[str, Any], session_id: str) -> str:
+    async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         action = arguments.get("action")
         target_site = arguments.get("target_site") or self.default_site
         keywords = list(arguments.get("keywords") or self.tracked_keywords)
@@ -95,7 +91,9 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
 
         if action == "query_rising_keywords":
             return self._query_rising_keywords(keywords)
-        return f"Error: unknown action '{action}'"
+        return unavailable(
+            source="google_seo_monitor", reason=f"unknown action '{action}'"
+        )
 
     # -- GSC ---------------------------------------------------------------
     def _init_gsc_client(self) -> Any:
@@ -175,12 +173,15 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
 
     def _query_gsc_performance(
         self, target_site: str, days_limit: int, dimensions: list[str] | None = None
-    ) -> str:
+    ) -> dict[str, Any]:
 
         if not target_site:
-            return "Error: target_site must be provided for GSC query."
+            return unavailable(
+                source="google_seo_monitor.gsc",
+                reason="target_site 未提供,无法查询 GSC",
+            )
         rows = None
-        source = "gsc_api"
+        started = window_iso()
         dims = dimensions or ["query", "page"]
         try:
             gsc = self._init_gsc_client()
@@ -198,56 +199,73 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             rows = response.get("rows", [])
 
         except FileNotFoundError as exc:
-            LOGGER.warning(f"GSC credentials missing ({exc}); using deterministic mock dataset")
-            rows, source = self._mock_gsc_rows(target_site), "mock"
-        except ImportError:
-            LOGGER.warning(
-                "google-api-python-client not installed (pip install 'seoagents[google]'); "
-                "using deterministic mock dataset"
+            return unavailable(
+                source="google_seo_monitor.gsc",
+                reason=f"GSC 凭证缺失: {exc}",
+                site=target_site,
             )
-            rows, source = self._mock_gsc_rows(target_site), "mock"
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.exception("GSC query failed; degrading to mock dataset")
-            rows, source = self._mock_gsc_rows(target_site), f"mock (api error: {exc})"
+        except ImportError:
+            return unavailable(
+                source="google_seo_monitor.gsc",
+                reason="google-api-python-client 未安装 (pip install 'seoagents[google]')",
+                site=target_site,
+            )
+        except Exception as exc:  # noqa: BLE001 - API boundary
+            LOGGER.exception("GSC query failed")
+            return unavailable(
+                source="google_seo_monitor.gsc",
+                reason=f"GSC 查询失败: {exc}",
+                site=target_site,
+            )
 
         if not rows:
-            return (
-                f"GSC 接口返回成功,但在 {days_limit} 天范围内,站点 {target_site} "
-                f"没有可导出的展现与点击数据。"
+            # A real, successful query that returned nothing is genuinely
+            # different from a failed one: the site exists in GSC but had no
+            # impressions in the window. Report it as real, with zero rows —
+            # never invent rows to fill the table.
+            return real(
+                {
+                    "site": target_site,
+                    "days": days_limit,
+                    "total_clicks": 0.0,
+                    "total_impressions": 0.0,
+                    "rows": [],
+                    "row_count": 0,
+                    "note": (
+                        f"GSC 查询成功,但 {days_limit} 天窗口内站点 {target_site} "
+                        f"无展现与点击数据。"
+                    ),
+                },
+                source="google_seo_monitor.gsc",
+                data_window=started,
             )
         df = gsc_rows_to_frame(rows)
         total_clicks = float(df["Clicks"].sum())
-        header = (
-            f"[source={source}] site={target_site} days={days_limit} "
-            f"total_clicks={total_clicks:.0f} rows={len(df)}\n\n"
+        total_impr = float(df["Impressions"].sum()) if "Impressions" in df.columns else 0.0
+        return real(
+            {
+                "site": target_site,
+                "days": days_limit,
+                "dimensions": dims,
+                "total_clicks": total_clicks,
+                "total_impressions": total_impr,
+                "row_count": len(df),
+                "rows": df.head(50).to_dict(orient="records"),
+                "markdown": df.head(15).to_markdown(index=False),
+            },
+            source="google_seo_monitor.gsc",
+            data_window=started,
         )
-        return header + df.head(15).to_markdown(index=False)
 
-    def _mock_gsc_rows(self, target_site: str) -> list[dict[str, Any]]:
-        rows = []
-        site_slug = target_site.replace("sc-domain:", "https://")
-        for kw in self.tracked_keywords or ["seo agent"]:
-            clicks = _stable_int(f"clicks::{target_site}::{kw}", 40, 400)
-            impressions = clicks * _stable_int(f"imp::{kw}", 8, 25)
-            position = _stable_int(f"pos::{kw}", 2, 18) + _stable_int(f"posf::{kw}", 0, 9) / 10
-            rows.append(
-                {
-                    "keys": [kw, f"{site_slug}/{kw.replace(' ', '-')}"],
-                    "clicks": clicks,
-                    "impressions": impressions,
-                    "ctr": clicks / impressions,
-                    "position": position,
-                }
-            )
-        return rows
 
-    # -- Trends ------------------------------------------------------------
-    def _query_rising_keywords(self, keywords: list[str]) -> str:
+    def _query_rising_keywords(self, keywords: list[str]) -> dict[str, Any]:
         if not keywords:
-            return "Error: keywords list cannot be empty for trend analysis."
+            return unavailable(
+                source="google_seo_monitor.trends", reason="keywords 为空,无法做趋势分析"
+            )
         summary_output: list[str] = []
         related: dict[str, Any] = {}
-        source = "pytrends"
+        started = window_iso()
         try:
             if self._pytrends is None:
                 from pytrends.request import TrendReq  # lazy optional import
@@ -256,43 +274,53 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             self._pytrends.build_payload(keywords[:5], cat=0, timeframe="today 3-m", geo="US")
             related = self._pytrends.related_queries() or {}
         except ImportError:
-            LOGGER.warning(
-                "pytrends not installed (pip install 'seoagents[trends]'); using mock trends"
+            return unavailable(
+                source="google_seo_monitor.trends",
+                reason="pytrends 未安装 (pip install 'seoagents[trends]')",
+                keywords=keywords,
             )
-            related, source = self._mock_related(keywords), "mock"
-        except Exception as exc:  # noqa: BLE001
-            LOGGER.exception("pytrends query failed; degrading to mock trends")
-            related, source = self._mock_related(keywords), f"mock (api error: {exc})"
+        except Exception as exc:  # noqa: BLE001 - API boundary
+            LOGGER.exception("pytrends query failed")
+            return unavailable(
+                source="google_seo_monitor.trends",
+                reason=f"pytrends 查询失败: {exc}",
+                keywords=keywords,
+            )
 
+        rising: dict[str, Any] = {}
         for kw in keywords:
             kw_trend = related.get(kw) or {}
             rising_df = kw_trend.get("rising")
             if rising_df is not None and hasattr(rising_df, "empty") and not rising_df.empty:
+                rising[kw] = rising_df.head(5).to_dict(orient="records")
                 summary_output.append(
-                    f"### 关键词 '{kw}' 飙升相关搜索 (过去90天) [source={source}]:\n"
+                    f"### 关键词 '{kw}' 飙升相关搜索 (过去90天):\n"
                     + rising_df.head(5).to_markdown(index=False)
                 )
             else:
+                rising[kw] = []
                 summary_output.append(f"### 关键词 '{kw}': 暂未检测到显著飙升的搜索趋势指标。")
-        return "\n\n".join(summary_output)
+        return real(
+            {"keywords": keywords, "rising": rising, "markdown": "\n\n".join(summary_output)},
+            source="google_seo_monitor.trends",
+            data_window=started,
+        )
 
-    def _mock_related(self, keywords: list[str]) -> dict[str, Any]:
-        related: dict[str, Any] = {}
-        for kw in keywords:
-            values = [_stable_int(f"trend::{kw}::{s}", 120, 5000) for s in ("a", "b", "c")]
-            related[kw] = {
-                "rising": pd.DataFrame(
-                    {
-                        "query": [f"{kw} tools", f"best {kw}", f"{kw} pricing"],
-                        "value": sorted(values, reverse=True),
-                    }
-                )
-            }
-        return related
 
     def trend_weight(self, keyword: str) -> float:
-        """Deterministic W_i in [0.6, 2.0] for the scoring engine (mock path)."""
-        return round(0.6 + _stable_int(f"weight::{keyword}", 0, 140) / 100, 2)
+        """W_i for the scoring engine.
+
+        Returns a neutral 1.0 unless a real Trends measurement has been cached
+        by :meth:`_query_rising_keywords`. The previous implementation derived
+        the weight from ``sha256(keyword)``, which made the γ term of M_t a
+        function of keyword spelling rather than of search demand.
+        """
+        cached = self._trend_weights.get(keyword)
+        return float(cached) if cached is not None else 1.0
+
+    def set_trend_weight(self, keyword: str, weight: float) -> None:
+        """Record a measured weight so the scoring engine can use it."""
+        self._trend_weights[keyword] = float(weight)
 
 
 __all__ = ["GoogleSEOMonitorSpec"]

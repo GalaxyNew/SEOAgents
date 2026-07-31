@@ -1,15 +1,23 @@
 """SerpTrackerSpec (L4) — daily Google SERP positions via karust/openserp.
 
-Real mode queries the self-hosted OpenSERP container
-(``GET {endpoint}/google/search?text=...&lang=EN&limit=N`` — note the real
-upstream default port is 7000, not the 7070 written in early drafts of the
-manual). When the endpoint is unreachable the spec emits deterministic mock
-positions so the M_t pipeline still closes.
+Queries the self-hosted OpenSERP container
+(``GET {endpoint}/google/search?text=...&lang=EN&limit=N`` — the real upstream
+default port is 7000, not the 7070 written in early drafts of the manual).
+
+**What changed and why.** Unreachable endpoints used to fall back to
+``_stable_position()``, a sha256 of the keyword mapped into 1..20. Two separate
+problems came out of that: the fabricated rank was indistinguishable from a
+measured one downstream, and — more insidiously — a *parse* failure produced an
+empty result set, which the caller reads as "we looked and the site was not
+ranking", i.e. position 100. One Google front-end change would therefore be
+recorded as a ranking collapse.
+
+Now: unreachable or unparseable means UNAVAILABLE. "Measured but not ranking" is
+a distinct, explicitly flagged outcome (``ranked: false``), because only the
+latter should ever be penalised by the score.
 """
 from __future__ import annotations
 
-import hashlib
-import json
 from typing import Any
 from urllib.parse import urlparse
 
@@ -17,13 +25,9 @@ import httpx
 
 from seoagents.config.models import SeoAgentsConfig
 from seoagents.logging import LOGGER
+from seoagents.quality import DataStatus, real, unavailable, window_iso, worst_status
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
-
-
-def _stable_position(seed: str) -> float:
-    digest = hashlib.sha256(seed.encode("utf-8")).digest()
-    return 1 + int.from_bytes(digest[:4], "big") % 20 + (digest[5] % 10) / 10
 
 
 class SerpTrackerSpec(BaseToolSpec):
@@ -64,20 +68,49 @@ class SerpTrackerSpec(BaseToolSpec):
             },
         }
 
-    async def execute(self, arguments: dict[str, Any], session_id: str) -> str:
+    async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         keywords = list(arguments.get("keywords") or self.tracked_keywords)
         limit = int(arguments.get("limit", 20))
+        started = window_iso()
         results: dict[str, Any] = {}
+        statuses: list[DataStatus] = []
 
         for kw in keywords:
             entry = await self._track_one(kw, limit)
+            statuses.append(DataStatus(entry["data_status"]))
             results[kw] = entry
-            if self.store is not None:
+            # Only persist genuinely measured observations. Writing an
+            # unmeasured keyword into the history table would pollute every
+            # later trend comparison.
+            if self.store is not None and entry["data_status"] == DataStatus.REAL.value:
                 self.store.record_serp_position(
                     keyword=kw, position=entry.get("position"), url=entry.get("url", "")
                 )
         LOGGER.info(f"SERP tracking finished for {len(keywords)} keywords session={session_id}")
-        return json.dumps({"site": self.site_url, "positions": results}, ensure_ascii=False)
+
+        payload = {
+            "site": self.site_url,
+            "positions": results,
+            "engine": "google",
+            "measured": sorted(k for k, v in results.items()
+                               if v["data_status"] == DataStatus.REAL.value),
+        }
+        overall = worst_status(statuses) if statuses else DataStatus.UNAVAILABLE
+        if overall is DataStatus.REAL:
+            return real(payload, source=f"openserp:{self.endpoint}", data_window=started)
+        if overall is DataStatus.UNAVAILABLE and not payload["measured"]:
+            return unavailable(
+                source=f"openserp:{self.endpoint}",
+                reason="全部关键词均未取得实测排名,详见 positions 内每条的 degraded_reason",
+                **payload,
+            )
+        return {
+            **payload,
+            "data_status": DataStatus.DEGRADED.value,
+            "source": f"openserp:{self.endpoint}",
+            "data_window": started,
+            "degraded_reason": "部分关键词未取得实测排名,未测项不得计入评分",
+        }
 
     async def _track_one(self, keyword: str, limit: int) -> dict[str, Any]:
         try:
@@ -88,16 +121,27 @@ class SerpTrackerSpec(BaseToolSpec):
                 )
                 resp.raise_for_status()
                 payload = resp.json()
-        except Exception as exc:  # noqa: BLE001 - network degradation path
-            LOGGER.warning(f"OpenSERP unreachable ({exc}); mock position for '{keyword}'")
-            pos = _stable_position(f"serp::{self.site_host}::{keyword}")
+        except Exception as exc:  # noqa: BLE001 - network boundary
+            LOGGER.warning(f"OpenSERP unreachable for '{keyword}': {exc}")
             return {
-                "position": round(pos, 1),
-                "url": f"{self.site_url}/{keyword.replace(' ', '-')}",
-                "source": "mock",
+                "position": None,
+                "url": "",
+                "ranked": None,
+                "data_status": DataStatus.UNAVAILABLE.value,
+                "degraded_reason": f"OpenSERP 端点不可达: {exc}",
             }
 
         items = payload.get("results", payload if isinstance(payload, list) else [])
+        if not items:
+            # An empty result set is ambiguous: either the parser broke or the
+            # query genuinely returned nothing. Never let it mean "rank 100".
+            return {
+                "position": None,
+                "url": "",
+                "ranked": None,
+                "data_status": DataStatus.UNAVAILABLE.value,
+                "degraded_reason": "SERP 返回空结果集,无法区分「解析失败」与「确实无结果」",
+            }
         for item in items:
             url = str(item.get("url", ""))
             host = urlparse(url).hostname or ""
@@ -105,8 +149,21 @@ class SerpTrackerSpec(BaseToolSpec):
                 rank = item.get("rank") or item.get("position", {})
                 if isinstance(rank, dict):
                     rank = rank.get("absolute")
-                return {"position": float(rank or 0) or None, "url": url, "source": "openserp"}
-        return {"position": None, "url": "", "source": "openserp", "note": "site not in top results"}
+                return {
+                    "position": float(rank or 0) or None,
+                    "url": url,
+                    "ranked": True,
+                    "data_status": DataStatus.REAL.value,
+                }
+        # Measured successfully, site simply is not in the top N. This is a real
+        # observation and the only case the score may penalise.
+        return {
+            "position": None,
+            "url": "",
+            "ranked": False,
+            "checked_top_n": len(items),
+            "data_status": DataStatus.REAL.value,
+        }
 
 
 __all__ = ["SerpTrackerSpec"]

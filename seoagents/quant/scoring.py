@@ -20,26 +20,44 @@ GEO/AEO brand visibility score::
 """
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from typing import Mapping
 
 from seoagents.config.models import ScoringConfig
+from seoagents.quality import DataStatus, all_real, worst_status
 
 MISSING_POSITION = 100.0  # keyword not found in SERP -> treated as position 100
 
 
 @dataclass(frozen=True)
 class ScoreBreakdown:
-    m_t: float
+    """A score, or an explicit refusal to produce one.
+
+    ``m_t is None`` with ``status="PARTIAL"`` means at least one input was not
+    ``REAL``. That is deliberately not a number: an M_t computed from a mock
+    SERP position or an offline Lighthouse estimate looks exactly like a real
+    one, and would then be persisted, charted, and used to decide whether a
+    remediation "worked".
+    """
+
+    m_t: float | None
     clicks_term: float
     index_term: float
     serp_term: float
     error_penalty: float
     inputs: dict = field(default_factory=dict)
+    status: str = "OK"                       # OK | PARTIAL
+    excluded: tuple[str, ...] = ()           # inputs that blocked scoring
+
+    @property
+    def scorable(self) -> bool:
+        return self.m_t is not None
 
     def to_dict(self) -> dict:
         return {
-            "m_t": round(self.m_t, 4),
+            "m_t": round(self.m_t, 4) if self.m_t is not None else None,
+            "status": self.status,
+            "excluded": list(self.excluded),
             "clicks_term": round(self.clicks_term, 4),
             "index_term": round(self.index_term, 4),
             "serp_term": round(self.serp_term, 4),
@@ -60,8 +78,35 @@ class SeoScoreEngine:
         positions: Mapping[str, float | None],
         trend_weights: Mapping[str, float] | None = None,
         error_count: int = 0,
+        sources: Mapping[str, str] | None = None,
     ) -> ScoreBreakdown:
+        """Gate 2 of the data-integrity contract.
+
+        ``sources`` maps each contributing input to its ``data_status``. If any
+        of them is not ``REAL`` the method returns a PARTIAL breakdown with
+        ``m_t=None`` rather than a number computed from untrustworthy inputs.
+        """
         cfg = self.config
+        if sources is not None and not all_real(sources):
+            excluded = tuple(
+                sorted(name for name, st in sources.items() if DataStatus(st) is not DataStatus.REAL)
+            )
+            return ScoreBreakdown(
+                m_t=None,
+                clicks_term=0.0,
+                index_term=0.0,
+                serp_term=0.0,
+                error_penalty=0.0,
+                status="PARTIAL",
+                excluded=excluded,
+                inputs={
+                    "sources": dict(sources),
+                    "worst_status": worst_status(sources.values()).value,
+                    "reason": (
+                        "M_t 拒绝计算:以下输入非 REAL —— " + ", ".join(excluded)
+                    ),
+                },
+            )
         index_ratio = min(max(float(index_ratio), 0.0), 1.0)
         trend_weights = dict(trend_weights or {})
 
@@ -113,8 +158,11 @@ class SeoScoreEngine:
             }
         return {"v_t": round(v_t, 4), "per_engine": per_engine}
 
-    def should_compile_skill(self, m_t: float) -> bool:
+    def should_compile_skill(self, m_t: float | None) -> bool:
+        """Never distil a "high-performing" trace out of unscorable data."""
+        if m_t is None:
+            return False
         return m_t > self.config.skill_compile_threshold
 
 
-__all__ = ["SeoScoreEngine", "ScoreBreakdown", "MISSING_POSITION"]
+__all__ = ["MISSING_POSITION", "ScoreBreakdown", "SeoScoreEngine"]

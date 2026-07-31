@@ -38,7 +38,7 @@ except ImportError:  # pragma: no cover
         def start(self) -> None:
             LOGGER.warning("APScheduler not installed — scheduler start skipped")
 
-        def shutdown(self, wait: bool = False) -> None:  # noqa: ARG002
+        def shutdown(self, wait: bool = False) -> None:
             return
 
     scheduler = _NullScheduler()
@@ -57,4 +57,4 @@ def shutdown_scheduler() -> None:
         LOGGER.info("Scheduler stopped")
 
 
-__all__ = ["scheduler", "start_scheduler", "shutdown_scheduler", "HAS_APSCHEDULER"]
+__all__ = ["HAS_APSCHEDULER", "scheduler", "shutdown_scheduler", "start_scheduler"]

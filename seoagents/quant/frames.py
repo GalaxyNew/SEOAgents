@@ -5,7 +5,8 @@ the keyword-heat and link-weight matrices referenced in the architecture table.
 """
 from __future__ import annotations
 
-from typing import Any, Iterable, Mapping
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 import pandas as pd
 
