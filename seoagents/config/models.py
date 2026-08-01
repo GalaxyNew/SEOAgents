@@ -83,6 +83,23 @@ class MCPServerConfig:
 
 
 @dataclass(frozen=True)
+class CollabConfig:
+    """Which department this instance speaks for in cross-department requests."""
+
+    dept: str = "seo"
+    display_name: str = "SEO 部"
+    endpoint: str = ""
+
+    @classmethod
+    def from_dict(cls, d: Mapping[str, Any] | None) -> CollabConfig:
+        return cls(
+            dept=str(_get(d, "dept", cls.dept)),
+            display_name=str(_get(d, "display_name", cls.display_name)),
+            endpoint=str(_get(d, "endpoint", "") or ""),
+        )
+
+
+@dataclass(frozen=True)
 class GSCCredentialsConfig:
     """Search Console credentials.
 
@@ -324,6 +341,7 @@ class SeoAgentsConfig:
     gateway: GatewayConfig = field(default_factory=GatewayConfig)
     scheduler: SchedulerConfig = field(default_factory=SchedulerConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
+    collab: CollabConfig = field(default_factory=CollabConfig)
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> SeoAgentsConfig:
@@ -344,4 +362,5 @@ class SeoAgentsConfig:
             gateway=GatewayConfig.from_dict(_get(d, "gateway")),
             scheduler=SchedulerConfig.from_dict(_get(d, "scheduler")),
             storage=StorageConfig.from_dict(_get(d, "storage")),
+            collab=CollabConfig.from_dict(_get(d, "collab")),
         )
