@@ -10,6 +10,7 @@ from seoagents.tools.executor import ToolExecutor
 from seoagents.tools.indexing import IndexingOpsSpec
 from seoagents.tools.internal_linker import InternalLinkerSpec
 from seoagents.tools.lighthouse import LighthouseAuditSpec
+from seoagents.tools.platform_ops import PlatformOpsSpec
 from seoagents.tools.seo_trends import GoogleSEOMonitorSpec
 from seoagents.tools.serp_tracker import SerpTrackerSpec
 from seoagents.tools.site_auditor import SiteAuditorSpec
@@ -29,6 +30,8 @@ def register_default_tools(
     registry.register(InternalLinkerSpec())
     registry.register(AeoVisibilitySpec(config, store))
     registry.register(IndexingOpsSpec(config, store))
+    # The department head manages its own platform, not just the sites.
+    registry.register(PlatformOpsSpec(config))
 
 
 __all__ = [
@@ -36,6 +39,7 @@ __all__ = [
     "BaseToolSpec",
     "GoogleSEOMonitorSpec",
     "IndexingOpsSpec",
+    "PlatformOpsSpec",
     "InternalLinkerSpec",
     "LighthouseAuditSpec",
     "SandboxPolicy",
