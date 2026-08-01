@@ -57,6 +57,16 @@ def create_app() -> FastAPI:
             return FileResponse(react_app)
         return FileResponse(_STATIC_DIR / "index.html")
 
+    @app.get("/console", include_in_schema=False)
+    def console() -> FileResponse:
+        """Zero-build department console.
+
+        Served as a single static file on purpose: every step added to the
+        deployment path (install node, run a build, ship the bundle) is another
+        day before anyone can actually look at the thing.
+        """
+        return FileResponse(_STATIC_DIR / "console.html")
+
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         return {"ok": True, "version": __version__}

@@ -1,0 +1,306 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>部门控制台 · SEOAgents</title>
+<!--
+  零构建控制台:纯 HTML + 原生 JS,不需要 npm build。
+  面向的是「服务器上跑起来就能看」,而不是「先装 node、先构建、再部署」——
+  部署链路每多一步,能看到界面的时间就晚一天。
+-->
+<style>
+:root{
+  --bg:#0d1117; --panel:#161b22; --border:#30363d; --text:#c9d1d9; --head:#f0f6fc;
+  --muted:#8b949e; --accent:#2f81f7; --ok:#3fb950; --warn:#d29922; --bad:#f85149;
+  --dim:#484f58;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"PingFang SC","Microsoft YaHei",sans-serif;padding:20px}
+h1{color:var(--head);font-size:20px;font-weight:600}
+h2{color:var(--head);font-size:15px;font-weight:600;margin:22px 0 10px}
+a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+header{display:flex;align-items:center;gap:14px;padding-bottom:14px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap}
+.dept{color:var(--muted);font-size:13px}
+nav{display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap}
+nav button{background:transparent;color:var(--muted);border:1px solid transparent;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:13px}
+nav button:hover{color:var(--text)}
+nav button.on{background:#1f2937;color:var(--accent);border-color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(268px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;position:relative}
+.card.ghost{border-style:dashed;background:transparent;opacity:.72}
+.card.ghost:hover{opacity:1}
+.card.gone{opacity:.4}
+.card.gone .title{text-decoration:line-through}
+.title{color:var(--head);font-weight:600;margin-bottom:4px;font-size:14px}
+.sub{color:var(--muted);font-size:12px;line-height:1.5}
+.metric{font-size:26px;color:var(--head);font-weight:600;margin:8px 0 2px}
+.metric.none{font-size:15px;color:var(--dim);font-weight:400}
+.tags{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+.tag{font-size:11px;padding:2px 7px;border-radius:10px;background:#1f2937;color:var(--muted)}
+.badge{position:absolute;top:12px;right:12px;font-size:10px;padding:2px 7px;border-radius:9px;font-weight:600}
+.b-real{background:rgba(63,185,80,.15);color:var(--ok)}
+.b-degraded{background:rgba(210,153,34,.15);color:var(--warn)}
+.b-unavail{background:rgba(139,148,158,.15);color:var(--muted)}
+.b-disputed{background:rgba(248,81,73,.15);color:var(--bad)}
+.b-ghost{background:rgba(139,148,158,.12);color:var(--muted)}
+.b-notfound{background:rgba(248,81,73,.12);color:var(--bad)}
+.row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;gap:12px}
+.row:last-child{border:0}
+.sec{background:var(--panel);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:12px}
+.sec h3{color:var(--head);font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.warn{color:var(--warn)} .bad{color:var(--bad)} .ok{color:var(--ok)} .muted{color:var(--muted)}
+.chain{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.step{background:#1f2937;border:1px solid var(--border);border-radius:6px;padding:5px 10px;font-size:12px}
+.step.par{border-color:var(--accent)}
+.arrow{color:var(--dim)}
+.empty{color:var(--dim);padding:22px;text-align:center;font-size:13px}
+button.act{background:#21262d;color:var(--text);border:1px solid var(--border);padding:5px 11px;border-radius:6px;cursor:pointer;font-size:12px}
+button.act:hover{border-color:var(--accent);color:var(--accent)}
+.err{background:rgba(248,81,73,.1);border:1px solid var(--bad);color:var(--bad);padding:10px 12px;border-radius:6px;margin-bottom:12px;font-size:13px}
+.tl{border-left:2px solid var(--border);margin-left:8px;padding-left:16px}
+.tl .node{position:relative;padding:9px 0}
+.tl .node::before{content:'';position:absolute;left:-21px;top:16px;width:8px;height:8px;border-radius:50%;background:var(--dim)}
+.tl .node.due::before{background:var(--warn)} .tl .node.unread::before{background:var(--bad)}
+.tl .node.done::before{background:var(--ok)}
+.t{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+footer{margin-top:26px;padding-top:12px;border-top:1px solid var(--border);color:var(--dim);font-size:12px}
+</style>
+</head>
+<body>
+<header>
+  <h1>部门控制台</h1>
+  <span class="dept" id="dept">载入中…</span>
+  <span style="flex:1"></span>
+  <button class="act" onclick="loadAll()">刷新</button>
+  <a href="/docs" target="_blank">API 文档</a>
+  <a href="/">旧看板</a>
+</header>
+
+<nav>
+  <button class="on" data-v="catalog">工具目录</button>
+  <button data-v="capabilities">能力矩阵</button>
+  <button data-v="workflow">工作流</button>
+  <button data-v="timeline">时间线</button>
+  <button data-v="collab">收发件箱</button>
+</nav>
+
+<div id="err"></div>
+<div id="body"><div class="empty">载入中…</div></div>
+<footer id="foot"></footer>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let VIEW = 'catalog', DATA = {};
+
+async function api(path){
+  const r = await fetch(path);
+  if(!r.ok) throw new Error(`${path} → HTTP ${r.status}`);
+  return r.json();
+}
+
+function statusBadge(s){
+  const m = {REAL:['b-real','REAL'],DEGRADED:['b-degraded','DEGRADED'],
+             UNAVAILABLE:['b-unavail','无数据'],DISPUTED:['b-disputed','分歧']};
+  const [cls,label] = m[s] || ['b-unavail', s||'—'];
+  return `<span class="badge ${cls}">${label}</span>`;
+}
+
+/* ── 工具目录:已装的显真实数据,未装的也占位 ───────────────── */
+function renderCatalog(){
+  const items = (DATA.catalog?.items)||[];
+  if(!items.length) return `<div class="empty">目录为空</div>`;
+  const installed = items.filter(i=>i.installed);
+  const avail = items.filter(i=>!i.installed && i.installable);
+  const gone  = items.filter(i=>!i.installable);
+  const card = (e) => {
+    const cls = e.installed ? 'card' : (e.installable ? 'card ghost' : 'card gone');
+    const badge = e.installed ? '' :
+      (e.installable ? '<span class="badge b-ghost">未安装</span>'
+                     : '<span class="badge b-notfound">查无此项</span>');
+    const mem = e.memory_mb ? `本机 ~${e.memory_mb}MB` : '本机零占用';
+    return `<div class="${cls}">${badge}
+      <div class="title">${esc(e.display_name)}</div>
+      <div class="sub">${esc(e.summary||'')}</div>
+      <div class="tags">
+        ${(e.capability_labels||[]).map(c=>`<span class="tag">${esc(c)}</span>`).join('')}
+        ${e.license?`<span class="tag">${esc(e.license)}</span>`:''}
+        ${e.popularity?`<span class="tag">${esc(e.popularity)}</span>`:''}
+      </div>
+      <div class="sub" style="margin-top:9px">
+        ${e.recommended_mode?`部署 ${esc(e.recommended_mode)} · `:''}${mem}
+        ${e.caveats?.length?` · <span class="warn">${e.caveats.length} 条已知坑</span>`:''}
+      </div>
+      <div style="margin-top:10px;display:flex;gap:6px">
+        <button class="act" onclick="detail('${esc(e.id)}')">详情</button>
+        ${e.homepage?`<a class="act" style="display:inline-block" href="${esc(e.homepage)}" target="_blank">项目主页</a>`:''}
+      </div></div>`;
+  };
+  const sec = (t,arr,note) => arr.length
+    ? `<h2>${t} <span class="muted" style="font-weight:400">${arr.length}</span></h2>
+       ${note?`<div class="sub" style="margin-bottom:8px">${note}</div>`:''}
+       <div class="grid">${arr.map(card).join('')}</div>` : '';
+  return sec('已安装', installed)
+       + sec('可安装 · 点开看它能做什么', avail)
+       + sec('查无此项', gone, '手册点名但多轮检索无命中。保留条目,是为了让「文档宣称拥有但实际不存在」这件事一直可见。');
+}
+
+async function detail(id){
+  try{
+    const d = await api(`/api/catalog/${id}`);
+    const lines = [
+      d.homepage ? `项目主页:${d.homepage}` : '',
+      d.license||d.popularity ? `${d.license||''} ${d.popularity||''}`.trim() : '',
+      '',
+      '▸ 能做什么',
+      ...(d.what_it_does||[]).map(x=>'  · '+x),
+      d.deploy_modes?.length ? `\n▸ 部署方式:${d.deploy_modes.join(' / ')}` : '',
+      d.memory_mb ? `▸ 本机开销:内存 ${d.memory_mb}MB / 磁盘 ${d.disk_mb}MB` : '',
+      d.caveats?.length ? '\n▸ 已知坑\n' + d.caveats.map(x=>'  ⚠ '+x).join('\n') : '',
+      d.notes ? `\n▸ 备注\n  ${d.notes}` : '',
+      d.same_capability_tools?.length
+        ? `\n▸ 同能力工具:${d.same_capability_tools.map(t=>t.display_name).join('、')}` : '',
+    ].filter(Boolean);
+    alert(`${d.display_name}${d.installed?'(已安装)':'(未安装)'}\n${'─'.repeat(34)}\n`+lines.join('\n'));
+  }catch(e){ alert('取详情失败:'+e.message); }
+}
+
+/* ── 能力矩阵:单源风险要看得见 ──────────────────────────── */
+function renderCaps(){
+  const caps = DATA.capabilities||{};
+  const keys = Object.keys(caps);
+  if(!keys.length) return `<div class="empty">尚无能力注册</div>`;
+  return `<div class="sec"><h3>能力覆盖
+    <span class="muted" style="font-weight:400">同一能力装了 ≥2 个工具才能交叉验证</span></h3>
+    ${keys.map(k=>{
+      const c = caps[k];
+      const mark = c.uncovered ? '<span class="bad">未覆盖</span>'
+                 : c.comparable ? '<span class="ok">可交叉验证</span>'
+                 : '<span class="warn">⚠ 单源风险</span>';
+      return `<div class="row">
+        <div><b>${esc(c.label||k)}</b>
+          <div class="sub">已装 ${c.installed?.join('、')||'—'}
+            ${c.available_to_install?.length?` · 可装 ${c.available_to_install.join('、')}`:''}</div></div>
+        <div style="white-space:nowrap">${mark}</div></div>`;
+    }).join('')}</div>
+    <div class="sub"><span class="warn">单源风险</span>的能力,结论里必须注明「未经交叉验证」。</div>`;
+}
+
+/* ── 工作流:并行层次一眼可见 ───────────────────────────── */
+function renderWorkflow(){
+  const tpls = DATA.templates?.templates||[];
+  const insts = DATA.instances?.items||[];
+  if(!tpls.length) return `<div class="empty">无工作流模板</div>`;
+  return `<h2>模板</h2>` + tpls.map(t=>`
+    <div class="sec"><h3>${esc(t.name)} <span class="muted" style="font-weight:400">v${esc(t.version)} · ${t.node_count} 节点 · 最大并行 ${t.max_parallel}</span></h3>
+      <div class="sub">${esc(t.description||'')}</div>
+      <div id="lay-${esc(t.id)}" class="sub" style="margin-top:8px">载入层次…</div>
+      ${t.external_deps?.length?`<div class="sub" style="margin-top:6px">跨部门:${t.external_deps.map(d=>`${esc(d.node)} → ${esc(d.dept)}/${esc(d.capability)}`).join('、')}</div>`:''}
+      ${t.human_gates?.length?`<div class="sub">人工审批点:${t.human_gates.join('、')}</div>`:''}
+    </div>`).join('')
+    + `<h2>运行中的实例</h2>` + (insts.length
+      ? insts.map(i=>`<div class="sec"><h3>${esc(i.title)}
+          <span class="muted" style="font-weight:400">${esc(i.status)} · ${i.progress.done}/${i.progress.total}</span></h3>
+          ${i.progress.waiting_on?.length?`<div class="sub warn">等待中:${i.progress.waiting_on.join('、')}</div>`:''}
+        </div>`).join('')
+      : `<div class="empty">暂无实例</div>`);
+}
+async function fillLayers(){
+  for(const t of (DATA.templates?.templates||[])){
+    try{
+      const d = await api(`/api/workflows/templates/${t.id}`);
+      const el = document.getElementById(`lay-${t.id}`);
+      if(!el) continue;
+      el.innerHTML = d.layers.map((L,i)=>
+        `<div class="chain">${i?'<span class="arrow">↓</span>':''}
+          ${L.map(n=>`<span class="step ${L.length>1?'par':''}">${esc(n)}</span>`).join('')}
+          ${L.length>1?'<span class="muted" style="font-size:11px">并行</span>':''}
+        </div>`).join('');
+    }catch(e){}
+  }
+}
+
+/* ── 时间线:HM 自己的日程 + 未读 ───────────────────────── */
+function renderTimeline(){
+  const a = DATA.agenda||{}, unread = DATA.unread?.items||[];
+  const hhmm = s => (s||'').slice(11,16);
+  const nodes = [...(a.in_flight||[]), ...(a.upcoming||[])];
+  return `
+  ${unread.length?`<div class="sec" style="border-color:var(--bad)">
+    <h3 class="bad">未读 ${unread.length} 条 — 必须逐条决策,不能忽略</h3>
+    ${unread.map(n=>`<div class="row">
+      <div><b>${esc(n.kind_label)}</b> ${esc(n.intent)}
+        <div class="sub">原定 ${esc(n.scheduled_at.slice(5,16))} ·
+          ${n.state==='MISSED'?'<span class="bad">根本没触发(调度器)</span>'
+                              :'<span class="warn">已投递无人处理(模型)</span>'} ·
+          默认处置 ${esc(n.on_miss_label)}</div></div></div>`).join('')}
+    <div class="sub" style="margin-top:8px">恢复后一次性 triage,每条必须给理由 —— 未读提醒被无声丢弃,正是任务停滞无人发现的成因。</div>
+  </div>`:''}
+  <div class="sec"><h3>未来 ${a.horizon_hours||24} 小时
+    <span class="muted" style="font-weight:400">已排 ${a.committed_minutes||0} 分钟 · 负载 ${Math.round((a.load_ratio||0)*100)}%</span></h3>
+    ${nodes.length?`<div class="tl">${nodes.map(n=>`
+      <div class="node ${n.state==='FIRED'?'due':''}">
+        <span class="t">${hhmm(n.scheduled_at)}</span>
+        <b style="margin-left:8px">${esc(n.kind_label)}</b>
+        <span class="tag" style="margin-left:6px">${esc(n.expected_minutes)}分钟</span>
+        <div class="sub">${esc(n.intent)}
+          ${n.subject_ref?` · <span class="muted">${esc(n.subject_ref)}</span>`:''}
+          · 错过则${esc(n.on_miss_label)}</div>
+      </div>`).join('')}</div>`
+    : `<div class="empty">时间线是空的 —— HM 还没为自己排过任何事</div>`}
+  </div>`;
+}
+
+/* ── 收发件箱 ───────────────────────────────────────────── */
+function renderCollab(){
+  const inbox = DATA.inbox?.items||[], outbox = DATA.outbox?.items||[];
+  const list = (arr, dir) => arr.length ? arr.map(r=>`<div class="row">
+      <div><b>${esc(r.title)}</b>
+        <div class="sub">${dir==='in'?'来自 '+esc(r['from']?.dept):'发往 '+esc(r.recipient?.dept)}
+          · ${esc(r.capability)} · ${esc(r.status)}
+          ${r.overdue?' · <span class="bad">已逾期</span>':''}
+          ${r.deadline?` · 截止 ${esc(r.deadline.slice(5,16))}`:''}</div>
+        ${r.reason?`<div class="sub warn">${esc(r.reason)}</div>`:''}</div></div>`).join('')
+    : `<div class="empty">空</div>`;
+  return `<div class="sec"><h3>收件箱 · 别人请我做的
+      ${DATA.inbox?.overdue_count?`<span class="bad">${DATA.inbox.overdue_count} 逾期</span>`:''}</h3>
+      ${list(inbox,'in')}</div>
+    <div class="sec"><h3>发件箱 · 我请别人做的</h3>${list(outbox,'out')}</div>
+    <div class="sub">交付物走资产中心,状态走对方 inbox。飞书只发给人看的通知,不承载状态。</div>`;
+}
+
+/* ── 载入 ───────────────────────────────────────────────── */
+const RENDER = {catalog:renderCatalog, capabilities:renderCaps,
+                workflow:renderWorkflow, timeline:renderTimeline, collab:renderCollab};
+
+async function loadAll(){
+  $('#err').innerHTML='';
+  const jobs = {
+    catalog:'/api/catalog', capabilities:'/api/capabilities',
+    templates:'/api/workflows/templates', instances:'/api/workflows/instances',
+    agenda:'/api/timeline/agenda', unread:'/api/timeline/unread',
+    inbox:'/api/v1/inbox', outbox:'/api/v1/outbox', caps1:'/api/v1/capabilities',
+  };
+  const fails=[];
+  await Promise.all(Object.entries(jobs).map(async ([k,u])=>{
+    try{ DATA[k] = await api(u); }catch(e){ fails.push(e.message); DATA[k]=null; }
+  }));
+  $('#dept').textContent = DATA.caps1?.dept ? `${DATA.caps1.dept} · ${location.host}` : location.host;
+  if(fails.length) $('#err').innerHTML =
+    `<div class="err">${fails.length} 个接口取不到:<br>${fails.map(esc).join('<br>')}
+     <br><br>若是 404,多半是服务器上的代码不是最新的。</div>`;
+  draw();
+  $('#foot').textContent = `更新于 ${new Date().toLocaleString('zh-CN')} · 未取到的数据显示为空,不做任何推算`;
+  fillLayers();
+}
+function draw(){ $('#body').innerHTML = RENDER[VIEW] ? RENDER[VIEW]() : ''; }
+
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.remove('on'));
+  b.classList.add('on'); VIEW=b.dataset.v; draw(); if(VIEW==='workflow') fillLayers();
+});
+loadAll();
+</script>
+</body>
+</html>
