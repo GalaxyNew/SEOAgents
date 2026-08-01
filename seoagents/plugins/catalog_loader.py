@@ -27,8 +27,8 @@ from typing import Any
 
 import yaml
 
-from seoagents.logging import LOGGER
-from seoagents.plugins.capabilities import Capability
+from dojocore.capability import Capability, capabilities
+from dojocore.logging import LOGGER
 
 _BUILTIN_CATALOG = Path(__file__).parent / "catalog" / "builtin.yaml"
 
@@ -94,7 +94,7 @@ class CatalogEntry:
         return {
             "id": self.id,
             "display_name": self.display_name,
-            "capabilities": [c.value for c in self.capabilities],
+            "capabilities": [c.id for c in self.capabilities],
             "capability_labels": [c.label for c in self.capabilities],
             "summary": self.summary,
             "homepage": self.homepage,
@@ -118,10 +118,12 @@ class CatalogEntry:
 def _coerce(raw: dict[str, Any]) -> CatalogEntry:
     caps: list[Capability] = []
     for c in raw.get("capabilities", []) or []:
-        try:
-            caps.append(Capability(c))
-        except ValueError:
-            LOGGER.warning(f"catalog entry '{raw.get('id')}': unknown capability '{c}', skipped")
+        if capabilities.has(str(c)):
+            caps.append(capabilities.get(str(c)))
+        else:
+            LOGGER.warning(
+                f"catalog entry '{raw.get('id')}': 能力 '{c}' 未被任何部门注册,已跳过"
+            )
     modes = []
     for m in raw.get("deploy_modes", []) or []:
         try:
@@ -189,10 +191,10 @@ def load_catalog(extra_path: str | os.PathLike[str] | None = None) -> list[Catal
 def capability_map(entries: list[CatalogEntry] | None = None) -> dict[str, list[CatalogEntry]]:
     """Group catalog entries by capability, for the dashboard's sections."""
     catalog = entries if entries is not None else load_catalog()
-    grouped: dict[str, list[CatalogEntry]] = {c.value: [] for c in Capability}
+    grouped: dict[str, list[CatalogEntry]] = {c.id: [] for c in capabilities.list()}
     for entry in catalog:
         for cap in entry.capabilities:
-            grouped[cap.value].append(entry)
+            grouped.setdefault(cap.id, []).append(entry)
     return grouped
 
 

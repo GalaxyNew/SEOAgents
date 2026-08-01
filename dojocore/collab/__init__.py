@@ -10,7 +10,7 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from seoagents.collab.models import (
+from dojocore.collab.models import (
     CollabRequest,
     ExpectedDeliverable,
     Party,
@@ -19,8 +19,8 @@ from seoagents.collab.models import (
     RequestStatus,
     new_request_id,
 )
-from seoagents.collab.service import CollabService
-from seoagents.collab.store import CollabStore
+from dojocore.collab.service import CollabService
+from dojocore.collab.store import CollabStore
 
 _lock = threading.Lock()
 _service: CollabService | None = None
@@ -32,8 +32,8 @@ def get_collab_service(config: Any = None) -> CollabService:
     with _lock:
         if _service is None:
             if config is None:
-                from seoagents.agent.runtime import get_runtime
-                config = get_runtime().config
+                from dojocore.context import get_config
+                config = get_config()
             dept = getattr(getattr(config, "collab", None), "dept", "") or "seo"
             _service = CollabService(CollabStore(config.storage.data_dir), own_dept=dept)
         return _service

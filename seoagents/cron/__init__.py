@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 try:  # pragma: no cover - environment dependent
     from apscheduler.schedulers.asyncio import AsyncIOScheduler

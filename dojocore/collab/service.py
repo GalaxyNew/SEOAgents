@@ -8,7 +8,7 @@ from __future__ import annotations
 import datetime as _dt
 from typing import Any
 
-from seoagents.collab.models import (
+from dojocore.collab.models import (
     REASON_REQUIRED,
     RECIPIENT_ONLY,
     REQUESTER_ONLY,
@@ -18,8 +18,8 @@ from seoagents.collab.models import (
     ProtocolError,
     RequestStatus,
 )
-from seoagents.collab.store import CollabStore
-from seoagents.logging import LOGGER
+from dojocore.collab.store import CollabStore
+from dojocore.logging import LOGGER
 
 
 class CollabService:

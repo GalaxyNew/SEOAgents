@@ -11,9 +11,9 @@ import time
 from contextvars import ContextVar
 from typing import Any
 
+from dojocore.logging import LOGGER
+from dojocore.quality import DataIntegrityError, validate_tool_output
 from seoagents.agent.models import ToolCall, ToolResult
-from seoagents.logging import LOGGER
-from seoagents.quality import DataIntegrityError, validate_tool_output
 from seoagents.tools.base import ToolRegistry
 from seoagents.tools.environments.sandbox import SandboxPolicy, SandboxViolation
 
@@ -67,7 +67,7 @@ class ToolExecutor:
         except SandboxViolation as exc:
             LOGGER.warning(f"Sandbox violation on '{call.name}': {exc}")
             return ToolResult(call_id=call.id, name=call.name, ok=False, error=str(exc))
-        except (TimeoutError, asyncio.TimeoutError):  # noqa: UP041 - 3.10 compat
+        except (TimeoutError, asyncio.TimeoutError):
             LOGGER.error(
                 f"Tool '{call.name}' exceeded sandbox limit of {self.sandbox.timeout_seconds}s"
             )

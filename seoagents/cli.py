@@ -7,8 +7,8 @@ import json
 import sys
 from pathlib import Path
 
+from dojocore.logging import LOGGER
 from seoagents import __version__
-from seoagents.logging import LOGGER
 
 _EXAMPLE_CONFIG = Path(__file__).parent.parent / "config" / "agents.example.yaml"
 

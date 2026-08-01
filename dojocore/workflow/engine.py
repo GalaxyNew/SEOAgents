@@ -18,15 +18,15 @@ from __future__ import annotations
 
 import datetime as _dt
 
-from seoagents.logging import LOGGER
-from seoagents.workflow.instance import (
+from dojocore.logging import LOGGER
+from dojocore.workflow.instance import (
     InstanceStatus,
     NodeRun,
     NodeState,
     WorkflowInstance,
 )
-from seoagents.workflow.nodes import FailurePolicy, NodeType, WorkflowNode
-from seoagents.workflow.template import WorkflowTemplate
+from dojocore.workflow.nodes import FailurePolicy, NodeType, WorkflowNode
+from dojocore.workflow.template import WorkflowTemplate
 
 __all__ = ["EngineError", "WorkflowEngine"]
 

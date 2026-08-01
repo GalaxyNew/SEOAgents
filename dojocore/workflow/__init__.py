@@ -4,18 +4,18 @@ from __future__ import annotations
 import threading
 from typing import Any
 
-from seoagents.workflow.engine import EngineError, WorkflowEngine
-from seoagents.workflow.instance import InstanceStatus, NodeState, WorkflowInstance
-from seoagents.workflow.nodes import (
+from dojocore.workflow.engine import EngineError, WorkflowEngine
+from dojocore.workflow.instance import InstanceStatus, NodeState, WorkflowInstance
+from dojocore.workflow.nodes import (
     NODE_SPECS,
     FailurePolicy,
     NodeType,
     NodeValidationError,
     WorkflowNode,
 )
-from seoagents.workflow.registry import Department, DepartmentRegistry
-from seoagents.workflow.store import WorkflowStore
-from seoagents.workflow.template import TemplateError, WorkflowTemplate
+from dojocore.workflow.registry import Department, DepartmentRegistry
+from dojocore.workflow.store import WorkflowStore
+from dojocore.workflow.template import TemplateError, WorkflowTemplate
 
 _lock = threading.Lock()
 _store: WorkflowStore | None = None
@@ -27,8 +27,8 @@ def get_workflow_store(config: Any = None) -> WorkflowStore:
     with _lock:
         if _store is None:
             if config is None:
-                from seoagents.agent.runtime import get_runtime
-                config = get_runtime().config
+                from dojocore.context import get_config
+                config = get_config()
             _store = WorkflowStore(config.storage.data_dir)
         return _store
 
@@ -38,8 +38,8 @@ def get_department_registry(config: Any = None) -> DepartmentRegistry:
     with _lock:
         if _registry is None:
             if config is None:
-                from seoagents.agent.runtime import get_runtime
-                config = get_runtime().config
+                from dojocore.context import get_config
+                config = get_config()
             raw = getattr(config, "raw", None) or {}
             _registry = DepartmentRegistry.from_config(raw.get("collab", {}))
         return _registry

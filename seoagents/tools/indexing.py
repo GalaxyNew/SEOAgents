@@ -15,9 +15,9 @@ from xml.sax.saxutils import escape
 
 import httpx
 
+from dojocore.logging import LOGGER
+from dojocore.quality import degraded, real, unavailable
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.logging import LOGGER
-from seoagents.quality import degraded, real, unavailable
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
 

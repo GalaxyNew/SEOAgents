@@ -10,7 +10,7 @@ from __future__ import annotations
 import abc
 from typing import Any
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 
 class BaseToolSpec(abc.ABC):

@@ -18,11 +18,11 @@ import re
 from typing import Any
 from urllib.parse import urlparse
 
+from dojocore.logging import LOGGER
+from dojocore.quality import DataStatus, extract_status
 from seoagents.agent.models import ToolCall
 from seoagents.agent.runtime import Runtime, get_runtime
 from seoagents.cron import scheduler
-from seoagents.logging import LOGGER
-from seoagents.quality import DataStatus, extract_status
 
 EVOLUTION_JOB_ID = "seo_self_evolution_pipeline"
 FIX_SKILL_ID = "FixDeadLinkWithAutoIndexSkill"

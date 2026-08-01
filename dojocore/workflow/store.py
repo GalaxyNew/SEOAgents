@@ -15,13 +15,20 @@ from typing import Any
 
 import yaml
 
-from seoagents.logging import LOGGER
-from seoagents.workflow.instance import WorkflowInstance
-from seoagents.workflow.template import TemplateError, WorkflowTemplate
+from dojocore.logging import LOGGER
+from dojocore.workflow.instance import WorkflowInstance
+from dojocore.workflow.template import TemplateError, WorkflowTemplate
 
 __all__ = ["WorkflowStore"]
 
-_BUILTIN_DIR = Path(__file__).parent / "templates"
+# Templates ship with the *department*, not the framework — the framework has
+# no opinion about what a pipeline should contain.
+def _dept_template_dir() -> Path | None:
+    try:
+        from dojocore.department import active_department
+        return active_department().template_dir
+    except Exception:  # noqa: BLE001 - store must work without a department
+        return None
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS wf_instances (
@@ -58,7 +65,9 @@ class WorkflowStore:
 
     # -- templates ---------------------------------------------------------
     def _template_files(self) -> list[Path]:
-        return sorted(_BUILTIN_DIR.glob("*.yaml")) + sorted(self.user_templates.glob("*.yaml"))
+        dept_dir = _dept_template_dir()
+        shipped = sorted(dept_dir.glob("*.yaml")) if dept_dir and dept_dir.exists() else []
+        return shipped + sorted(self.user_templates.glob("*.yaml"))
 
     def templates(self) -> list[WorkflowTemplate]:
         """User templates override built-ins with the same id."""

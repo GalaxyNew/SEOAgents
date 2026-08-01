@@ -10,8 +10,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from dojocore.logging import LOGGER
 from seoagents.config.models import MCPServerConfig
-from seoagents.logging import LOGGER
 from seoagents.tools.base import BaseToolSpec, ToolRegistry
 
 

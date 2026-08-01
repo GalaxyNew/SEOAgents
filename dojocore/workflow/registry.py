@@ -18,7 +18,7 @@ from typing import Any
 
 import httpx
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 __all__ = ["Department", "DepartmentRegistry"]
 

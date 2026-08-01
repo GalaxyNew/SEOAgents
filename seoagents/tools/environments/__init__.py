@@ -11,7 +11,7 @@ import asyncio
 import os
 from dataclasses import dataclass
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 
 @dataclass
@@ -47,7 +47,7 @@ class LocalEnvironmentAdapter(BaseEnvironmentAdapter):
         )
         try:
             stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
-        except (TimeoutError, asyncio.TimeoutError):  # noqa: UP041 - 3.10 compat
+        except (TimeoutError, asyncio.TimeoutError):
             process.kill()
             await process.wait()
             raise

@@ -6,9 +6,9 @@ from typing import Any
 
 import pytest
 
+from dojocore.quality import real
 from seoagents.agent.models import ToolCall
 from seoagents.config.models import SandboxConfig
-from seoagents.quality import real
 from seoagents.tools.base import BaseToolSpec, ToolRegistry
 from seoagents.tools.environments.sandbox import SandboxPolicy
 from seoagents.tools.executor import ToolExecutor, active_session_id

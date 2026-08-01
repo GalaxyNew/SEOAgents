@@ -12,8 +12,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from seoagents.logging import LOGGER
-from seoagents.workflow import (
+from dojocore.logging import LOGGER
+from dojocore.workflow import (
     NODE_SPECS,
     EngineError,
     NodeType,

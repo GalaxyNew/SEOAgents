@@ -13,9 +13,9 @@ from typing import Any
 
 import httpx
 
+from dojocore.logging import LOGGER
 from seoagents.agent.models import ChatMessage, LLMResult, ToolCall
 from seoagents.config.models import LLMProvidersConfig
-from seoagents.logging import LOGGER
 
 ANTHROPIC_DEFAULT_URL = "https://api.anthropic.com"
 ANTHROPIC_VERSION = "2023-06-01"

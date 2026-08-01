@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any
 
-from seoagents.workflow.template import WorkflowTemplate
+from dojocore.workflow.template import WorkflowTemplate
 
 __all__ = ["InstanceStatus", "NodeRun", "NodeState", "WorkflowInstance"]
 

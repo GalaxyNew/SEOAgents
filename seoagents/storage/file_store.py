@@ -12,7 +12,7 @@ from collections.abc import Iterable, Iterator
 from pathlib import Path
 from typing import Any
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 from seoagents.storage.locks import file_lock
 
 

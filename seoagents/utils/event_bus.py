@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from typing import Any
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 Handler = Callable[["Event"], Awaitable[None] | None]
 

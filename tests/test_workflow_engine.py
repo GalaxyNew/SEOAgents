@@ -11,8 +11,7 @@ import httpx
 import pytest
 import yaml
 
-from seoagents.dashboard.server import create_app
-from seoagents.workflow import (
+from dojocore.workflow import (
     EngineError,
     NodeState,
     NodeValidationError,
@@ -24,6 +23,7 @@ from seoagents.workflow import (
     WorkflowTemplate,
     reset_workflow_state,
 )
+from seoagents.dashboard.server import create_app
 
 
 def node(nid, ntype="agent_task", deps=(), acceptance=("ok",), **config):

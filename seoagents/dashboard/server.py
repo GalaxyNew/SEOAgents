@@ -8,12 +8,12 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from dojocore.logging import LOGGER
 from seoagents import __version__
 from seoagents.agent.runtime import get_runtime
 from seoagents.cron import shutdown_scheduler, start_scheduler
 from seoagents.cron.seo_evo_jobs import register_jobs
 from seoagents.dashboard.routers import all_routers
-from seoagents.logging import LOGGER
 
 _STATIC_DIR = Path(__file__).parent / "static"
 

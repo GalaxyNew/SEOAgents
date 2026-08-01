@@ -10,7 +10,7 @@ import threading
 from collections.abc import Iterator
 from contextlib import contextmanager
 
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 try:  # pragma: no cover - environment dependent
     import portalocker as _portalocker

@@ -14,8 +14,8 @@ import json
 import shutil
 from typing import Any
 
-from seoagents.logging import LOGGER
-from seoagents.quality import real, unavailable
+from dojocore.logging import LOGGER
+from dojocore.quality import real, unavailable
 from seoagents.tools.environments import LocalEnvironmentAdapter
 
 
@@ -44,7 +44,7 @@ class TechnicalSeoSandboxExecutor:
         LOGGER.info(f"Sandbox launching Lighthouse subprocess for: {target_url}")
         try:
             result = await self.env.run(cmd, timeout=self.timeout)
-        except (TimeoutError, asyncio.TimeoutError):  # noqa: UP041 - 3.10 compat
+        except (TimeoutError, asyncio.TimeoutError):
             LOGGER.error(f"Lighthouse timeout threshold breached for: {target_url}")
             return self._fallback(
                 target_url, reason=f"Execution exceeded sandbox limit of {self.timeout}s"

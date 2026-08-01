@@ -10,11 +10,11 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from dojocore.capability import capabilities as _caps
+from dojocore.collab import get_collab_service
+from dojocore.collab.models import ProtocolError
+from dojocore.logging import LOGGER
 from seoagents.agent.runtime import get_runtime
-from seoagents.collab import get_collab_service
-from seoagents.collab.models import ProtocolError
-from seoagents.logging import LOGGER
-from seoagents.plugins.capabilities import Capability
 from seoagents.plugins.catalog_loader import capability_map
 
 router = APIRouter(prefix="/api/v1", tags=["collab"])
@@ -124,13 +124,6 @@ async def transition_outbox(request_id: str, body: TransitionBody) -> dict[str, 
 
 
 # ── capability discovery ─────────────────────────────────────────────────
-_SLA_HOURS = {
-    Capability.SERP_RANK: 2, Capability.KEYWORD_RESEARCH: 4,
-    Capability.SITE_AUDIT: 24, Capability.PAGE_AUDIT: 4, Capability.CWV: 4,
-    Capability.TRAFFIC: 4, Capability.INDEXING: 8, Capability.BACKLINK: 48,
-    Capability.INTERNAL_LINK: 2, Capability.AEO_VISIBILITY: 72,
-    Capability.CONTENT_PUBLISH: 24,
-}
 
 
 @router.get("/capabilities")
@@ -147,13 +140,13 @@ async def list_own_capabilities() -> dict[str, Any]:
         installed = set()
     grouped = capability_map()
     out = []
-    for cap in Capability:
-        tools = [t for t in grouped.get(cap.value, []) if t.installable]
+    for cap in _caps.list():
+        tools = [t for t in grouped.get(cap.id, []) if t.installable]
         ready = bool(tools) and bool(installed)
         entry: dict[str, Any] = {
-            "id": cap.value,
+            "id": cap.id,
             "label": cap.label,
-            "sla_hours": _SLA_HOURS.get(cap, 24),
+            "sla_hours": cap.default_sla_hours,
             "accepts_external": ready,
             "providers": [t.id for t in tools],
         }
