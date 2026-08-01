@@ -1,0 +1,145 @@
+# 站内 blog 文章发布 — SEO 部门标准内容链
+#
+# 这条链是串行为主的:每一步吃上一步的产物。曾经按职能拆成五个 agent 并行,
+# 结果六篇文章写完,而终审、排版、发布、验收四步从未执行,任务却被标了 PASSED。
+# 依赖关系写在 depends_on 里,引擎据此禁止跳步。
+#
+# 唯一的并行分支是「配图采集」:它在撰文完成后与本土化校验同时进行,
+# 因为两者互不依赖 —— 一个改文字,一个找图。
+
+id: blog_content_chain
+name: 站内 Blog 文章发布
+version: "1.1"
+dept: seo
+description: 单站内容链,含配图跨部门协作分支
+tags: [content, blog, publish]
+
+nodes:
+  - id: strategy
+    type: agent_task
+    title: SEO 策略与选题
+    acceptance:
+      - 主词与长尾词均有搜索量与竞争度数据来源
+      - 已说明该选题与站点现有内容的差异点
+    config:
+      instruction: 依据关键词矩阵与竞品差距,确定本篇主词、长尾词与搜索意图分层
+
+  - id: intel
+    type: agent_task
+    title: 情报采集与竞品参考
+    acceptance:
+      - 至少 3 个竞品页面的结构与覆盖点已记录
+      - 每条引用含来源 URL 与采集日期
+    config:
+      instruction: 采集该主词 SERP 前十的内容结构、覆盖角度与缺口
+
+  - id: brief
+    type: agent_task
+    title: 撰写 Brief
+    depends_on: [strategy, intel]
+    acceptance:
+      - 含标题建议、H 结构、关键词布局、内链规划
+      - 明确写出本篇要回答的核心问题
+    config:
+      instruction: 依据策略与情报产出可直接交付撰稿的 brief
+
+  - id: draft
+    type: agent_task
+    title: 西语原生撰文
+    depends_on: [brief]
+    acceptance:
+      - 正文为西语原生表达,非翻译腔
+      - 已按 brief 的 H 结构组织
+      - 标注了 6 个配图位置及其用途
+    config:
+      instruction: 依据 brief 产出西语原生正文,并标注配图位
+
+  # ── 并行分支:配图跨部门,与本土化校验同时进行 ──
+  - id: image_spec
+    type: agent_task
+    title: 产出配图需求单
+    depends_on: [draft]
+    acceptance:
+      - 6 个位置逐个写明用途、尺寸、风格、关键词、版权要求
+      - 需求单已落成资产并拿到 asset_id
+    config:
+      instruction: 依据正文中的配图位,产出结构化配图需求单并 PUT 进资产中心
+
+  - id: image_sourcing
+    type: dept_request
+    title: 情报部采集配图
+    depends_on: [image_spec]
+    timeout_hours: 48
+    acceptance:
+      - 交付 6 张图且逐张附版权来源与许可类型
+      - 尺寸均 ≥ 1600x900
+      - 无可识别人脸,或已取得授权
+    config:
+      dept: intel
+      capability: image_sourcing
+      spec_template: "{{ nodes.image_spec.output_asset_ids[0] }}"
+      expected_count: 6
+
+  - id: localize
+    type: agent_task
+    title: 本土化校验
+    depends_on: [draft]
+    acceptance:
+      - 地区表达、货币、时间格式符合目标市场
+      - 无直译痕迹
+    config:
+      instruction: 按目标市场校验用词、习惯表达与本地化细节
+
+  # ── 汇合 ──
+  - id: seo_review
+    type: agent_task
+    title: SEO 终审冻结
+    depends_on: [localize, image_sourcing]
+    acceptance:
+      - 关键词布局、内链、Meta 均已确认
+      - 配图 alt 文本已按 SEO 要求填写
+    config:
+      instruction: 终审并冻结稿件,此后不再改动正文
+
+  - id: render
+    type: tool_call
+    title: HTML 排版渲染
+    depends_on: [seo_review]
+    acceptance:
+      - 使用了正确的模板 ID
+      - 渲染结果非 Markdown 原文
+    config:
+      tool: content_publisher
+      action: render
+
+  - id: approve_publish
+    type: human_gate
+    title: 发布前人工确认
+    depends_on: [render]
+    config:
+      prompt: 确认可以发布?请核对标题、配图与落地页链接
+
+  - id: publish
+    type: tool_call
+    title: API 发布并提交收录
+    depends_on: [approve_publish]
+    acceptance:
+      - 发布接口返回成功且拿到线上 URL
+      - 已向 GSC 提交该 URL
+    config:
+      tool: content_publisher
+      action: publish
+
+  - id: verify_live
+    type: verify
+    title: 线上回读校验
+    depends_on: [publish]
+    acceptance:
+      - 线上页面 HTTP 200
+      - 正文渲染正确,非 Markdown 原文
+      - 6 张配图全部可加载
+    config:
+      command: |
+        curl -sS -o /tmp/pub.html -w '%{http_code}' "$PUBLISHED_URL" | grep -q 200 &&
+        ! grep -qE '^\*\*|^## ' /tmp/pub.html &&
+        [ "$(grep -co '<img ' /tmp/pub.html)" -ge 6 ]
