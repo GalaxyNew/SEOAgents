@@ -46,6 +46,7 @@ dev = [
 all = ["seoagents[google,trends,mcp]"]
 
 [project.scripts]
+seoagents-mcp = "seoagents.mcp_server:main"
 seoagents = "seoagents.cli:main"
 
 [build-system]

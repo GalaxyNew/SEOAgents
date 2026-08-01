@@ -32,6 +32,7 @@ from __future__ import annotations
 import argparse
 import json
 import uuid
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 from dojocore.logging import LOGGER
@@ -115,6 +116,49 @@ def build_server(runtime: Runtime | None = None):  # pragma: no cover - needs mc
     return server
 
 
+def build_http_app(server):  # pragma: no cover - needs mcp
+    """ASGI app for the streamable-HTTP transport.
+
+    The low-level ``Server`` does not serve HTTP by itself. ``handle_request``
+    only works once the transport has been *connected*, and the connection has
+    to stay open for the lifetime of the process — so ``server.run()`` and
+    ``transport.connect()`` must be bound together inside a task group held open
+    by the app's lifespan.
+
+    Getting this wrong is not obvious from the outside: the process starts, the
+    port listens, and every request fails at the protocol level. It cost a
+    deployment cycle here, so the wiring is spelled out rather than hidden.
+    """
+    import anyio
+    from mcp.server.streamable_http import StreamableHTTPServerTransport
+    from starlette.applications import Starlette
+    from starlette.routing import Mount
+
+    transport = StreamableHTTPServerTransport(
+        mcp_session_id=None,
+        is_json_response_enabled=True,
+    )
+
+    @asynccontextmanager
+    async def lifespan(_app):
+        async with anyio.create_task_group() as tg:
+            async def _serve() -> None:
+                async with transport.connect() as (read, write):
+                    await server.run(read, write, server.create_initialization_options())
+
+            tg.start_soon(_serve)
+            LOGGER.info("MCP streamable-http transport connected")
+            try:
+                yield
+            finally:
+                tg.cancel_scope.cancel()
+
+    async def _handle(scope, receive, send):
+        await transport.handle_request(scope, receive, send)
+
+    return Starlette(lifespan=lifespan, routes=[Mount("/mcp", app=_handle)])
+
+
 def main(argv: list[str] | None = None) -> None:  # pragma: no cover - entrypoint
     parser = argparse.ArgumentParser(description="SEOAgents MCP server")
     parser.add_argument("--transport", default="stdio", choices=["stdio", "http"])
@@ -139,9 +183,9 @@ def main(argv: list[str] | None = None) -> None:  # pragma: no cover - entrypoin
         anyio.run(_serve)
     else:
         import uvicorn
-        from mcp.server.streamable_http import create_app
 
-        uvicorn.run(create_app(server), host=args.host, port=args.port)
+        LOGGER.info(f"MCP server listening on http://{args.host}:{args.port}/mcp")
+        uvicorn.run(build_http_app(server), host=args.host, port=args.port)
 
 
 if __name__ == "__main__":  # pragma: no cover

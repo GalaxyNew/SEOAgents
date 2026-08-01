@@ -1,3 +1,4 @@
+from dojocore.timeline.api import router as timeline_router
 from seoagents.dashboard.routers import (
     agentops,
     audit,
@@ -18,6 +19,7 @@ all_routers = [
     catalog_api.router,
     collab_api.router,
     workflow_api.router,
+    timeline_router,
 ]
 
 __all__ = ["all_routers"]
