@@ -86,3 +86,60 @@ async def test_catalog_endpoints(client: httpx.AsyncClient):
     caps = res.json()
     assert "serp_rank" in caps
     assert set(caps["serp_rank"]) >= {"installed", "comparable", "single_source_risk"}
+
+
+async def test_capability_discovery_refuses_what_has_no_installed_provider(
+    client: httpx.AsyncClient,
+):
+    """A capability whose providers are merely *installable* must not be offered.
+
+    This shipped inverted: the filter asked `installable` ("could this be
+    installed?") rather than "is it installed?", so the department advertised
+    keyword_research, backlink and aeo_visibility to every other department
+    while no provider was present. A request would be accepted and then BLOCK —
+    precisely the outcome the collaboration protocol exists to avoid. Declining
+    up front is the cheaper failure.
+    """
+    caps = (await client.get("/api/v1/capabilities")).json()["capabilities"]
+    assert caps
+
+    for cap in caps:
+        if cap["accepts_external"]:
+            assert cap["providers"], (
+                f"'{cap['id']}' accepts external work with no installed provider — "
+                "the advertise-then-BLOCK bug"
+            )
+        else:
+            assert cap.get("reason"), f"'{cap['id']}' declines without saying why"
+
+    # "Nobody implements this" and "the provider just isn't installed" are both
+    # refusals, but they call for different actions, so they must read
+    # differently — otherwise nobody can tell impossible from one install away.
+    by_id = {c["id"]: c for c in caps}
+    nothing_provides = [c for c in caps if not c["accepts_external"]
+                        and not c.get("installable_providers")]
+    not_installed = [c for c in caps if not c["accepts_external"]
+                     and c.get("installable_providers")]
+    assert nothing_provides and not_installed, (
+        "fixture no longer exercises both refusal kinds; the distinction is the point"
+    )
+    assert nothing_provides[0]["reason"] != not_installed[0]["reason"]
+    assert "internal_link" in by_id
+
+
+async def test_capability_discovery_and_catalog_agree_on_installed(
+    client: httpx.AsyncClient,
+):
+    """Both endpoints must decide 'installed' from one shared source.
+
+    They each carried their own copy of the spec→catalog mapping, so the
+    catalog could call a tool absent while capability discovery implied it was
+    usable. Same question, two answers.
+    """
+    installed = {
+        e["id"] for e in (await client.get("/api/catalog")).json()["items"] if e["installed"]
+    }
+    for cap in (await client.get("/api/v1/capabilities")).json()["capabilities"]:
+        assert set(cap["providers"]) <= installed, (
+            f"'{cap['id']}' lists a provider the catalog does not consider installed"
+        )

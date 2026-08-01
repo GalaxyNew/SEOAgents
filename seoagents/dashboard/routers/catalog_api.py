@@ -12,37 +12,16 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from dojocore.capability import capabilities as _caps
-from seoagents.agent.runtime import get_runtime
 from seoagents.plugins.catalog_loader import (
     capability_map,
     estimate_footprint,
     load_catalog,
 )
+from seoagents.plugins.catalog_loader import (
+    installed_ids as _installed_ids,
+)
 
 router = APIRouter(prefix="/api", tags=["catalog"])
-
-# Which registered ToolSpec satisfies which catalog entry. Until the full plugin
-# contract lands, this mapping is what lets the UI mark a card "installed".
-_SPEC_TO_CATALOG: dict[str, str] = {
-    "google_seo_monitor": "google_search_console",
-    "serp_rank_tracker": "openserp",
-    "site_technical_auditor": "python_seo_analyzer",
-    "lighthouse_audit": "lighthouse",
-    "gsc_indexing_ops": "google_search_console",
-}
-
-
-def _installed_ids() -> set[str]:
-    try:
-        names = set(get_runtime().registry.names())
-    except Exception:  # noqa: BLE001 - catalog must render even without a runtime
-        return set()
-    installed = {cid for spec, cid in _SPEC_TO_CATALOG.items() if spec in names}
-    # MCP-mounted providers appear as mcp_<server>_<tool>
-    if any(n.startswith("mcp_dataforseo") for n in names):
-        installed.add("dataforseo")
-    return installed
-
 
 @router.get("/catalog")
 async def list_catalog() -> dict[str, Any]:

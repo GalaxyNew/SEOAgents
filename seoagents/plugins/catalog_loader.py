@@ -232,3 +232,35 @@ __all__ = [
     "estimate_footprint",
     "load_catalog",
 ]
+
+
+# Which registered ToolSpec satisfies which catalog entry. Until the full plugin
+# contract lands, this mapping is what lets both the catalog UI and the
+# capability-discovery endpoint agree on what "installed" means.
+SPEC_TO_CATALOG: dict[str, str] = {
+    "google_seo_monitor": "google_search_console",
+    "serp_rank_tracker": "openserp",
+    "site_technical_auditor": "python_seo_analyzer",
+    "lighthouse_audit": "lighthouse",
+    "gsc_indexing_ops": "google_search_console",
+}
+
+
+def installed_ids() -> set[str]:
+    """Catalog ids backed by a tool that is actually registered right now.
+
+    Deliberately not derived from CatalogEntry.installable — that field answers
+    "could this be installed?", which is a different question and the source of
+    a bug where the department advertised capabilities nobody could perform.
+    """
+    from seoagents.agent.runtime import get_runtime  # lazy: avoids an import cycle
+
+    try:
+        names = set(get_runtime().registry.names())
+    except Exception:  # noqa: BLE001 - discovery must work without a runtime
+        return set()
+    installed = {cid for spec, cid in SPEC_TO_CATALOG.items() if spec in names}
+    # MCP-mounted providers appear as mcp_<server>_<tool>
+    if any(n.startswith("mcp_dataforseo") for n in names):
+        installed.add("dataforseo")
+    return installed

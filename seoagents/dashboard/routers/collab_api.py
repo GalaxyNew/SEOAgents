@@ -14,8 +14,7 @@ from dojocore.capability import capabilities as _caps
 from dojocore.collab import get_collab_service
 from dojocore.collab.models import ProtocolError
 from dojocore.logging import LOGGER
-from seoagents.agent.runtime import get_runtime
-from seoagents.plugins.catalog_loader import capability_map
+from seoagents.plugins.catalog_loader import capability_map, installed_ids
 
 router = APIRouter(prefix="/api/v1", tags=["collab"])
 
@@ -134,15 +133,16 @@ async def list_own_capabilities() -> dict[str, Any]:
     an ability that immediately BLOCKs is worse than declining up front.
     """
     svc = _svc()
-    try:
-        installed = set(get_runtime().registry.names())
-    except Exception:  # noqa: BLE001 - discovery must work without a runtime
-        installed = set()
+    installed = installed_ids()
     grouped = capability_map()
     out = []
     for cap in _caps.list():
-        tools = [t for t in grouped.get(cap.id, []) if t.installable]
-        ready = bool(tools) and bool(installed)
+        # `installable` means "could be installed" — answering with it told other
+        # departments we could do keyword research when no provider was present,
+        # which turns into a BLOCKED request instead of an honest refusal.
+        tools = [t for t in grouped.get(cap.id, []) if t.id in installed]
+        candidates = [t for t in grouped.get(cap.id, []) if t.installable]
+        ready = bool(tools)
         entry: dict[str, Any] = {
             "id": cap.id,
             "label": cap.label,
@@ -152,9 +152,13 @@ async def list_own_capabilities() -> dict[str, Any]:
         }
         if not ready:
             entry["reason"] = (
-                "无已安装的工具提供该能力,当前会返回 DATA_UNAVAILABLE"
-                if not tools else "运行时未就绪"
+                "无任何工具提供该能力,当前会返回 DATA_UNAVAILABLE"
+                if not candidates
+                else "可用工具 "
+                + "/".join(t.id for t in candidates)
+                + " 尚未安装,当前会返回 DATA_UNAVAILABLE"
             )
+            entry["installable_providers"] = [t.id for t in candidates]
         out.append(entry)
     return {"dept": svc.own_dept, "capabilities": out}
 
