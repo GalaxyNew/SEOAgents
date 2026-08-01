@@ -14,8 +14,8 @@ from urllib.parse import urlparse
 
 from fastapi import APIRouter, Query
 
+from dojocore.logging import LOGGER
 from seoagents.agent.runtime import get_runtime
-from seoagents.logging import LOGGER
 
 router = APIRouter(prefix="/api/gsc", tags=["gsc"])
 

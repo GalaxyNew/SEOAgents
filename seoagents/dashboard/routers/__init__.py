@@ -6,6 +6,7 @@ from seoagents.dashboard.routers import (
     config_api,
     gsc_api,
     metrics,
+    workflow_api,
 )
 
 all_routers = [
@@ -16,6 +17,7 @@ all_routers = [
     gsc_api.router,
     catalog_api.router,
     collab_api.router,
+    workflow_api.router,
 ]
 
 __all__ = ["all_routers"]

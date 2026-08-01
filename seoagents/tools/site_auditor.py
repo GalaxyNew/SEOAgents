@@ -15,9 +15,9 @@ from urllib.parse import urljoin, urlparse
 import httpx
 from bs4 import BeautifulSoup
 
+from dojocore.logging import LOGGER
+from dojocore.quality import degraded, real, window_iso
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.logging import LOGGER
-from seoagents.quality import degraded, real, window_iso
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
 from seoagents.tools.environments.sandbox import SandboxPolicy, SandboxViolation

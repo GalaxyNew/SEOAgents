@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from urllib.parse import urlparse
 
+from dojocore.logging import LOGGER
 from seoagents.config.models import SandboxConfig
-from seoagents.logging import LOGGER
 
 
 class SandboxViolation(RuntimeError):

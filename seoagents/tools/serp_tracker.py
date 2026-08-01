@@ -23,9 +23,9 @@ from urllib.parse import urlparse
 
 import httpx
 
+from dojocore.logging import LOGGER
+from dojocore.quality import DataStatus, real, unavailable, window_iso, worst_status
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.logging import LOGGER
-from seoagents.quality import DataStatus, real, unavailable, window_iso, worst_status
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
 

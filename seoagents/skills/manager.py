@@ -14,8 +14,8 @@ from typing import Any
 
 import yaml
 
+from dojocore.logging import LOGGER
 from seoagents.agent.models import ToolCall
-from seoagents.logging import LOGGER
 from seoagents.tools.executor import ToolExecutor
 
 _BUILT_IN_DIR = Path(__file__).parent / "built_in"

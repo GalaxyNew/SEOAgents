@@ -130,7 +130,7 @@ async def check_executor():
         def get_name(self): return "echo"
         def get_schema(self): return {"name": "echo", "description": "", "parameters": {}}
         async def execute(self, arguments, session_id):
-            from seoagents.quality import real
+            from dojocore.quality import real
             return real({"ok": True}, source="echo")
 
     class Slow(BaseToolSpec):

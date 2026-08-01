@@ -13,8 +13,8 @@ from typing import Any
 
 import httpx
 
+from dojocore.logging import LOGGER
 from seoagents.gateway.adapters import BaseGatewayAdapter
-from seoagents.logging import LOGGER
 
 
 class FeishuSeoNotifierAdapter(BaseGatewayAdapter):

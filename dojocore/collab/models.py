@@ -125,7 +125,7 @@ def new_request_id(dept: str, seq: int, when: _dt.date | None = None) -> str:
     carries the same id, so the recipient can recognise it as a duplicate
     rather than opening a second ticket.
     """
-    day = (when or _dt.date.today()).strftime("%Y%m%d")
+    day = (when or _dt.datetime.now(_dt.timezone.utc).date()).strftime("%Y%m%d")
     return f"REQ-{dept.upper().replace('-', '')}-{day}-{seq:04d}"
 
 

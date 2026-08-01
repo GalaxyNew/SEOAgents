@@ -3,8 +3,7 @@ from __future__ import annotations
 
 import pytest
 
-from seoagents.config.models import ScoringConfig
-from seoagents.quality import (
+from dojocore.quality import (
     DataIntegrityError,
     DataStatus,
     all_real,
@@ -14,6 +13,7 @@ from seoagents.quality import (
     validate_tool_output,
     worst_status,
 )
+from seoagents.config.models import ScoringConfig
 from seoagents.quant.scoring import SeoScoreEngine
 
 

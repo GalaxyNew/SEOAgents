@@ -18,8 +18,8 @@ from bs4 import BeautifulSoup
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-from seoagents.logging import LOGGER
-from seoagents.quality import real, unavailable
+from dojocore.logging import LOGGER
+from dojocore.quality import real, unavailable
 from seoagents.tools.base import BaseToolSpec
 
 

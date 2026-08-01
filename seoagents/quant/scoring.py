@@ -23,8 +23,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from dojocore.quality import DataStatus, all_real, worst_status
 from seoagents.config.models import ScoringConfig
-from seoagents.quality import DataStatus, all_real, worst_status
 
 MISSING_POSITION = 100.0  # keyword not found in SERP -> treated as position 100
 

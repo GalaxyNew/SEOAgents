@@ -13,10 +13,10 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from dojocore.logging import LOGGER
 from seoagents.agent.loop import UniversalAgentLoop
 from seoagents.agent.models import AgentRunResult
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.logging import LOGGER
 
 
 @dataclass(frozen=True)

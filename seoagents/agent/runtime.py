@@ -10,12 +10,13 @@ import threading
 from dataclasses import dataclass
 from urllib.parse import urlparse
 
+from dojocore.context import set_config_provider
+from dojocore.logging import LOGGER
 from seoagents.agent.loop import UniversalAgentLoop
 from seoagents.agent.providers import BaseLLMProvider, build_provider
 from seoagents.config import ConfigStore
 from seoagents.config.models import SeoAgentsConfig
 from seoagents.gateway.adapters.feishu_seo_notifier import FeishuSeoNotifierAdapter
-from seoagents.logging import LOGGER
 from seoagents.multi_agent.orchestrator import MultiAgentOrchestrator
 from seoagents.quant.scoring import SeoScoreEngine
 from seoagents.skills.manager import RuntimeSkillCompiler, SkillManager
@@ -50,6 +51,12 @@ class Runtime:
     def from_config_store(cls, config_store: ConfigStore | None = None) -> Runtime:
         config_store = config_store or ConfigStore.get_instance()
         config = config_store.snapshot()
+
+        # Tell the framework how to reach configuration, and make sure this
+        # department's vocabulary is registered before anything queries it.
+        set_config_provider(lambda: ConfigStore.get_instance().snapshot())
+        import seoagents.department  # noqa: F401 - registers the SEO profile
+
 
         sandbox = SandboxPolicy(config.sandbox)
         # The audited property itself is always a legal target.

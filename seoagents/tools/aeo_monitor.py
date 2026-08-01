@@ -23,9 +23,9 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
+from dojocore.logging import LOGGER
+from dojocore.quality import DataStatus, real, unavailable, window_iso, worst_status
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.logging import LOGGER
-from seoagents.quality import DataStatus, real, unavailable, window_iso, worst_status
 from seoagents.quant.scoring import SeoScoreEngine
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec

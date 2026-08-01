@@ -11,10 +11,10 @@ import tempfile
 import httpx
 import pytest
 
-from seoagents.collab import reset_collab_service
-from seoagents.collab.models import CollabRequest, ProtocolError, RequestStatus, new_request_id
-from seoagents.collab.service import CollabService
-from seoagents.collab.store import CollabStore
+from dojocore.collab import reset_collab_service
+from dojocore.collab.models import CollabRequest, ProtocolError, RequestStatus, new_request_id
+from dojocore.collab.service import CollabService
+from dojocore.collab.store import CollabStore
 from seoagents.dashboard.server import create_app
 
 

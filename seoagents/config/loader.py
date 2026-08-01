@@ -20,8 +20,8 @@ from typing import Any
 
 import yaml
 
+from dojocore.logging import LOGGER
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.logging import LOGGER
 from seoagents.storage.locks import file_lock
 
 _ENV_PATTERN = re.compile(r"\$\{([A-Za-z_][A-Za-z0-9_]*)\}")

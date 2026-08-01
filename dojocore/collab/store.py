@@ -14,10 +14,10 @@ import threading
 from pathlib import Path
 from typing import Any
 
-from seoagents.collab.models import (
+from dojocore.collab.models import (
     CollabRequest,
 )
-from seoagents.logging import LOGGER
+from dojocore.logging import LOGGER
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS collab_requests (

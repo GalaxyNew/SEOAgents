@@ -10,9 +10,9 @@ from __future__ import annotations
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from dojocore.logging import LOGGER
 from seoagents.agent.models import AgentRunResult, ChatMessage, TraceStep
 from seoagents.agent.providers import BaseLLMProvider
-from seoagents.logging import LOGGER
 from seoagents.utils.event_bus import EventBus
 
 if TYPE_CHECKING:

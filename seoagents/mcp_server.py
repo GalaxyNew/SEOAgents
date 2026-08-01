@@ -34,10 +34,10 @@ import json
 import uuid
 from typing import TYPE_CHECKING, Any
 
+from dojocore.logging import LOGGER
+from dojocore.quality import DataStatus, extract_status
 from seoagents.agent.models import ToolCall
 from seoagents.agent.runtime import Runtime, get_runtime
-from seoagents.logging import LOGGER
-from seoagents.quality import DataStatus, extract_status
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from mcp.types import Tool

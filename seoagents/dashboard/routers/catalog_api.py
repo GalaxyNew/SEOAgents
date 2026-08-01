@@ -11,8 +11,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
+from dojocore.capability import capabilities as _caps
 from seoagents.agent.runtime import get_runtime
-from seoagents.plugins.capabilities import Capability
 from seoagents.plugins.catalog_loader import (
     capability_map,
     estimate_footprint,
@@ -66,7 +66,7 @@ async def get_catalog_entry(entry_id: str) -> dict[str, Any]:
     peers = [
         e.to_dict()
         for e in load_catalog()
-        if e.id != entry.id and set(e.capabilities) & set(entry.capabilities)
+        if e.id != entry.id and {c.id for c in e.capabilities} & {c.id for c in entry.capabilities}
     ]
     return {
         **entry.to_dict(),
@@ -86,11 +86,11 @@ async def list_capabilities() -> dict[str, Any]:
     installed = _installed_ids()
     grouped = capability_map()
     out: dict[str, Any] = {}
-    for cap in Capability:
-        tools = grouped.get(cap.value, [])
+    for cap in _caps.list():
+        tools = grouped.get(cap.id, [])
         usable = [t for t in tools if t.installable]
         inst = [t.id for t in usable if t.id in installed]
-        out[cap.value] = {
+        out[cap.id] = {
             "label": cap.label,
             "installed": inst,
             "available_to_install": [t.id for t in usable if t.id not in installed],
