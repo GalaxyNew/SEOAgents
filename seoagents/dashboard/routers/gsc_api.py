@@ -20,24 +20,21 @@ from seoagents.agent.runtime import get_runtime
 router = APIRouter(prefix="/api/gsc", tags=["gsc"])
 
 
-def _previous_window_totals(rt, site: str, start_date, days: int, single_day: str | None) -> dict:
+def _previous_window_totals(
+    monitor_tool, target_prop: str, start_date, days: int, single_day: str | None
+) -> dict:
     """Totals for the equal-length window immediately before the current one.
 
     Returns an empty dict when the comparison window cannot be fetched, which
     makes every delta render as "—" instead of inventing a percentage.
     """
     try:
-        monitor = rt.registry.get("google_seo_monitor")
-        if monitor is None:
-            return {}
         span = 1 if single_day else max(int(days), 1)
         prev_end = start_date - datetime.timedelta(days=1)
         prev_start = prev_end - datetime.timedelta(days=span - 1)
-        rows = monitor.query_gsc_raw(
-            site_url=site,
-            start_date=prev_start.strftime("%Y-%m-%d"),
-            end_date=prev_end.strftime("%Y-%m-%d"),
-            dimensions=["date"],
+        rows = monitor_tool.query_gsc_raw(
+            target_prop, span, ["date"],
+            prev_start.strftime("%Y-%m-%d"), prev_end.strftime("%Y-%m-%d"),
         )
         if not rows:
             return {}
@@ -143,6 +140,9 @@ async def get_gsc_overview(
     real_queries = None
     real_pages = None
     real_countries = None
+    # Bound before the try: if constructing the monitor raises, the comparison
+    # window below must still be able to test it without an UnboundLocalError.
+    monitor_tool = None
 
     try:
         from seoagents.tools.seo_trends import GoogleSEOMonitorSpec
@@ -222,7 +222,11 @@ async def get_gsc_overview(
     # `range_type` — i.e. a function of which button was clicked, not of the
     # data. They are now computed against a real comparison window of equal
     # length, and render as "—" when that window is unavailable.
-    prev_totals = _previous_window_totals(rt, site, start_date, days, target_single_day)
+    prev_totals = (
+        _previous_window_totals(monitor_tool, target_prop, start_date, days, target_single_day)
+        if monitor_tool is not None
+        else {}
+    )
 
     def _delta(current, previous, *, lower_is_better: bool = False):
         if current is None or previous is None:
@@ -343,7 +347,7 @@ async def get_gsc_overview(
         "domain_name": domain,
         "gsc_property": target_prop,
         "brand_name": brand_name,
-        "service_account_email": _service_account_email(rt),
+        "service_account_email": _service_account_email(runtime),
         "date_range": f"锁定单日 ({target_single_day})" if target_single_day else date_range_str,
         "single_date": target_single_day,
         "range_type": range_type,
