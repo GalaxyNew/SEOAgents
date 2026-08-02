@@ -10,6 +10,7 @@ from seoagents.dashboard.routers import (
     gsc_api,
     kanban_api,
     metrics,
+    storage_api,
     workflow_api,
     workflow_kanban_bridge,
 )
@@ -27,6 +28,7 @@ all_routers = [
     workflow_kanban_bridge.router,
     kanban_api.router,
     departments_api.router,
+    storage_api.router,
     timeline_router,
 ]
 

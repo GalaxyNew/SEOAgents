@@ -333,3 +333,80 @@ __all__ = [
     "KINDS", "AssetHubError", "build_key", "delete", "exists", "get", "health",
     "listing", "load_nodes", "pick_node", "put", "put_json", "save_nodes",
 ]
+
+
+# ── 存储 + 登记一体化 ─────────────────────────────────────────────────
+def put_asset(
+    data: bytes | str,
+    *,
+    dept: str,
+    name: str,
+    kind: str = "misc",
+    level: str = "L1",
+    task_id: str,
+    owner_agent: str,
+    summary: str,
+    usage: str,
+    source_evidence: str,
+    asset_class: str = "DOC",
+    content_type: str = "application/octet-stream",
+    node_id: str = "",
+    rollback: str = "",
+    review_cycle: str = "90d",
+    **kw: Any,
+) -> dict[str, Any]:
+    """存一份资产并登记进台账。L3 会**真的**镜像到第二个节点。
+
+    L3 要求 ``backup_location``。如果只让人手填一行字,写什么都能过 —— 纸面合规。
+    所以这里对 L3 做真实镜像:写完主节点再写一份到另一个节点,拿镜像的实际
+    落点作为 backup_location。没有第二个可写节点就直接失败,不允许「先登记、
+    备份以后再补」—— 那个「以后」在事故里从来没到过。
+    """
+    from seoagents.storage import asset_registry as _reg
+
+    body = data.encode("utf-8") if isinstance(data, str) else data
+
+    # L3 的可备份性必须在写任何东西之前确认。先写主节点再发现没法备份,
+    # 会在存储里留下一个没有台账的孤儿对象 —— 那正是资产登记要消灭的东西。
+    mirror_node = ""
+    if level == "L3":
+        intended = pick_node(kind, node_id, for_write=True)["id"]
+        others = [
+            nid for nid, n in load_nodes().items()
+            if nid != intended and n.get("enabled", True) and quota.check(n)["writable"]
+        ]
+        if not others:
+            raise AssetHubError(
+                f"L3 资产 '{name}' 需要异地备份,但除 {intended} 外"
+                f"没有其它可写节点 —— 拒绝以「无备份」状态登记 L3。"
+                f"请先加节点,或确认它其实是 L2。(未写入任何数据)"
+            )
+        mirror_node = others[0]
+
+    primary = put(body, dept=dept, kind=kind, name=name,
+                  content_type=content_type, node_id=node_id, **kw)
+
+    backup_loc = ""
+    if level == "L3":
+        try:
+            mirror = put(body, dept=dept, kind=kind, name=name,
+                         content_type=content_type, node_id=mirror_node, **kw)
+        except AssetHubError as exc:
+            raise AssetHubError(
+                f"L3 主节点已写入 {primary['node']}:{primary['key']},"
+                f"但镜像到 {mirror_node} 失败: {exc} —— 未登记,请重试或换节点"
+            ) from exc
+        backup_loc = f"{mirror['node']}:{mirror['key']}"
+        rollback = rollback or f"从 {mirror['node']} get '{mirror['key']}' 覆盖回 {primary['node']}"
+
+    entry = _reg.register(
+        name=name, cls=asset_class, level=level, task_id=task_id,
+        owner_department=dept, owner_agent=owner_agent,
+        location=primary["key"], location_type="gdrive" if primary["kind"] == "gdrive" else "s3",
+        storage_node=primary["node"], summary=summary, usage=usage,
+        source_evidence=source_evidence, content=body, content_type=content_type,
+        backup_location=backup_loc, rollback=rollback if level == "L3" else "",
+        review_cycle=review_cycle if level == "L3" else "",
+    )
+    return {**primary, "asset_id": entry["asset_id"], "level": level,
+            "checksum": entry["checksum"], "backup": backup_loc}

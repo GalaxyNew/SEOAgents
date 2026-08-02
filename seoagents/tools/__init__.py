@@ -12,6 +12,7 @@ from seoagents.tools.indexing import IndexingOpsSpec
 from seoagents.tools.keyword_discovery import KeywordDiscoverySpec
 from seoagents.tools.internal_linker import InternalLinkerSpec
 from seoagents.tools.lighthouse import LighthouseAuditSpec
+from seoagents.tools.platform_ops import PlatformOpsSpec
 from seoagents.tools.seo_trends import GoogleSEOMonitorSpec
 from seoagents.tools.serp_tracker import SerpTrackerSpec
 from seoagents.tools.site_auditor import SiteAuditorSpec
@@ -39,6 +40,8 @@ def register_default_tools(
     registry.register(SystemOpsSpec())
     registry.register(KeywordDiscoverySpec(config, store))
     registry.register(AssetHubSpec(config, store))
+    # 部门主管除了管站点,也要能管自己这套平台
+    registry.register(PlatformOpsSpec(config))
 
 
 __all__ = [
@@ -48,6 +51,7 @@ __all__ = [
     "GoogleSEOMonitorSpec",
     "IndexingOpsSpec",
     "KeywordDiscoverySpec",
+    "PlatformOpsSpec",
     "InternalLinkerSpec",
     "LighthouseAuditSpec",
     "SandboxPolicy",

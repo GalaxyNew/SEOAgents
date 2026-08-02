@@ -316,11 +316,9 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
         "sites_scored": len(scored),
         "sites_partial": len(results) - len(scored),
         "results": results,
-        # 兼容旧调用方:仍暴露首个站点的字段,但不再代表「全局」
-        "m_t": results[0].get("m_t") if results else None,
-        "score_status": results[0].get("score_status") if results else None,
-        "excluded_inputs": results[0].get("excluded_inputs") if results else [],
-        "data_sources": results[0].get("data_sources") if results else {},
+        # 刻意不提供顶层 m_t/score_status。多站点系统没有「全局 M_t」这种东西,
+        # 拿 results[0] 冒充它,读的人会以为看到的是整体表现 —— 而它只是
+        # 恰好排在第一位的那个站。要哪个站的分,就去 results 里按 site 取。
     }
     LOGGER.info(
         f"全部站点演化完成:{len(scored)}/{len(sites)} 个算出 M_t · "

@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { useIsMobile } from '../hooks'
 import { useQuickCommands } from '../ui'
 import type { MetricsSummary } from './MetricsPanel'
+import type { TabId } from '../App'
 
 /**
  * SEOAgent 控制台 —— 单一入口就是 hm。
@@ -17,7 +18,8 @@ import type { MetricsSummary } from './MetricsPanel'
 export interface AgentCopilotDrawerProps {
   isOpen: boolean
   onClose: () => void
-  activeTab: 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'departments' | 'config'
+  // 从 App 导入而不是照抄一份:两处各写一遍,加页面时必然漏改一处
+  activeTab: TabId
   summary: MetricsSummary | null
   configData: any
   drawerWidth: number

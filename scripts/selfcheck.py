@@ -227,8 +227,10 @@ async def check_evolution():
     summary = await run_seo_self_evolution_pipeline(rt)
 
     assert summary["trace_len"] >= 5, "流水线必须跑完"
-    assert summary["m_t"] is None, f"无凭证却产出了分数: {summary['m_t']}"
-    assert summary["score_status"] == "PARTIAL"
+    assert summary["sites_scored"] == 0, f"无凭证却产出了分数: {summary}"
+    for r in summary["results"]:
+        assert r["m_t"] is None, f"{r['site']} 无凭证却产出了分数: {r['m_t']}"
+        assert r["score_status"] == "PARTIAL"
     assert summary["excluded_inputs"], "必须说明哪些输入导致拒绝计分"
     assert summary["v_t"] is None, "AEO 不得补零"
     assert summary["links_fixed"] == 0, "未经线上验证不得标记修复"

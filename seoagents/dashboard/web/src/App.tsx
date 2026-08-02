@@ -8,14 +8,15 @@ import { KanbanPanel } from './components/KanbanPanel'
 import { TimelinePanel } from './components/TimelinePanel'
 import { WorkflowPanel } from './components/WorkflowPanel'
 import { CapabilityPanel } from './components/CapabilityPanel'
+import { StoragePanel } from './components/StoragePanel'
 import { DepartmentPanel } from './components/DepartmentPanel'
 import { useIsMobile } from './hooks'
 
-type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'departments' | 'config'
+export type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
 
 export default function App() {
   // tab 存进 URL hash:刷新后回到原页面,链接也能直接分享到具体页
-  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'kanban', 'timeline', 'workflow', 'capability', 'departments', 'config']
+  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config']
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const h = (window.location.hash || '').replace(/^#\/?/, '') as TabId
     return VALID_TABS.includes(h) ? h : 'dashboard'
@@ -140,6 +141,7 @@ export default function App() {
             ['timeline', '🗓️ 时间规划'],
             ['workflow', '⚙️ 工作流'],
             ['capability', '🧭 能力中心'],
+            ['storage', '🗄️ 存储资产'],
           ] as Array<[TabId, string]>).map(([id, label]) => (
             <button
               key={id}
@@ -461,6 +463,8 @@ export default function App() {
         {activeTab === 'workflow' && <WorkflowPanel />}
 
         {activeTab === 'capability' && <CapabilityPanel />}
+
+        {activeTab === 'storage' && <StoragePanel />}
 
         {activeTab === 'departments' && (
           <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>

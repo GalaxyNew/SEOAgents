@@ -192,11 +192,24 @@ class SeoHistoryStore:
     def _rows(cursor: sqlite3.Cursor) -> list[dict[str, Any]]:
         return [dict(r) for r in cursor.fetchall()]
 
-    def recent_audit_runs(self, limit: int = 30) -> list[dict[str, Any]]:
+    def recent_audit_runs(
+        self, limit: int = 30, *, include_observations: bool = False
+    ) -> list[dict[str, Any]]:
+        """历史评分记录。**默认不含观测行**。
+
+        表里有两种行:算得出分的「评分行」,和 M_t 为 NULL 的「观测行」——
+        后者只是为了给 traffic_delta 留一个点击基线,把死锁解开。
+
+        观测行必须挡在这里。这个方法喂的是趋势图和「这一轮比上一轮好没好」
+        的比较,一个没有分数的点混进去,图上会出现一段无中生有的走势,
+        比较逻辑也会拿 NULL 当基准。要看原始观测请显式传
+        ``include_observations=True``。
+        """
+        sql = "SELECT * FROM audit_runs{} ORDER BY ts DESC LIMIT ?".format(
+            "" if include_observations else " WHERE m_t IS NOT NULL"
+        )
         with self._conn() as conn:
-            rows = self._rows(
-                conn.execute("SELECT * FROM audit_runs ORDER BY ts DESC LIMIT ?", (limit,))
-            )
+            rows = self._rows(conn.execute(sql, (limit,)))
         for r in rows:
             try:
                 r["breakdown"] = json.loads(r.pop("breakdown_json") or "{}")
