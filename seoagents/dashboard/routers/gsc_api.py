@@ -27,17 +27,27 @@ def _previous_window_totals(rt, site: str, start_date, days: int, single_day: st
     makes every delta render as "—" instead of inventing a percentage.
     """
     try:
-        monitor = rt.registry.get("google_seo_monitor")
-        if monitor is None:
-            return {}
+        # 与主流程一致:直接构造 monitor,并按 query_gsc_raw 的真实位置参数调用
+        # (target_site, days_limit, dimensions, start_date_str, end_date_str)
+        from seoagents.tools.seo_trends import GoogleSEOMonitorSpec
+
+        monitor = GoogleSEOMonitorSpec(rt.config)
         span = 1 if single_day else max(int(days), 1)
-        prev_end = start_date - datetime.timedelta(days=1)
+        # 锁定单日时,对照窗口应以该日为基准,而非整个范围的起点
+        base = start_date
+        if single_day:
+            try:
+                base = datetime.date.fromisoformat(single_day)
+            except (TypeError, ValueError):
+                base = start_date
+        prev_end = base - datetime.timedelta(days=1)
         prev_start = prev_end - datetime.timedelta(days=span - 1)
         rows = monitor.query_gsc_raw(
-            site_url=site,
-            start_date=prev_start.strftime("%Y-%m-%d"),
-            end_date=prev_end.strftime("%Y-%m-%d"),
-            dimensions=["date"],
+            site,
+            span,
+            ["date"],
+            prev_start.strftime("%Y-%m-%d"),
+            prev_end.strftime("%Y-%m-%d"),
         )
         if not rows:
             return {}
@@ -105,6 +115,8 @@ async def get_gsc_overview(
     gsc_property: str | None = Query(None, description="GSC property ID"),
     range_type: str = Query("7d", alias="range", description="Time range (24h, 7d, 30d, 3m)"),
     single_date: str | None = Query(None, description="Specific single date (YYYY-MM-DD or MM-DD) to filter breakdown metrics"),
+    start_date_q: str | None = Query(None, alias="start_date", description="自定义区间起始日 YYYY-MM-DD(与 end_date 同时提供时生效)"),
+    end_date_q: str | None = Query(None, alias="end_date", description="自定义区间结束日 YYYY-MM-DD"),
 ) -> dict[str, Any]:
     runtime = get_runtime()
     cfg = runtime.config
@@ -126,9 +138,39 @@ async def get_gsc_overview(
 
     today = datetime.date.today()
     days_map = {"24h": 1, "7d": 7, "30d": 30, "3m": 90}
-    days = days_map.get(range_type, 7)
-    start_date = today - datetime.timedelta(days=days - 1)
-    date_range_str = f"{start_date.strftime('%Y-%m-%d')} ~ {today.strftime('%Y-%m-%d')}"
+
+    # 自定义区间:start_date 与 end_date 都给且合法时,覆盖预设档位。
+    # 任一不合法就退回预设档并说明原因,绝不静默用错的区间出图。
+    custom_range = False
+    custom_error = ""
+    if start_date_q or end_date_q:
+        try:
+            if not (start_date_q and end_date_q):
+                raise ValueError("start_date 与 end_date 必须同时提供")
+            cs = datetime.date.fromisoformat(start_date_q)
+            ce = datetime.date.fromisoformat(end_date_q)
+            if cs > ce:
+                raise ValueError("start_date 不能晚于 end_date")
+            if ce > today:
+                ce = today
+            if cs > ce:
+                raise ValueError("起始日晚于今天,区间为空")
+            start_date, end_date = cs, ce
+            days = (end_date - start_date).days + 1
+            custom_range = True
+        except ValueError as exc:
+            custom_error = str(exc)
+            days = days_map.get(range_type, 7)
+            end_date = today
+            start_date = end_date - datetime.timedelta(days=days - 1)
+    else:
+        days = days_map.get(range_type, 7)
+        end_date = today
+        start_date = end_date - datetime.timedelta(days=days - 1)
+
+    range_start_str = start_date.strftime("%Y-%m-%d")
+    range_end_str = end_date.strftime("%Y-%m-%d")
+    date_range_str = f"{range_start_str} ~ {range_end_str}"
 
     # Normalize single_date to YYYY-MM-DD
     target_single_day = None
@@ -150,7 +192,10 @@ async def get_gsc_overview(
         
         import asyncio
         # Query date dimension for the entire range
-        real_data = await asyncio.to_thread(monitor_tool.query_gsc_raw, target_prop, days, ["date"])
+        _win = (range_start_str, range_end_str) if custom_range else ()
+        real_data = await asyncio.to_thread(
+            monitor_tool.query_gsc_raw, target_prop, days, ["date"], *_win
+        )
         
         # If single_date is requested, query query, page, and country for THAT SPECIFIC DAY
         if target_single_day:
@@ -164,9 +209,15 @@ async def get_gsc_overview(
                 monitor_tool.query_gsc_raw, target_prop, days, ["country"], target_single_day, target_single_day
             )
         else:
-            real_queries = await asyncio.to_thread(monitor_tool.query_gsc_raw, target_prop, days, ["query"])
-            real_pages = await asyncio.to_thread(monitor_tool.query_gsc_raw, target_prop, days, ["page"])
-            real_countries = await asyncio.to_thread(monitor_tool.query_gsc_raw, target_prop, days, ["country"])
+            real_queries = await asyncio.to_thread(
+                monitor_tool.query_gsc_raw, target_prop, days, ["query"], *_win
+            )
+            real_pages = await asyncio.to_thread(
+                monitor_tool.query_gsc_raw, target_prop, days, ["page"], *_win
+            )
+            real_countries = await asyncio.to_thread(
+                monitor_tool.query_gsc_raw, target_prop, days, ["country"], *_win
+            )
             
         LOGGER.info(
             f"[GSC API] Live GSC data fetched for {target_prop} (single_date={target_single_day}): "
@@ -222,7 +273,7 @@ async def get_gsc_overview(
     # `range_type` — i.e. a function of which button was clicked, not of the
     # data. They are now computed against a real comparison window of equal
     # length, and render as "—" when that window is unavailable.
-    prev_totals = _previous_window_totals(rt, site, start_date, days, target_single_day)
+    prev_totals = _previous_window_totals(runtime, target_prop, start_date, days, target_single_day)
 
     def _delta(current, previous, *, lower_is_better: bool = False):
         if current is None or previous is None:
@@ -343,8 +394,12 @@ async def get_gsc_overview(
         "domain_name": domain,
         "gsc_property": target_prop,
         "brand_name": brand_name,
-        "service_account_email": _service_account_email(rt),
+        "service_account_email": _service_account_email(runtime),
         "date_range": f"锁定单日 ({target_single_day})" if target_single_day else date_range_str,
+        "custom_range": custom_range,
+        "range_start": range_start_str,
+        "range_end": range_end_str,
+        "custom_range_error": custom_error,
         "single_date": target_single_day,
         "range_type": range_type,
         "last_synced": "刚刚",

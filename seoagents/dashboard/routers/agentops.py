@@ -12,9 +12,9 @@ from seoagents.dashboard.schemas import (
     PipelineRequest,
     SkillReplayRequest,
 )
-from seoagents.multi_agent.orchestrator import AUDITOR, LINKER, WRITER
+from seoagents.multi_agent.orchestrator import AUDITOR, HM, LINKER, WRITER, hm_system_prompt
 
-_ROLE_MAP = {"auditor": AUDITOR, "writer": WRITER, "linker": LINKER}
+_ROLE_MAP = {"auditor": AUDITOR, "writer": WRITER, "linker": LINKER, "hm": HM}
 
 router = APIRouter(prefix="/api", tags=["agent"])
 
@@ -22,9 +22,16 @@ router = APIRouter(prefix="/api", tags=["agent"])
 @router.post("/agent/run", response_model=GenericResult)
 async def run_agent(req: AgentTaskRequest, rt: Runtime = Depends(runtime_dep)) -> GenericResult:
     role = _ROLE_MAP.get(req.role)
+    if role is HM:
+        # hm 每次都现读 seohm 的记忆,保证两边始终是同一份
+        system = hm_system_prompt()
+    elif role:
+        system = role.system_prompt
+    else:
+        system = "role=default 你是 SEOAgents 的通用 SEO 智能体。"
     result = await rt.loop.run(
         req.task,
-        system=role.system_prompt if role else "role=default 你是 SEOAgents 的通用 SEO 智能体。",
+        system=system,
         allowed_tools=set(role.allowed_tools) if role and role.allowed_tools else None,
     )
     return GenericResult(
