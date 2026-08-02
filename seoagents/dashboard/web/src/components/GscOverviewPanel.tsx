@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useIsMobile } from '../hooks'
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -46,6 +47,10 @@ interface GscData {
   top_keywords: Array<{ keyword: string; is_new: boolean; clicks: number; delta_clicks: string; impressions: number; ctr: string; position: number; delta_position: string }>
   landing_pages: Array<{ path: string; clicks: number; delta: string; impressions: number; ctr: string; position: number }>
   countries: Array<{ code: string; name: string; clicks: number; ctr: string }>
+  custom_range?: boolean
+  range_start?: string
+  range_end?: string
+  custom_range_error?: string
   footer_status?: {
     tasks_summary: string
     datasource: string
@@ -83,13 +88,19 @@ const CustomChartTooltip = ({ active, payload, label }: any) => {
 }
 
 export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSites = [], onSelectSite }) => {
+  const isMobile = useIsMobile()
   const [selectedSiteUrl, setSelectedSiteUrl] = useState<string>('')
   const [rangeType, setRangeType] = useState<string>('7d')
+  const [customStart, setCustomStart] = useState<string>('')
+  const [customEnd, setCustomEnd] = useState<string>('')
+  const [showCustom, setShowCustom] = useState<boolean>(false)
   const [selectedSingleDate, setSelectedSingleDate] = useState<string | null>(null)
   const [kwFilter, setKwFilter] = useState<'all' | 'non_brand' | 'rising' | 'falling'>('all')
   const [loading, setLoading] = useState<boolean>(true)
   const [data, setData] = useState<GscData | null>(null)
   const [nowStr, setNowStr] = useState<string>('')
+  const [syncing, setSyncing] = useState<boolean>(false)
+  const [lastSync, setLastSync] = useState<Date | null>(null)
 
   // Modal Expand State ('keywords' | 'pages' | 'countries' | null)
   const [modalType, setModalType] = useState<'keywords' | 'pages' | 'countries' | null>(null)
@@ -109,7 +120,9 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
   const loadData = async (siteUrl?: string, range: string = '7d', singleDate: string | null = null) => {
     setLoading(true)
     try {
-      const url = `/api/gsc/overview?range=${range}${siteUrl ? `&site_url=${encodeURIComponent(siteUrl)}` : ''}${singleDate ? `&single_date=${encodeURIComponent(singleDate)}` : ''}`
+      const custom = range === 'custom' && customStart && customEnd
+        ? `&start_date=${customStart}&end_date=${customEnd}` : ''
+      const url = `/api/gsc/overview?range=${range}${siteUrl ? `&site_url=${encodeURIComponent(siteUrl)}` : ''}${singleDate ? `&single_date=${encodeURIComponent(singleDate)}` : ''}${custom}`
       const res = await fetch(url)
       const json = await res.json()
       if (json.ok) {
@@ -118,16 +131,38 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
           setSelectedSiteUrl(json.site_url)
         }
       }
+      setLastSync(new Date())
     } catch (e) {
       console.warn('Failed to load GSC overview data', e)
     } finally {
       setLoading(false)
+      setSyncing(false)
     }
+  }
+
+  /** 手动同步:立刻拉一次,并显示进行中动画 */
+  const manualSync = () => {
+    if (syncing) return
+    setSyncing(true)
+    loadData(selectedSiteUrl, rangeType, selectedSingleDate)
   }
 
   useEffect(() => {
     loadData(selectedSiteUrl, rangeType, selectedSingleDate)
   }, [selectedSiteUrl, rangeType])
+
+  // 30 分钟自动同步一次。GSC 数据本身有延迟,更密没有意义,
+  // 只会白白消耗配额。锁定单日时不自动刷,免得把用户看的那天冲掉。
+  useEffect(() => {
+    const AUTO_SYNC_MS = 30 * 60 * 1000
+    const timer = setInterval(() => {
+      if (document.hidden) return
+      if (selectedSingleDate) return
+      setSyncing(true)
+      loadData(selectedSiteUrl, rangeType, null)
+    }, AUTO_SYNC_MS)
+    return () => clearInterval(timer)
+  }, [selectedSiteUrl, rangeType, selectedSingleDate])
 
   const handleSiteChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value
@@ -267,13 +302,21 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
 
         {/* Time Range Switcher Pills */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#1e293b', padding: 2, borderRadius: 6 }}>
-          {['24h', '7d', '30d', '3m'].map((r) => {
-            const labelMap: Record<string, string> = { '24h': '24小时', '7d': '7日', '30d': '30日', '3m': '3个月' }
+          {['24h', '7d', '30d', '3m', 'custom'].map((r) => {
+            const labelMap: Record<string, string> = { '24h': '24小时', '7d': '7日', '30d': '30日', '3m': '3个月', 'custom': '📅 自定义' }
             const active = rangeType === r
             return (
               <button
                 key={r}
-                onClick={() => handleRangeChange(r)}
+                onClick={() => {
+                  if (r === 'custom') {
+                    setShowCustom(!showCustom)
+                    setRangeType('custom')
+                  } else {
+                    setShowCustom(false)
+                    handleRangeChange(r)
+                  }
+                }}
                 style={{
                   background: active ? '#3b82f6' : 'transparent',
                   color: active ? '#fff' : '#94a3b8',
@@ -292,6 +335,46 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
             )
           })}
         </div>
+
+        {/* 自定义日期区间 */}
+        {showCustom && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e293b', border: '1px solid #334155', borderRadius: 6, padding: '4px 8px' }}>
+            <input
+              type="date"
+              value={customStart}
+              max={customEnd || undefined}
+              onChange={(e) => setCustomStart(e.target.value)}
+              style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#e2e8f0', fontSize: 11, padding: '2px 6px', colorScheme: 'dark' }}
+            />
+            <span style={{ color: '#64748b', fontSize: 11 }}>~</span>
+            <input
+              type="date"
+              value={customEnd}
+              min={customStart || undefined}
+              max={new Date().toISOString().slice(0, 10)}
+              onChange={(e) => setCustomEnd(e.target.value)}
+              style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#e2e8f0', fontSize: 11, padding: '2px 6px', colorScheme: 'dark' }}
+            />
+            <button
+              disabled={!customStart || !customEnd}
+              onClick={() => {
+                setSelectedSingleDate(null)
+                loadData(selectedSiteUrl, 'custom', null)
+              }}
+              style={{
+                background: customStart && customEnd ? '#3b82f6' : '#334155',
+                color: customStart && customEnd ? '#fff' : '#64748b',
+                border: 0, borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 600,
+                cursor: customStart && customEnd ? 'pointer' : 'not-allowed',
+              }}
+            >
+              查询
+            </button>
+            {data?.custom_range_error && (
+              <span style={{ color: '#f87171', fontSize: 10 }}>⚠️ {data.custom_range_error}</span>
+            )}
+          </div>
+        )}
 
         {/* Status Indicators & Refresh */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
@@ -319,11 +402,32 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
           </span>
 
           <button
-            onClick={() => loadData(selectedSiteUrl, rangeType, selectedSingleDate)}
-            style={{ background: '#1e293b', color: '#cbd5e1', border: '1px solid #334155', borderRadius: 4, padding: '2px 6px', fontSize: 11, cursor: 'pointer' }}
+            onClick={manualSync}
+            disabled={syncing || loading}
+            title={lastSync ? `上次同步 ${lastSync.toLocaleTimeString('zh-CN', { hour12: false })} · 每 30 分钟自动同步` : '每 30 分钟自动同步'}
+            style={{
+              background: syncing ? '#1e3a8a' : '#1e293b',
+              color: syncing ? '#93c5fd' : '#cbd5e1',
+              border: `1px solid ${syncing ? '#3b82f6' : '#334155'}`,
+              borderRadius: 4, padding: '2px 8px', fontSize: 11,
+              cursor: syncing || loading ? 'wait' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 4,
+            }}
           >
-            🔄 同步
+            <span style={{
+              display: 'inline-block',
+              animation: syncing || loading ? 'gscSpin 0.9s linear infinite' : 'none',
+            }}>🔄</span>
+            {syncing ? '同步中' : '同步'}
           </button>
+          {syncing && (
+            <span style={{ color: '#60a5fa', fontSize: 10 }}>正在拉取 GSC…</span>
+          )}
+          {!syncing && lastSync && (
+            <span style={{ color: '#475569', fontSize: 10 }}>
+              上次 {lastSync.toLocaleTimeString('zh-CN', { hour12: false })}
+            </span>
+          )}
           <span style={{ color: '#64748b' }}>{nowStr}</span>
         </div>
       </div>
@@ -382,7 +486,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 13, fontWeight: 700, color: '#f3f4f6' }}>
-              📈 点击 / 展示趋势 {rangeType === '24h' ? '24 小时' : rangeType === '7d' ? '7 日' : rangeType === '30d' ? '30 日' : '3 个月'}
+              📈 点击 / 展示趋势 {rangeType === 'custom' ? (data?.date_range || '自定义区间') : rangeType === '24h' ? '24 小时' : rangeType === '7d' ? '7 日' : rangeType === '30d' ? '30 日' : '3 个月'}
             </span>
 
             {/* Interactive Single-Date Quick Switcher Select */}
@@ -493,7 +597,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
       </div>
 
       {/* Bottom 3-Column Detailed Metrics Section */}
-      <div className="gsc-bottom-grid" style={{ flex: 1, minHeight: 120, overflow: 'hidden' }}>
+      <div className="gsc-bottom-grid" style={{ flex: 1, minHeight: 120, overflow: isMobile ? 'visible' : 'hidden' }}>
         {/* Col 1: 📌 关键词 */}
         <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #334155' : '1px solid #1f2937', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
@@ -560,14 +664,14 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
               })
             ).map((kw, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid #1f2937' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 14 }}>{i + 1}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 14, flexShrink: 0 }}>{i + 1}</span>
                   <span style={{ color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kw.keyword}</span>
-                  {kw.is_new && <span style={{ background: '#1e3a8a', color: '#60a5fa', padding: '1px 4px', borderRadius: 3, fontSize: 9, fontWeight: 700 }}>NEW</span>}
+                  {kw.is_new && <span style={{ background: '#1e3a8a', color: '#60a5fa', padding: '1px 4px', borderRadius: 3, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>NEW</span>}
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                  <span style={{ color: '#64748b', fontSize: 10 }}>CTR {kw.ctr}</span>
-                  <span style={{ background: '#1e293b', color: '#94a3b8', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+                  <span style={{ color: '#64748b', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {kw.ctr}</span>
+                  <span style={{ background: '#1e293b', color: '#94a3b8', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600, width: 42, textAlign: 'center', boxSizing: 'border-box' }}>
                     P{kw.position}
                   </span>
                 </div>
@@ -602,14 +706,14 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1 }}>
             {(data?.landing_pages || []).map((page, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid #1f2937' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, overflow: 'hidden' }}>
-                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 14 }}>{i + 1}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, overflow: 'hidden' }}>
+                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 14, flexShrink: 0 }}>{i + 1}</span>
                   <span style={{ color: '#60a5fa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace' }}>{page.path}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap' }}>
-                  <span style={{ color: page.delta.includes('+') ? '#34d399' : '#94a3b8', fontSize: 10, fontWeight: 600 }}>{page.delta}</span>
-                  <span style={{ color: '#64748b', fontSize: 10 }}>CTR {page.ctr}</span>
-                  <span style={{ background: '#1e293b', color: '#94a3b8', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
+                  <span style={{ color: page.delta.includes('+') ? '#34d399' : '#94a3b8', fontSize: 10, fontWeight: 600, width: 34, textAlign: 'right' }}>{page.delta}</span>
+                  <span style={{ color: '#64748b', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {page.ctr}</span>
+                  <span style={{ background: '#1e293b', color: '#94a3b8', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600, width: 42, textAlign: 'center', boxSizing: 'border-box' }}>
                     P{page.position}
                   </span>
                 </div>
@@ -644,18 +748,18 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1 }}>
             {(data?.countries || []).map((country, i) => (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid #1f2937' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '60%' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, overflow: 'hidden' }}>
                   <span style={{ background: '#1e293b', color: '#38bdf8', padding: '1px 5px', borderRadius: 3, fontSize: 9, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
                     {country.code}
                   </span>
                   <span style={{ color: '#e2e8f0' }}>{country.name}</span>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, width: '40%', justifyContent: 'flex-end' }}>
-                  <div style={{ width: 35, background: '#1f2937', height: 4, borderRadius: 2, overflow: 'hidden' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8, justifyContent: 'flex-end' }}>
+                  <div style={{ width: 35, background: '#1f2937', height: 4, borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
                     <div style={{ width: `${Math.min(country.clicks * 20, 100)}%`, background: '#eab308', height: '100%' }} />
                   </div>
-                  <span style={{ color: '#f8fafc', fontWeight: 700, minWidth: 10 }}>{country.clicks}</span>
-                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 45, textAlign: 'right' }}>CTR {country.ctr}</span>
+                  <span style={{ color: '#f8fafc', fontWeight: 700, width: 18, textAlign: 'right' }}>{country.clicks}</span>
+                  <span style={{ color: '#64748b', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {country.ctr}</span>
                 </div>
               </div>
             ))}

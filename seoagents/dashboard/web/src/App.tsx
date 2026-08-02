@@ -4,9 +4,36 @@ import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
 import { ConfigPanel } from './components/ConfigPanel'
 import { AgentCopilotDrawer } from './components/AgentCopilotDrawer'
 import { GscOverviewPanel } from './components/GscOverviewPanel'
+import { KanbanPanel } from './components/KanbanPanel'
+import { TimelinePanel } from './components/TimelinePanel'
+import { WorkflowPanel } from './components/WorkflowPanel'
+import { CapabilityPanel } from './components/CapabilityPanel'
+import { DepartmentPanel } from './components/DepartmentPanel'
+import { useIsMobile } from './hooks'
+
+type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'departments' | 'config'
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'gsc_overview' | 'config'>('dashboard')
+  // tab 存进 URL hash:刷新后回到原页面,链接也能直接分享到具体页
+  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'kanban', 'timeline', 'workflow', 'capability', 'departments', 'config']
+  const [activeTab, setActiveTab] = useState<TabId>(() => {
+    const h = (window.location.hash || '').replace(/^#\/?/, '') as TabId
+    return VALID_TABS.includes(h) ? h : 'dashboard'
+  })
+  useEffect(() => {
+    if (window.location.hash.replace(/^#\/?/, '') !== activeTab) {
+      window.history.replaceState(null, '', `#${activeTab}`)
+    }
+  }, [activeTab])
+  useEffect(() => {
+    const onHash = () => {
+      const h = (window.location.hash || '').replace(/^#\/?/, '') as TabId
+      if (VALID_TABS.includes(h) && h !== activeTab) setActiveTab(h)
+    }
+    window.addEventListener('hashchange', onHash)
+    return () => window.removeEventListener('hashchange', onHash)
+  }, [activeTab])
+  const isMobile = useIsMobile()
   const [summary, setSummary] = useState<MetricsSummary | null>(null)
   const [configData, setConfigData] = useState<any>(null)
   const [seonautEndpoint, setSeonautEndpoint] = useState<string>('')
@@ -105,46 +132,35 @@ export default function App() {
         </div>
 
         {/* Center Nav: Quick View Switcher */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            style={{
-              background: activeTab === 'dashboard' ? '#1e293b' : 'transparent',
-              color: activeTab === 'dashboard' ? '#60a5fa' : '#9ca3af',
-              border: `1px solid ${activeTab === 'dashboard' ? '#3b82f6' : 'transparent'}`,
-              borderRadius: '8px',
-              padding: '6px 14px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            📊 监控大屏
-          </button>
-
-          <button
-            onClick={() => setActiveTab('gsc_overview')}
-            style={{
-              background: activeTab === 'gsc_overview' ? '#1e293b' : 'transparent',
-              color: activeTab === 'gsc_overview' ? '#60a5fa' : '#9ca3af',
-              border: `1px solid ${activeTab === 'gsc_overview' ? '#3b82f6' : 'transparent'}`,
-              borderRadius: '8px',
-              padding: '6px 14px',
-              fontSize: '13px',
-              fontWeight: '600',
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s ease',
-            }}
-          >
-            📈 GSC 数据大屏
-          </button>
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', maxWidth: '100%', paddingBottom: '2px', scrollbarWidth: 'thin' }}>
+          {([
+            ['dashboard', '📊 监控大屏'],
+            ['gsc_overview', '📈 GSC 大屏'],
+            ['kanban', '📋 任务卡'],
+            ['timeline', '🗓️ 时间规划'],
+            ['workflow', '⚙️ 工作流'],
+            ['capability', '🧭 能力中心'],
+          ] as Array<[TabId, string]>).map(([id, label]) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              style={{
+                background: activeTab === id ? '#1e293b' : 'transparent',
+                color: activeTab === id ? '#60a5fa' : '#9ca3af',
+                border: `1px solid ${activeTab === id ? '#3b82f6' : 'transparent'}`,
+                borderRadius: '8px',
+                padding: isMobile ? '5px 9px' : '6px 12px',
+                fontSize: isMobile ? '12px' : '13px',
+                fontWeight: '600',
+                cursor: 'pointer',
+                flexShrink: 0,
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              {label}
+            </button>
+          ))}
 
           {activeTab === 'config' && (
             <span
@@ -267,6 +283,37 @@ export default function App() {
 
                 <button
                   onClick={() => {
+                    setActiveTab('departments')
+                    setIsSettingsOpen(false)
+                  }}
+                  style={{
+                    background: activeTab === 'departments' ? '#1f2937' : 'transparent',
+                    color: activeTab === 'departments' ? '#60a5fa' : '#e5e7eb',
+                    border: 0,
+                    borderRadius: '6px',
+                    padding: '10px 12px',
+                    fontSize: '13px',
+                    fontWeight: '500',
+                    textAlign: 'left',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    width: '100%',
+                    boxSizing: 'border-box',
+                    transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
+                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'departments' ? '#1f2937' : 'transparent')}
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    🏢 部门管理
+                  </span>
+                  {activeTab === 'departments' && <span style={{ fontSize: '12px', color: '#60a5fa' }}>✓</span>}
+                </button>
+
+                <button
+                  onClick={() => {
                     setActiveTab('config')
                     setIsSettingsOpen(false)
                   }}
@@ -368,11 +415,12 @@ export default function App() {
           flex: 1,
           height: 'calc(100vh - 65px)',
           maxHeight: 'calc(100vh - 65px)',
-          overflow: 'hidden',
+          overflowY: activeTab === 'gsc_overview' ? 'hidden' : 'auto',
+          overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          padding: '12px 20px',
-          paddingRight: isDesktop && isCopilotOpen ? `${copilotWidth + 20}px` : '20px',
+          padding: isMobile ? '10px 12px' : '12px 20px',
+          paddingRight: isDesktop && isCopilotOpen ? `${copilotWidth + 20}px` : (isMobile ? '12px' : '20px'),
           width: '100%',
           maxWidth: '100%',
           margin: '0 auto',
@@ -406,9 +454,29 @@ export default function App() {
           />
         )}
 
+        {activeTab === 'kanban' && <KanbanPanel />}
+
+        {activeTab === 'timeline' && <TimelinePanel />}
+
+        {activeTab === 'workflow' && <WorkflowPanel />}
+
+        {activeTab === 'capability' && <CapabilityPanel />}
+
+        {activeTab === 'departments' && (
+          <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>
+            <div style={{ marginBottom: '16px' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#f3f4f6', margin: 0 }}>🏢 部门管理</h2>
+              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '6px 0 0' }}>
+                登记本联邦里其他部门实例的端点与能力。跨部门工作流节点靠它找到对方。
+              </p>
+            </div>
+            <DepartmentPanel />
+          </div>
+        )}
+
         {activeTab === 'config' && (
 
-          <div style={{ maxWidth: '960px', margin: '0 auto' }}>
+          <div style={{ maxWidth: '960px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>
             <div style={{ marginBottom: '24px', textAlign: 'center' }}>
               <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#f3f4f6', marginBottom: '8px' }}>
                 ⚙️ 系统配置中心 (Config Portal)
@@ -456,7 +524,7 @@ export default function App() {
             textShadow: '0 1px 3px rgba(0,0,0,0.4)',
           }}
         >
-          <span>🤖 呼出 SEOAgents Copilot</span>
+          <span>🤖 SEOAgent</span>
         </button>
       )}
 

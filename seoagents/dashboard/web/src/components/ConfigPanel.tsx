@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { useIsMobile } from '../hooks'
 
 export interface ConfigPanelProps {
   onConfigSaved?: () => void
@@ -52,6 +53,7 @@ const numInputStyle: React.CSSProperties = {
 }
 
 export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
+  const isMobile = useIsMobile()
   const [loading, setLoading] = useState<boolean>(true)
   const [saving, setSaving] = useState<boolean>(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -290,7 +292,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
         {/* 已纳管多站点选择列表 */}
         <div style={{ marginBottom: '20px' }}>
           <label style={labelStyle}>已纳管监控站点列表（点击站点卡片可随时切换编辑或激活）：</label>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px', marginTop: '8px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: '10px', marginTop: '8px' }}>
             {monitoredSites.map((s, idx) => {
               const isSelected = s.site_url === siteUrl
               return (
