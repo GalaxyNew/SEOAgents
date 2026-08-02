@@ -97,7 +97,11 @@ def test_endless_check_chains_are_capped(svc: TimelineService):
 
 def test_daily_node_cap(svc: TimelineService):
     svc.limits = PlanLimits(max_nodes_per_day=2, min_gap_minutes=1)
-    base = _now() + dt.timedelta(minutes=10)
+    # 锚定到次日固定时刻:若以「此刻+10分钟」为基准,当 UTC 时间偏晚时
+    # base+5h 会跨到第二天,按自然日计数的上限自然不触发(仅在傍晚后失败)。
+    base = (_now() + dt.timedelta(days=1)).replace(
+        hour=1, minute=0, second=0, microsecond=0
+    )
     for i in range(2):
         svc.schedule({
             "scheduled_at": (base + dt.timedelta(hours=i)).isoformat(),

@@ -6,7 +6,7 @@ services:
     image: karust/openserp:latest
     command: serve -a 0.0.0.0 -p 7000
     ports:
-      - "7000:7000"
+      - "127.0.0.1:7000:7000"
     restart: unless-stopped
 
   seonaut-db:
@@ -31,7 +31,7 @@ services:
       seonaut-db:
         condition: service_healthy
     ports:
-      - "9000:9000"
+      - "127.0.0.1:9000:9000"
     environment:
       - SEONAUT_DB_HOST=seonaut-db
       - SEONAUT_DB_USER=seonaut

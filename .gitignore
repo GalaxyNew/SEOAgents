@@ -21,3 +21,9 @@ Docs/*.json
 # local dev virtualenvs
 .venv*/
 venv/
+
+# 运行时密钥文件 —— 只有 .env 一条规则挡不住 .env.llm / .env.local 这类
+.env.*
+!.env.example
+*.env
+.env.llm
