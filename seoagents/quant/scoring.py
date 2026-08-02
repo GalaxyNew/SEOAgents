@@ -158,10 +158,22 @@ class SeoScoreEngine:
             }
         return {"v_t": round(v_t, 4), "per_engine": per_engine}
 
-    def should_compile_skill(self, m_t: float | None) -> bool:
-        """Never distil a "high-performing" trace out of unscorable data."""
+    def should_compile_skill(
+        self, m_t: float | None, *, previous_m_t: float | None = None
+    ) -> bool:
+        """这一轮的做法值不值得固化成技能。
+
+        判据优先看**相对改善**,而不是绝对分高。「自进化」要固化的是
+        *让指标变好的做法*,不是*恰好赶上一个好分数的那一轮*。绝对阈值只在
+        没有历史基线时兜底 —— 首轮无从比较,只能问「这一轮本身够不够体面」。
+
+        噪声护栏:改善必须超过 ``skill_improve_delta``,否则第 3 位小数的抖动
+        也会被当成进步,天天固化出一堆等价技能。
+        """
         if m_t is None:
             return False
+        if previous_m_t is not None:
+            return (m_t - previous_m_t) > self.config.skill_improve_delta
         return m_t > self.config.skill_compile_threshold
 
 

@@ -74,15 +74,39 @@ class SeoHistoryStore:
 
     # -- writers -----------------------------------------------------------
     def previous_clicks(self, *, site: str) -> float | None:
-        """Clicks recorded for the most recent scored run of ``site``.
+        """Clicks recorded for the most recent observation of ``site``.
 
         Returns None when there is no baseline yet. The caller must treat that
         as "C_t not computable" rather than substituting zero — a first run
         would otherwise report its entire traffic as growth.
+
+        这里刻意不要求 ``m_t IS NOT NULL``:点击数是 GSC 的真实观测,它可不可信
+        与那一轮能否打分无关。早先两者绑在一起,造成死锁 —— M_t 需要
+        traffic_delta,traffic_delta 需要基线,基线又只在 M_t 算得出时才写,
+        于是第一轮永远算不出,系统再也起不来。
         """
         with self._conn() as conn:
             row = conn.execute(
-                "SELECT clicks FROM audit_runs WHERE site = ? AND m_t IS NOT NULL"
+                "SELECT clicks FROM audit_runs WHERE site = ? AND clicks IS NOT NULL"
+                " ORDER BY ts DESC LIMIT 1",
+                (site,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            return float(row[0])
+        except (TypeError, ValueError):
+            return None
+
+    def previous_m_t(self, *, site: str) -> float | None:
+        """上一轮**算得出分**的 M_t,用于判断这一轮有没有变好。
+
+        只取 ``m_t IS NOT NULL`` 的行:观测行(算不出分时留的点击基线)
+        没有分数,拿它比较毫无意义。
+        """
+        with self._conn() as conn:
+            row = conn.execute(
+                "SELECT m_t FROM audit_runs WHERE site = ? AND m_t IS NOT NULL"
                 " ORDER BY ts DESC LIMIT 1",
                 (site,),
             ).fetchone()
@@ -97,7 +121,7 @@ class SeoHistoryStore:
         self,
         *,
         site: str,
-        m_t: float,
+        m_t: float | None,
         clicks: float,
         index_ratio: float,
         error_count: int,

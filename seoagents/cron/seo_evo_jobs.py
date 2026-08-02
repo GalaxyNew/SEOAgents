@@ -28,15 +28,22 @@ EVOLUTION_JOB_ID = "seo_self_evolution_pipeline"
 FIX_SKILL_ID = "FixDeadLinkWithAutoIndexSkill"
 
 
-async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dict[str, Any]:
-    """One full evolution cycle. Returns a structured summary (also persisted)."""
-    rt = runtime or get_runtime()
+async def run_evolution_for_site(rt: Runtime, site_item: Any) -> dict[str, Any]:
+    """对**一个**站点跑完整的一轮演化。
+
+    每个受监控站点都是独立的评估对象:自己的 GSC 属性、自己的关键词、
+    自己的品牌名、自己的 M_t 历史。没有「主站」这回事 —— 早先整条流水线
+    只跑 config.sites.site_url,另外两个站配了也不会被看一眼。
+    """
     config = rt.config
-    site = config.sites.site_url
-    session_id = "cron:evolution"
+    site = site_item.site_url
+    gsc_property = site_item.gsc_property
+    keywords = list(site_item.tracked_keywords)
+    brand = site_item.brand_name
+    session_id = f"cron:evolution:{site}"
     trace: list[dict[str, Any]] = []
 
-    LOGGER.info("========= 启动 SEOAgents 自适应演化与审计闭环流水线 =========")
+    LOGGER.info(f"===== 演化流水线开始 · {brand} ({site}) =====")
 
     # Every measurement records the trust level of its source so the scoring
     # gate can refuse to produce a number from a degraded input.
@@ -67,6 +74,7 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
     issues = audit.get("issues", [])
     dead_links = audit.get("dead_links", [])
     pages_crawled = int(audit.get("pages_crawled", 0)) or 1
+    crawled_urls = list(audit.get("crawled_urls") or [])
 
     lh_raw = await call("lighthouse_audit", {"target_url": site}, label="cwv")
     lighthouse = _safe_json(lh_raw)
@@ -76,7 +84,11 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
     performance = float(_perf_raw) if _perf_raw is not None else None
 
     # 2) Traffic / SERP / trends / AEO ------------------------------------
-    gsc_out = await call("google_seo_monitor", {"action": "query_gsc_performance"}, label="traffic")
+    gsc_out = await call(
+        "google_seo_monitor",
+        {"action": "query_gsc_performance", "target_site": gsc_property},
+        label="traffic",
+    )
     current_clicks = _parse_total_clicks(gsc_out)
 
     # C_t is defined as the organic click *delta*, not the running total. Using
@@ -92,7 +104,9 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
         sources["traffic_delta"] = sources.get("traffic", DataStatus.UNAVAILABLE.value)
 
     serp_raw = await call(
-        "serp_rank_tracker", {"keywords": list(config.sites.tracked_keywords)}, label="serp"
+        "serp_rank_tracker",
+        {"keywords": keywords, "site_url": site},
+        label="serp",
     )
     serp = _safe_json(serp_raw).get("positions", {})
     positions = {kw: entry.get("position") for kw, entry in serp.items()}
@@ -101,10 +115,12 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
     monitor_spec = rt.registry.get("google_seo_monitor")
     trend_weights = {
         kw: monitor_spec.trend_weight(kw) if monitor_spec else 1.0
-        for kw in config.sites.tracked_keywords
+        for kw in keywords
     }
 
-    aeo_raw = await call("aeo_visibility_monitor", {}, label="aeo")
+    aeo_raw = await call(
+        "aeo_visibility_monitor", {"brand": brand}, label="aeo"
+    )
     aeo = _safe_json(aeo_raw)
     _v_raw = aeo.get("v_t")
     v_t = float(_v_raw) if _v_raw is not None else None
@@ -119,8 +135,31 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
     # crawler. Renamed so the two are never conflated again; the β·I_t term now
     # consumes `index_coverage_ratio`, which stays None until GSC provides it.
     crawl_success_ratio = pages_crawled / (pages_crawled + len(dead_links))
-    index_coverage_ratio = _parse_index_coverage(gsc_out)
-    if index_coverage_ratio is None:
+
+    # 真实收录率:拿爬虫在站上发现的 URL 去问 GSC URL Inspection。
+    # Search Analytics 接口不返回收录状态,早先在那里找 index_coverage_ratio
+    # 永远是 None —— 这就是这一项一直 UNAVAILABLE 的原因。
+    index_coverage_ratio = None
+    try:
+        from seoagents.tools.index_coverage import inspect_index_coverage
+        from seoagents.tools.seo_trends import GoogleSEOMonitorSpec
+
+        _svc = GoogleSEOMonitorSpec(config)._init_gsc_client()
+        cov = inspect_index_coverage(
+            _svc, site_url=site, gsc_property=gsc_property, urls=crawled_urls
+        )
+        sources["index_coverage"] = cov.get("data_status", DataStatus.UNAVAILABLE.value)
+        index_coverage_ratio = cov.get("index_coverage_ratio")
+        trace.append({
+            "action": "gsc_url_inspection", "tool": "gsc_url_inspection",
+            "arguments": {"sampled": len(crawled_urls)},
+            "output": json.dumps(
+                {k: v for k, v in cov.items() if k != "details"}, ensure_ascii=False
+            )[:600],
+            "ok": index_coverage_ratio is not None,
+        })
+    except Exception as exc:  # noqa: BLE001 - 收录查不到不该让整轮崩掉
+        LOGGER.warning(f"URL Inspection 不可用: {type(exc).__name__}: {exc}")
         sources["index_coverage"] = DataStatus.UNAVAILABLE.value
 
     breakdown = rt.score_engine.compute_m_t(
@@ -151,7 +190,7 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
         # config is deployed and gsc_indexing_ops(action="verify_301_live")
         # observes a real 301 on the live host.
         healthy_urls = [site] + [
-            f"{site}/{kw.replace(' ', '-')}" for kw in config.sites.tracked_keywords
+            f"{site}/{kw.replace(' ', '-')}" for kw in keywords
         ]
         await call("gsc_indexing_ops", {"action": "build_sitemap", "urls": healthy_urls})
         await call("gsc_indexing_ops", {"action": "submit_indexing"})
@@ -170,10 +209,26 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
             breakdown=breakdown.to_dict(),
         )
     else:
-        LOGGER.warning("本轮 M_t 不可计算,已跳过历史库写入(不写 NULL 分数)")
+        # 分数不写(NULL 会污染历史曲线),但真实的点击观测必须留下 ——
+        # 否则下一轮仍然没有基线,traffic_delta 永远算不出,形成死锁。
+        # 历史图表按 m_t IS NOT NULL 过滤,这行观测不会出现在曲线里。
+        rt.store.record_audit_run(
+            site=site,
+            m_t=None,
+            clicks=current_clicks,
+            index_ratio=crawl_success_ratio,
+            error_count=error_count,
+            breakdown={"observation_only": True, "reason": "M_t 不可计算,仅留存点击基线"},
+        )
+        LOGGER.warning(
+            "本轮 M_t 不可计算,未写分数;已留存点击观测 "
+            f"clicks={current_clicks} 作为下一轮的 C_t 基线"
+        )
 
     compiled_skill: str | None = None
-    if rt.score_engine.should_compile_skill(m_t) and links_proposed:
+    # 拿上一轮的分数做对照:技能要固化的是「让指标变好的做法」
+    prev_m_t = rt.store.previous_m_t(site=site)
+    if rt.score_engine.should_compile_skill(m_t, previous_m_t=prev_m_t) and links_proposed:
         LOGGER.info("当前整改策略表现优越,触发 L5 技能编译器,固化 301 重定向与收录提交技能")
         fix_trace = [t for t in trace if t["tool"] == "gsc_indexing_ops"]
         path = rt.skill_compiler.auto_distill_trace(
@@ -195,12 +250,16 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
             "v_t": v_t,
             "issues": len(issues),
             "compiled_skill": compiled_skill,
+        "previous_m_t": prev_m_t,
             "links_proposed": links_proposed,
             "excluded_inputs": list(breakdown.excluded),
         },
     )
 
     summary = {
+        "site": site,
+        "brand": brand,
+        "gsc_property": gsc_property,
         "m_t": m_t,
         "score_status": breakdown.status,
         "excluded_inputs": list(breakdown.excluded),
@@ -217,9 +276,56 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
         "links_fixed": 0,  # nothing is "fixed" until verify_301_live passes
         "v_t": v_t,
         "compiled_skill": compiled_skill,
+        "previous_m_t": prev_m_t,
         "trace_len": len(trace),
     }
-    LOGGER.info(f"演化流水线完成: {json.dumps(summary, ensure_ascii=False)[:400]}")
+    LOGGER.info(f"演化流水线完成 · {brand}: {json.dumps(summary, ensure_ascii=False)[:300]}")
+    return summary
+
+
+async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dict[str, Any]:
+    """遍历**全部**受监控站点,各跑一轮演化。
+
+    没有主站的概念:``monitored_sites`` 里的每一个都要被看。单站失败不影响
+    其余站点 —— 一个站的 GSC 掉权限,不该让另外两个站当晚也没有数据。
+    """
+    rt = runtime or get_runtime()
+    sites = list(rt.config.sites.monitored_sites)
+    if not sites:
+        LOGGER.warning("monitored_sites 为空,没有可评估的站点")
+        return {"sites_total": 0, "results": [], "reason": "未配置任何受监控站点"}
+
+    LOGGER.info(f"========= 自适应演化闭环 · 共 {len(sites)} 个站点 =========")
+    results: list[dict[str, Any]] = []
+    for item in sites:
+        try:
+            results.append(await run_evolution_for_site(rt, item))
+        except Exception as exc:  # noqa: BLE001 - 单站失败不能连累其他站
+            LOGGER.exception(f"站点 {item.site_url} 演化失败")
+            results.append({
+                "site": item.site_url,
+                "brand": item.brand_name,
+                "m_t": None,
+                "score_status": "ERROR",
+                "error": f"{type(exc).__name__}: {exc}",
+            })
+
+    scored = [r for r in results if r.get("m_t") is not None]
+    summary = {
+        "sites_total": len(sites),
+        "sites_scored": len(scored),
+        "sites_partial": len(results) - len(scored),
+        "results": results,
+        # 兼容旧调用方:仍暴露首个站点的字段,但不再代表「全局」
+        "m_t": results[0].get("m_t") if results else None,
+        "score_status": results[0].get("score_status") if results else None,
+        "excluded_inputs": results[0].get("excluded_inputs") if results else [],
+        "data_sources": results[0].get("data_sources") if results else {},
+    }
+    LOGGER.info(
+        f"全部站点演化完成:{len(scored)}/{len(sites)} 个算出 M_t · "
+        + ", ".join(f"{r.get('brand')}={r.get('m_t')}" for r in results)
+    )
     return summary
 
 
@@ -282,4 +388,10 @@ def _parse_index_coverage(gsc_output: str) -> float | None:
         return None
 
 
-__all__ = ["EVOLUTION_JOB_ID", "FIX_SKILL_ID", "register_jobs", "run_seo_self_evolution_pipeline"]
+__all__ = [
+    "EVOLUTION_JOB_ID",
+    "FIX_SKILL_ID",
+    "register_jobs",
+    "run_evolution_for_site",
+    "run_seo_self_evolution_pipeline",
+]
