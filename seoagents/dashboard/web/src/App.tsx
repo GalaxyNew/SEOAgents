@@ -345,6 +345,26 @@ export default function App() {
                   {activeTab === 'config' && <span style={{ fontSize: '12px', color: '#60a5fa' }}>✓</span>}
                 </button>
 
+                <div style={{ height: 1, background: '#1f2937', margin: '6px 0' }} />
+
+                <button
+                  onClick={async () => {
+                    await fetch('/api/auth/logout', { method: 'POST' })
+                    window.location.reload()   // 重载后登录门会自己挡在前面
+                  }}
+                  style={{
+                    background: 'transparent', color: '#fca5a5', border: 0,
+                    borderRadius: '6px', padding: '10px 12px', fontSize: '13px',
+                    fontWeight: '500', textAlign: 'left', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    width: '100%', boxSizing: 'border-box', transition: 'background 0.15s',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                >
+                  🚪 退出登录
+                </button>
+
 
                 <a
                   href="/docs"

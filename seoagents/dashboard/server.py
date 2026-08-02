@@ -34,6 +34,10 @@ async def _lifespan(app: FastAPI):
         shutdown_scheduler()
 
 
+from seoagents.dashboard.auth import AuthMiddleware
+from seoagents.dashboard.auth import router as auth_router
+
+
 def create_app() -> FastAPI:
     app = FastAPI(
         title="SEOAgents Dashboard",
@@ -41,6 +45,10 @@ def create_app() -> FastAPI:
         description="Self-evolving SEO/AEO agent cluster — seven-layer DojoAgents architecture",
         lifespan=_lifespan,
     )
+    # 鉴权中间件要在路由之前挂:它得看到每一个请求,包括 /docs 与 /openapi.json
+    # —— 那两个页面能直接发 POST,漏掉它们等于门锁上了但窗户开着。
+    app.add_middleware(AuthMiddleware)
+    app.include_router(auth_router)
     for router in all_routers:
         app.include_router(router)
 
