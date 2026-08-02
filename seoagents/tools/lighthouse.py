@@ -14,7 +14,8 @@ class LighthouseAuditSpec(BaseToolSpec):
     def __init__(self, config: SeoAgentsConfig) -> None:
         self.site_url = config.sites.site_url
         self.executor = TechnicalSeoSandboxExecutor(
-            timeout_seconds=config.sandbox.execution_timeout_seconds
+            timeout_seconds=config.sandbox.execution_timeout_seconds,
+            pagespeed_api_key=config.seo_credentials.google_pagespeed_api_key,
         )
 
     def get_name(self) -> str:
@@ -24,7 +25,7 @@ class LighthouseAuditSpec(BaseToolSpec):
         return {
             "name": "lighthouse_audit",
             "description": (
-                "在隔离沙箱中运行 Lighthouse 无头审计,返回 performance/SEO 评分与 "
+                "获取 Core Web Vitals:优先走 PageSpeed Insights API,其次本地 Lighthouse。返回 performance/SEO 评分与 "
                 "LCP/CLS 核心指标;Node 或网络不可用时返回 DATA_UNAVAILABLE,不产生估算值。"
             ),
             "parameters": {

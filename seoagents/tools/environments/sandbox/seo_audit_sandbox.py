@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import shutil
 from typing import Any
+from urllib.parse import urlencode
 
 from dojocore.logging import LOGGER
 from dojocore.quality import real, unavailable
@@ -22,17 +23,39 @@ from seoagents.tools.environments import LocalEnvironmentAdapter
 class TechnicalSeoSandboxExecutor:
     """Safely runs Lighthouse / analyzer subprocesses inside the L4 sandbox."""
 
-    def __init__(self, timeout_seconds: int = 60, *, allow_mock_fallback: bool = False) -> None:
+    def __init__(
+        self,
+        timeout_seconds: int = 60,
+        *,
+        allow_mock_fallback: bool = False,
+        pagespeed_api_key: str = "",
+    ) -> None:
         self.timeout = timeout_seconds
         self.allow_mock_fallback = allow_mock_fallback
+        key = (pagespeed_api_key or "").strip()
+        # 未展开的 ${VAR} 占位符不是 key —— 当成没配,免得每轮都白打一次 400
+        self.pagespeed_api_key = "" if key.startswith("${") else key
         self.env = LocalEnvironmentAdapter()
 
     # -- Lighthouse --------------------------------------------------------
     async def run_lighthouse_audit(self, target_url: str) -> dict[str, Any]:
-        """Launch a headless Lighthouse process; fall back to offline estimate."""
+        """Core Web Vitals,优先用 PageSpeed Insights API,其次本地 Lighthouse。
+
+        PSI 跑的就是 Lighthouse,由 Google 侧执行:不需要本机装 Node/Chromium,
+        数据同样是真实测量而非估算。只有 PSI 不可用时才退回本地 npx。
+        """
+        if self.pagespeed_api_key:
+            psi = await self._run_pagespeed(target_url)
+            if psi is not None:
+                return psi
+            LOGGER.info("PageSpeed API 不可用,尝试本地 Lighthouse")
+
         npx = shutil.which("npx")
         if npx is None:
-            return self._fallback(target_url, reason="npx (Node.js) not found on PATH")
+            return self._fallback(
+                target_url,
+                reason="PageSpeed API 不可用且本机无 npx (Node.js)",
+            )
 
         cmd = [
             npx, "--yes", "lighthouse", target_url,
@@ -80,6 +103,50 @@ class TechnicalSeoSandboxExecutor:
         )
 
     # -- unavailable path --------------------------------------------------
+
+    async def _run_pagespeed(self, target_url: str) -> dict[str, Any] | None:
+        """调 PageSpeed Insights v5;失败返回 None 交给调用方决定下一步。"""
+        import httpx
+
+        params = {
+            "url": target_url,
+            "key": self.pagespeed_api_key,
+            "strategy": "MOBILE",
+        }
+        qs = urlencode(params) + "&category=PERFORMANCE&category=SEO"
+        url = f"https://www.googleapis.com/pagespeedonline/v5/runPagespeed?{qs}"
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                resp = await client.get(url)
+            if resp.status_code != 200:
+                LOGGER.warning(f"PageSpeed API {resp.status_code}: {resp.text[:200]}")
+                return None
+            data = resp.json()
+        except Exception as exc:  # noqa: BLE001 - 网络问题不该炸掉整条流水线
+            LOGGER.warning(f"PageSpeed API 调用失败: {type(exc).__name__}: {exc}")
+            return None
+
+        lh = data.get("lighthouseResult") or {}
+        cats = lh.get("categories") or {}
+        perf = (cats.get("performance") or {}).get("score")
+        seo = (cats.get("seo") or {}).get("score")
+        if perf is None:
+            LOGGER.warning("PageSpeed 返回里没有 performance 分,视为不可用")
+            return None
+        audits = lh.get("audits") or {}
+        return real(
+            {
+                "performance_score": round(float(perf) * 100, 1),
+                "seo_score": round(float(seo) * 100, 1) if seo is not None else None,
+                "largest_contentful_paint": (audits.get("largest-contentful-paint") or {}).get("displayValue", "N/A"),
+                "cumulative_layout_shift": (audits.get("cumulative-layout-shift") or {}).get("displayValue", "N/A"),
+                "target_url": target_url,
+                "strategy": "MOBILE",
+                "lighthouse_version": lh.get("lighthouseVersion"),
+            },
+            source="pagespeed_insights_api",
+        )
+
     def _fallback(self, target_url: str, *, reason: str) -> dict[str, Any]:
         """No synthetic Core Web Vitals.
 

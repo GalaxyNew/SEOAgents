@@ -66,6 +66,7 @@ class AeoVisibilitySpec(BaseToolSpec):
         self.brand = config.sites.brand_name
         self.keywords = list(config.sites.tracked_keywords)
         self.engine_shares = dict(config.aeo.engine_shares)
+        self.aeo_queries = list(getattr(config.aeo, "queries", ()) or [])
         self.store = store
         self.probes: dict[str, EngineProbe] = dict(probes or {})
 
@@ -103,7 +104,13 @@ class AeoVisibilitySpec(BaseToolSpec):
 
     async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         brand = str(arguments.get("brand") or self.brand)
-        queries = list(arguments.get("queries") or [f"best {kw}" for kw in self.keywords])
+        # 优先用配置里的品类问题;没配才退回 "best <关键词>" —— 后者在关键词
+        # 本身就是品牌名时会测出恒 100% 的假可见度,探针会拒绝并说明。
+        queries = list(
+            arguments.get("queries")
+            or self.aeo_queries
+            or [f"best {kw}" for kw in self.keywords]
+        )
 
         if not self.probes:
             LOGGER.warning("AEO visibility requested but no engine probes are configured")

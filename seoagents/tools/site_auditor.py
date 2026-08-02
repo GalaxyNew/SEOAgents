@@ -175,6 +175,10 @@ class SiteAuditorSpec(BaseToolSpec):
             "site": start_url,
             "mode": "live" if live else "demo_snapshot",
             "pages_crawled": pages_crawled,
+            # 暴露实际爬到的 URL:收录率要拿「我站上有什么」去比对
+            # 「Google 收了什么」。用 GSC 有展现的页面当样本是错的 ——
+            # 有展现即已在索引里,那样算出来的收录率恒为 100%。
+            "crawled_urls": sorted(seen),
             "issues": issues,
             "dead_links": dead_links,
             "issue_count": len(issues),
