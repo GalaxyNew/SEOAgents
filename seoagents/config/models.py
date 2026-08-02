@@ -67,18 +67,33 @@ class LLMProvidersConfig:
 
 @dataclass(frozen=True)
 class MCPServerConfig:
+    """一个 MCP 服务端:要么本地 stdio 进程,要么远端 HTTP 端点。
+
+    托管型 MCP(如 DataForSEO)只给 URL,没有可执行命令 —— 早先的模型只有
+    ``command`` 字段,导致这类服务端被 ``if not server.command: continue``
+    静默跳过,配了等于没配。
+    """
+
     name: str
     command: str = ""
     args: tuple[str, ...] = ()
     env: Mapping[str, str] = field(default_factory=dict)
+    url: str = ""
+    transport: str = "stdio"
+    headers: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, name: str, d: Mapping[str, Any] | None) -> MCPServerConfig:
+        url = str(_get(d, "url", ""))
+        transport = str(_get(d, "transport", "")) or ("streamable-http" if url else "stdio")
         return cls(
             name=name,
             command=str(_get(d, "command", "")),
             args=tuple(str(a) for a in (_get(d, "args", []) or [])),
             env={str(k): str(v) for k, v in (_get(d, "env", {}) or {}).items()},
+            url=url,
+            transport=transport,
+            headers={str(k): str(v) for k, v in (_get(d, "headers", {}) or {}).items()},
         )
 
 
@@ -134,8 +149,11 @@ class GSCCredentialsConfig:
 class SeoCredentialsConfig:
     google_search_console: GSCCredentialsConfig = field(default_factory=GSCCredentialsConfig)
     google_pagespeed_api_key: str = ""
-    openserp_endpoint: str = "http://localhost:7000"
+    openserp_endpoint: str = "http://openserp:7000"
     seonaut_endpoint: str = "http://localhost:8080"
+    # DataForSEO:Basic 认证串(base64 的 login:password),留空则不启用
+    dataforseo_api_key: str = ""
+    dataforseo_base_url: str = "https://api.dataforseo.com"
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> SeoCredentialsConfig:
@@ -144,6 +162,8 @@ class SeoCredentialsConfig:
             google_pagespeed_api_key=str(_get(d, "google_pagespeed_api_key", "") or ""),
             openserp_endpoint=str(_get(d, "openserp_endpoint", cls.openserp_endpoint)),
             seonaut_endpoint=str(_get(d, "seonaut_endpoint", cls.seonaut_endpoint)),
+            dataforseo_api_key=str(_get(d, "dataforseo_api_key", "") or ""),
+            dataforseo_base_url=str(_get(d, "dataforseo_base_url", cls.dataforseo_base_url)),
         )
 
 
@@ -192,6 +212,10 @@ class SitesConfig:
     tracked_keywords: tuple[str, ...] = ("seo agent", "aeo monitoring")
     content_pages: tuple[ContentPageConfig, ...] = ()
     monitored_sites: tuple[SiteItemConfig, ...] = ()
+    # SERP 检索地域 —— 不给默认值就会落到数据商的默认地域(DataForSEO 是美国),
+    # 那种错误不报错、数据看着正常,所以这里必须显式配置。
+    serp_location_name: str = ""
+    serp_language_code: str = ""
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> SitesConfig:
@@ -199,6 +223,8 @@ class SitesConfig:
             ContentPageConfig.from_dict(p) for p in (_get(d, "content_pages", []) or []) if isinstance(p, Mapping)
         )
         kws = tuple(str(k) for k in (_get(d, "tracked_keywords", []) or [])) or cls.tracked_keywords
+        _serp_loc = str(_get(d, "serp_location_name", "") or "")
+        _serp_lang = str(_get(d, "serp_language_code", "") or "")
         raw_monitored = _get(d, "monitored_sites", []) or []
         sites_list = []
         if isinstance(raw_monitored, list):
@@ -221,6 +247,8 @@ class SitesConfig:
             gsc_property=primary_site.gsc_property,
             brand_name=primary_site.brand_name,
             tracked_keywords=primary_site.tracked_keywords,
+            serp_location_name=_serp_loc,
+            serp_language_code=_serp_lang,
             content_pages=pages,
             monitored_sites=tuple(sites_list),
         )
@@ -235,7 +263,12 @@ class ScoringConfig:
     beta: float = 0.2    # index coverage I_t
     gamma: float = 0.3   # sum_i W_i / R_(i,t)  (trend-weighted inverse SERP position)
     delta: float = 0.1   # technical error penalty E_t
-    skill_compile_threshold: float = 150.0
+    # 首轮兜底阈值。150 是「C_t = 点击总量」时代的遗留 —— C_t 改成**增量**后
+    # M_t 的实际量级降到 ±1(实测 -0.63:index 0.12 + serp 0.15 - 错误 0.9),
+    # 150 需要 375 次点击增量,对任何正常站点都是永不触发。
+    skill_compile_threshold: float = 0.5
+    # 有历史基线时改看相对改善;小于这个幅度视为噪声,不固化。
+    skill_improve_delta: float = 0.1
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> ScoringConfig:
@@ -245,6 +278,7 @@ class ScoringConfig:
             gamma=float(_get(d, "gamma", cls.gamma)),
             delta=float(_get(d, "delta", cls.delta)),
             skill_compile_threshold=float(_get(d, "skill_compile_threshold", cls.skill_compile_threshold)),
+            skill_improve_delta=float(_get(d, "skill_improve_delta", cls.skill_improve_delta)),
         )
 
 
@@ -255,13 +289,17 @@ class AEOConfig:
     engine_shares: Mapping[str, float] = field(
         default_factory=lambda: {"chatgpt": 0.42, "claude": 0.18, "perplexity": 0.22, "google_aio": 0.18}
     )
+    # 探测用的品类问题。必须是「不含品牌名」的真实提问 —— 拿品牌词去问,
+    # AI 复述问题就算命中,提及率恒为 100%,测的是自我复述而非可见度。
+    queries: tuple[str, ...] = ()
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> AEOConfig:
         shares = _get(d, "engine_shares")
+        qs = tuple(str(q) for q in (_get(d, "queries", []) or []) if str(q).strip())
         if isinstance(shares, Mapping) and shares:
-            return cls(engine_shares={str(k): float(v) for k, v in shares.items()})
-        return cls()
+            return cls(engine_shares={str(k): float(v) for k, v in shares.items()}, queries=qs)
+        return cls(queries=qs)
 
 
 @dataclass(frozen=True)

@@ -40,7 +40,7 @@ seo_credentials:
     client_secrets_path: "~/.dojo/gsc_client_secrets.json"
     token_path: "~/.dojo/gsc_token.json"
   google_pagespeed_api_key: ""
-  openserp_endpoint: "http://localhost:7000"   # karust/openserp 默认端口为 7000
+  openserp_endpoint: "http://openserp:7000"   # karust/openserp 默认端口为 7000
   seonaut_endpoint: "http://localhost:9000"    # docker-compose.seo.yml 映射端口
 
 # 3. 优化目标站点

@@ -52,6 +52,31 @@ def deep_merge(base: dict[str, Any], patch: Mapping[str, Any]) -> dict[str, Any]
     return merged
 
 
+def _strip_redacted(patch: Any, base: Any = None) -> Any:
+    """丢掉 patch 里那些「看起来是脱敏回显」的密钥字段。
+
+    ``redacted()`` 把密钥显示成 ``abc***xyz``。配置页把这个显示值原样回填并
+    提交,``update()`` 就会把脱敏串当成新密钥写进文件 —— 真密钥当场被毁,
+    且只有下次调用报 401 时才会发现。这里在写入前把它们剔除,让原值留存。
+    """
+    if isinstance(patch, Mapping):
+        out = {}
+        for k, v in patch.items():
+            sub_base = base.get(k) if isinstance(base, Mapping) else None
+            if (
+                _SECRET_KEY_PATTERN.search(str(k))
+                and isinstance(v, str)
+                and "***" in v
+            ):
+                LOGGER.warning(f"配置写入:忽略疑似脱敏回显的 {k},保留原值")
+                continue
+            out[k] = _strip_redacted(v, sub_base)
+        return out
+    if isinstance(patch, list):
+        return [_strip_redacted(v) for v in patch]
+    return patch
+
+
 def _redact(value: Any, key_hint: str = "") -> Any:
     if isinstance(value, Mapping):
         return {k: _redact(v, str(k)) for k, v in value.items()}
@@ -135,5 +160,10 @@ class ConfigStore:
             LOGGER.info(f"Configuration persisted to {self.path}")
 
     def update(self, patch: Mapping[str, Any]) -> None:
-        """Deep-merge ``patch`` over the current raw config and persist."""
-        self.save_raw(deep_merge(self.raw(), patch))
+        """Deep-merge ``patch`` over the current raw config and persist.
+
+        脱敏回显的密钥会在合并前被剔除,避免配置页保存时把 ``abc***xyz``
+        当成真密钥覆盖掉真值。
+        """
+        clean = _strip_redacted(patch, self.raw())
+        self.save_raw(deep_merge(self.raw(), clean))

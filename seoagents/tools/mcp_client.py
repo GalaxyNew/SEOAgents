@@ -37,12 +37,25 @@ class McpProxySpec(BaseToolSpec):
         from mcp import ClientSession, StdioServerParameters  # lazy optional import
         from mcp.client.stdio import stdio_client
 
-        params = StdioServerParameters(
-            command=self.server.command, args=list(self.server.args), env=dict(self.server.env)
+        is_http = bool(self.server.url) and self.server.transport in (
+            "streamable-http", "http", "sse",
         )
-        async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
-            await session.initialize()
-            result = await session.call_tool(self.tool_name, arguments)
+        if is_http:
+            from mcp.client.streamable_http import streamablehttp_client
+
+            async with streamablehttp_client(
+                self.server.url, headers=dict(self.server.headers)
+            ) as (read, write, _):
+                async with ClientSession(read, write) as session:
+                    await session.initialize()
+                    result = await session.call_tool(self.tool_name, arguments)
+        else:
+            params = StdioServerParameters(
+                command=self.server.command, args=list(self.server.args), env=dict(self.server.env)
+            )
+            async with stdio_client(params) as (read, write), ClientSession(read, write) as session:
+                await session.initialize()
+                result = await session.call_tool(self.tool_name, arguments)
         chunks: list[str] = []
         for block in getattr(result, "content", []) or []:
             text = getattr(block, "text", None)
@@ -69,16 +82,27 @@ async def mount_mcp_servers(registry: ToolRegistry, servers: tuple[MCPServerConf
 
     mounted = 0
     for server in servers:
-        if not server.command:
+        is_http = bool(server.url) and server.transport in ("streamable-http", "http", "sse")
+        if not server.command and not is_http:
             continue
         try:
-            params = StdioServerParameters(
-                command=server.command, args=list(server.args), env=dict(server.env)
-            )
-            async with stdio_client(params) as (read, write):
-                async with ClientSession(read, write) as session:
-                    await session.initialize()
-                    listing = await session.list_tools()
+            if is_http:
+                from mcp.client.streamable_http import streamablehttp_client
+
+                async with streamablehttp_client(
+                    server.url, headers=dict(server.headers)
+                ) as (read, write, _):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        listing = await session.list_tools()
+            else:
+                params = StdioServerParameters(
+                    command=server.command, args=list(server.args), env=dict(server.env)
+                )
+                async with stdio_client(params) as (read, write):
+                    async with ClientSession(read, write) as session:
+                        await session.initialize()
+                        listing = await session.list_tools()
             for tool in listing.tools:
                 registry.register(
                     McpProxySpec(server, tool.name, tool.description or "", tool.inputSchema)
