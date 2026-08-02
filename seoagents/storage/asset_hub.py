@@ -176,6 +176,10 @@ def build_key(dept: str, kind: str, name: str) -> str:
     return f"{(dept or 'unknown').strip()}/{kind}/{month}/{safe}"
 
 
+def _is_gdrive(node: dict[str, Any]) -> bool:
+    return (node.get("kind") or "s3") == "gdrive"
+
+
 def put(
     data: bytes | str,
     *,
@@ -196,13 +200,21 @@ def put(
     if metadata:
         extra["Metadata"] = {str(k): str(v) for k, v in metadata.items()}
     try:
-        _client(node).put_object(Bucket=node["bucket"], Key=key, Body=body, **extra)
+        if _is_gdrive(node):
+            from seoagents.storage import gdrive_driver as gd
+
+            gd.put(node, key, body, content_type)
+        else:
+            _client(node).put_object(Bucket=node["bucket"], Key=key, Body=body, **extra)
     except Exception as exc:  # noqa: BLE001 - 写不进去必须让人知道
         raise AssetHubError(f"写入节点 {node['id']} 失败: {type(exc).__name__}: {exc}") from exc
     quota.record(node["id"], op="put", size=len(body))
     LOGGER.info(f"资产已存入 {node['id']}:{key} ({len(body)}B)")
     return {
-        "ok": True, "node": node["id"], "bucket": node["bucket"],
+        "ok": True, "node": node["id"],
+        # 非 S3 节点没有 bucket 概念,用 .get 而不是下标
+        "bucket": node.get("bucket", "(n/a)"),
+        "kind": node.get("kind", "s3"),
         "key": key, "size": len(body), "content_type": content_type,
     }
 
@@ -216,7 +228,12 @@ def put_json(obj: Any, *, dept: str, kind: str = "report", name: str, **kw: Any)
 def get(key: str, *, node_id: str = "") -> bytes:
     node = pick_node(node_id=node_id) if node_id else _node_of_default()
     try:
-        raw = _client(node).get_object(Bucket=node["bucket"], Key=key)["Body"].read()
+        if _is_gdrive(node):
+            from seoagents.storage import gdrive_driver as gd
+
+            raw = gd.get(node, key)
+        else:
+            raw = _client(node).get_object(Bucket=node["bucket"], Key=key)["Body"].read()
     except Exception as exc:  # noqa: BLE001
         raise AssetHubError(f"读取 {node['id']}:{key} 失败: {type(exc).__name__}: {exc}") from exc
     quota.record(node["id"], op="get")
@@ -234,6 +251,10 @@ def _node_of_default() -> dict[str, Any]:
 def exists(key: str, *, node_id: str = "") -> bool:
     """用 head 判断 —— 列表是最终一致的,刚写的对象可能列不出来。"""
     node = pick_node(node_id=node_id) if node_id else _node_of_default()
+    if _is_gdrive(node):
+        from seoagents.storage import gdrive_driver as gd
+
+        return gd.exists(node, key)
     try:
         _client(node).head_object(Bucket=node["bucket"], Key=key)
         return True
@@ -243,6 +264,10 @@ def exists(key: str, *, node_id: str = "") -> bool:
 
 def listing(prefix: str = "", *, node_id: str = "", limit: int = 200) -> list[dict[str, Any]]:
     node = pick_node(node_id=node_id) if node_id else _node_of_default()
+    if _is_gdrive(node):
+        from seoagents.storage import gdrive_driver as gd
+
+        return [{**i, "node": node["id"]} for i in gd.listing(node, prefix, limit)]
     resp = _client(node).list_objects_v2(
         Bucket=node["bucket"], Prefix=prefix, MaxKeys=limit)
     return [
@@ -255,11 +280,17 @@ def listing(prefix: str = "", *, node_id: str = "", limit: int = 200) -> list[di
 def delete(key: str, *, node_id: str = "") -> dict[str, Any]:
     node = pick_node(node_id=node_id) if node_id else _node_of_default()
     size = 0
-    try:
-        size = int(_client(node).head_object(Bucket=node["bucket"], Key=key).get("ContentLength", 0))
-    except Exception:  # noqa: BLE001 - 拿不到大小不影响删除本身
-        pass
-    _client(node).delete_object(Bucket=node["bucket"], Key=key)
+    if _is_gdrive(node):
+        from seoagents.storage import gdrive_driver as gd
+
+        size = gd.head_size(node, key)
+        gd.delete(node, key)
+    else:
+        try:
+            size = int(_client(node).head_object(Bucket=node["bucket"], Key=key).get("ContentLength", 0))
+        except Exception:  # noqa: BLE001 - 拿不到大小不影响删除本身
+            pass
+        _client(node).delete_object(Bucket=node["bucket"], Key=key)
     quota.record(node["id"], op="delete", size=size)
     LOGGER.info(f"资产已删除 {node['id']}:{key}")
     return {"ok": True, "node": node["id"], "key": key}
@@ -273,11 +304,20 @@ def health() -> dict[str, Any]:
             out.append({"node": nid, "reachable": False, "reason": "已停用"})
             continue
         try:
-            _client(node).list_objects_v2(Bucket=node["bucket"], MaxKeys=1)
+            info: dict[str, Any] = {}
+            if _is_gdrive(node):
+                from seoagents.storage import gdrive_driver as gd
+
+                # Drive 自己就报真实占用,比我们本地记账准,直接用它的
+                info = gd.quota_info(node)
+            else:
+                _client(node).list_objects_v2(Bucket=node["bucket"], MaxKeys=1)
             out.append({
                 "node": nid, "label": node.get("label"), "reachable": True,
-                "endpoint": node["endpoint"], "capacity_gb": node.get("capacity_gb"),
+                "endpoint": node.get("endpoint", "(Google Drive API)"),
+                "capacity_gb": node.get("capacity_gb"),
                 "purposes": node.get("purposes"),
+                **({"live_quota": info} if info else {}),
             })
         except Exception as exc:  # noqa: BLE001
             out.append({"node": nid, "label": node.get("label"), "reachable": False,
