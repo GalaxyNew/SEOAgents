@@ -63,3 +63,24 @@ def test_aeo_shares_normalized():
 def test_skill_compile_threshold(engine: SeoScoreEngine):
     assert engine.should_compile_skill(150.1)
     assert not engine.should_compile_skill(150.0)
+
+
+def test_c_t_is_a_delta_not_a_total(engine: SeoScoreEngine):
+    """04 号文 P0-07 的验收条款:同样的绝对流量、不同的环比方向,
+    M_t 必须给出不同符号的贡献。
+
+    这条守的是 C_t 的口径。它曾经传的是「点击总量」,后果是 M_t 跟着流量规模
+    走而不是跟着改善走 —— 一个流量大但在下滑的站,分数照样很高。
+    改成增量之后行为对了,但一直没有测试锁住它;而口径这种东西,
+    改回去时不会报错,只会悄悄给出好看的数字。
+    """
+    kw = {"index_ratio": 0.5, "positions": {"k": 5.0}, "error_count": 0}
+    up = engine.compute_m_t(clicks=+120.0, **kw)
+    down = engine.compute_m_t(clicks=-120.0, **kw)
+
+    assert up.clicks_term > 0, "涨了 120 次点击,C_t 项必须为正"
+    assert down.clicks_term < 0, "跌了 120 次点击,C_t 项必须为负"
+    assert up.m_t > down.m_t
+
+    # 若哪天有人把它改回「总量」,两者会同号 —— 这一行就是那道门
+    assert up.clicks_term == -down.clicks_term
