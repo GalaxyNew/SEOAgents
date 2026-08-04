@@ -1,0 +1,81 @@
+# SEOAgents 主服务编排。
+#
+# 在此之前两个容器都是手敲 `docker run` 起的,那串参数只存在容器自己的元数据里 ——
+# 容器一删,「它当初是怎么跑起来的」这件事就没了。这份文件把它固化下来。
+#
+# 两个刻意的决定:
+#
+# * **端口只绑 127.0.0.1**。对外由 nginx 终止 TLS 后反代。绑 0.0.0.0 的话
+#   Docker 会自己写 iptables 规则绕过 ufw,端口就直接对公网敞着了 —— 这个坑
+#   之前在 7000 端口上踩过一次。
+#
+# * **只挂 seohm 需要的那几个路径,不挂整个目录**。`/data/hermes-seo` 下面有
+#   `.env` 和 `auth.json`,整个目录挂进来等于把 seohm 的凭证交给 seoagents。
+#   实际需要的只有三处:kanban.db(任务卡)、SOUL.md(hm 的身份)、
+#   memories/(hm 的长期记忆)。
+#
+# 用法:
+#   docker compose -f docker-compose.app.yml up -d
+#   docker compose -f docker-compose.app.yml restart seoagents-dashboard
+
+services:
+  seoagents-dashboard:
+    image: seoagents:lh2
+    container_name: seoagents-dashboard
+    command: ["seoagents", "dashboard", "--host", "0.0.0.0", "--port", "8765"]
+    # dojocore 在 /app 下,但它是通过 bind-mount 放进来的,没装进镜像。
+    # `python -m` 会把 cwd 加进 sys.path,控制台脚本(/usr/local/bin/seoagents)
+    # 不会 —— 所以 dashboard 必须显式给 PYTHONPATH,否则起不来。
+    working_dir: /app
+    ports:
+      - "127.0.0.1:8765:8765"
+    env_file:
+      # 服务令牌等机密。不进 git,权限 600。
+      - /data/seo-stack/seoagents-data/service.env
+    environment:
+      - PYTHONPATH=/app
+      - CHROME_PATH=/usr/bin/chromium
+      - LIGHTHOUSE_CHROMIUM_PATH=/usr/bin/chromium
+    volumes:
+      - /data/seoagents:/app
+      - /data/seo-stack/credentials:/app/credentials:ro
+      - /data/seo-stack/seoagents-data:/data/seo-stack/seoagents-data
+      - /data/seo-stack/seoagents-skills:/data/seo-stack/seoagents-skills
+      - /root/.dojo:/root/.dojo
+      # seohm 的东西,按需精确挂载
+      - /data/hermes-seo/kanban.db:/hermes/kanban.db
+      - /data/hermes-seo/SOUL.md:/hermes/SOUL.md:ro
+      - /data/hermes-seo/memories:/hermes/memories
+    restart: unless-stopped
+
+  seoagents-mcp:
+    image: seoagents:lh2
+    container_name: seoagents-mcp
+    command: ["python", "-m", "seoagents.mcp_server",
+              "--transport", "http", "--host", "0.0.0.0", "--port", "7801"]
+    working_dir: /app
+    ports:
+      - "127.0.0.1:7801:7801"
+    env_file:
+      - /data/seo-stack/seoagents-data/service.env
+    environment:
+      - PYTHONPATH=/app
+      - CHROME_PATH=/usr/bin/chromium
+      - LIGHTHOUSE_CHROMIUM_PATH=/usr/bin/chromium
+    volumes:
+      - /data/seoagents:/app
+      - /data/seo-stack/credentials:/app/credentials:ro
+      - /data/seo-stack/seoagents-data:/data/seo-stack/seoagents-data
+      - /data/seo-stack/seoagents-skills:/data/seo-stack/seoagents-skills
+      - /root/.dojo:/root/.dojo
+      - /data/hermes-seo/kanban.db:/hermes/kanban.db
+      - /data/hermes-seo/SOUL.md:/hermes/SOUL.md:ro
+      - /data/hermes-seo/memories:/hermes/memories
+    networks:
+      - default
+      - seonet
+    restart: unless-stopped
+
+networks:
+  seonet:
+    external: true
