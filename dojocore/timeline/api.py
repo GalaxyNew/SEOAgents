@@ -54,6 +54,32 @@ async def agenda(hours_ahead: int = Query(24, le=720)) -> dict[str, Any]:
     return _svc().agenda(hours_ahead=hours_ahead)
 
 
+@router.get("/range")
+async def node_range(
+    hours_back: int = Query(72, ge=0, le=8760),
+    hours_ahead: int = Query(72, ge=0, le=8760),
+) -> dict[str, Any]:
+    """一段时间窗内的**全部**节点,不分状态。
+
+    `agenda` 只给待办,`unread` 只给没处理的 —— 横向时间轴要的是
+    「左边已发生(带结论)、右边将发生」的完整视图,所以需要这一条。
+    """
+    import datetime as _dt
+
+    now = _dt.datetime.now(_dt.timezone.utc)
+    svc = _svc()
+    nodes = svc.store.between(
+        now - _dt.timedelta(hours=hours_back),
+        now + _dt.timedelta(hours=hours_ahead),
+    )
+    return {
+        "now": now.isoformat(),
+        "window": {"hours_back": hours_back, "hours_ahead": hours_ahead},
+        "nodes": [n.to_dict() for n in nodes],
+        "total": len(nodes),
+    }
+
+
 @router.post("/nodes", status_code=201)
 async def schedule(body: ScheduleBody) -> dict[str, Any]:
     try:

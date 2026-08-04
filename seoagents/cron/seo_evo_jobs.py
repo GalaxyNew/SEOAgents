@@ -401,6 +401,9 @@ def register_jobs(runtime: Runtime) -> None:
         LOGGER.warning("APScheduler not installed — nightly evolution job disabled")
         return
     sched_cfg = runtime.config.scheduler
+    from seoagents.cron.timeline_runner import register_timeline_runner
+    register_timeline_runner(runtime)
+
     scheduler.add_job(
         run_seo_self_evolution_pipeline,
         CronTrigger(hour=sched_cfg.evolution_hour, minute=sched_cfg.evolution_minute),

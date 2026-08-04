@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useIsMobile } from '../hooks'
+import { TimelineTrack } from './TimelineTrack'
 
 /**
  * 时间规划 —— hm 的时间线。排期、触发、确认、分诊,并显示负载率与护栏。
@@ -61,6 +62,15 @@ export const TimelinePanel: React.FC = () => {
   const [nIntent, setNIntent] = useState('')
   const [nAt, setNAt] = useState('')
   const [nMin, setNMin] = useState(30)
+  const [rangeNodes, setRangeNodes] = useState<any[]>([])
+  const [picked, setPicked] = useState<any | null>(null)
+  // 两种执行方式:交给 agent 跑一条指令,或到点启动一个工作流。
+  // 不选就是纯提醒 —— 投递了但不自动执行。
+  const [nMode, setNMode] = useState<'none' | 'agent' | 'workflow'>('none')
+  const [nTask, setNTask] = useState('')
+  const [nRole, setNRole] = useState('hm')
+  const [nWf, setNWf] = useState('')
+  const [wfList, setWfList] = useState<any[]>([])
 
   const load = async (h = hours) => {
     setLoading(true); setErr('')
@@ -71,6 +81,10 @@ export const TimelinePanel: React.FC = () => {
         (await fetch('/api/timeline/unread')).json(),
       ])
       setAgenda(a)
+      try {
+        const rg = await (await fetch('/api/timeline/range?hours_back=72&hours_ahead=72')).json()
+        setRangeNodes(rg.nodes || [])
+      } catch { setRangeNodes([]) }
       setDue(Array.isArray(d) ? d : (d.items || d.nodes || []))
       setUnread(Array.isArray(u) ? u : (u.items || u.nodes || []))
     } catch (e) {
@@ -81,6 +95,11 @@ export const TimelinePanel: React.FC = () => {
   }
 
   useEffect(() => { load() }, [])
+  useEffect(() => {
+    fetch('/api/workflow/templates').then(r => r.json())
+      .then(d => setWfList(d.templates || d.items || []))
+      .catch(() => setWfList([]))
+  }, [])
 
   const act = async (path: string, body?: any, label = '') => {
     try {
@@ -100,7 +119,14 @@ export const TimelinePanel: React.FC = () => {
     const iso = new Date(nAt).toISOString()
     const r = await fetch('/api/timeline/nodes', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ scheduled_at: iso, kind: nKind, intent: nIntent, expected_minutes: nMin }),
+      body: JSON.stringify({
+        scheduled_at: iso, kind: nKind, intent: nIntent, expected_minutes: nMin,
+        // context 决定到点怎么执行。runner 每分钟扫一次 due 节点,
+        // 按这里声明的方式分派;都不填就只投递提醒、不自动执行。
+        context: nMode === 'agent' ? { agent_task: nTask, role: nRole }
+               : nMode === 'workflow' ? { workflow_id: nWf }
+               : {},
+      }),
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) { setMsg(`排期被拒: ${j.detail || JSON.stringify(j)}`); return }
@@ -146,6 +172,8 @@ export const TimelinePanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <TimelineTrack nodes={rangeNodes} onPick={setPicked} />
+
       {/* 概览 */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         <div style={card}>
@@ -201,6 +229,79 @@ export const TimelinePanel: React.FC = () => {
           <input type="datetime-local" value={nAt} onChange={(e) => setNAt(e.target.value)} style={{ ...input, width: 190, colorScheme: 'dark' }} />
           <input type="number" min={5} step={5} value={nMin} onChange={(e) => setNMin(Number(e.target.value))} style={{ ...input, width: 80 }} title="预计耗时(分钟)" />
           <button onClick={schedule} disabled={!nIntent.trim() || !nAt} style={btn(nIntent.trim() && nAt ? '#2563eb' : '#334155')}>排入</button>
+
+          <div style={{ width: '100%', borderTop: '1px solid #1f2937', paddingTop: 8, marginTop: 2 }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
+              到点怎么执行
+              <span style={{ color: '#64748b', marginLeft: 6 }}>
+                执行器每分钟扫一次;不选就只提醒、不自动跑
+              </span>
+            </div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+              {([['none', '仅提醒'], ['agent', '交给 agent'], ['workflow', '启动工作流']] as const).map(([m, label]) => (
+                <button key={m} onClick={() => setNMode(m)} style={{
+                  background: nMode === m ? '#1e293b' : 'transparent',
+                  color: nMode === m ? '#60a5fa' : '#94a3b8',
+                  border: `1px solid ${nMode === m ? '#3b82f6' : '#1f2937'}`,
+                  borderRadius: 6, padding: '4px 10px', fontSize: 11, cursor: 'pointer',
+                }}>{label}</button>
+              ))}
+              {nMode === 'agent' && (
+                <>
+                  <input placeholder="要 agent 做什么(自然语言)" value={nTask}
+                    onChange={(e) => setNTask(e.target.value)}
+                    style={{ ...input, flex: 1, minWidth: 220 }} />
+                  <select value={nRole} onChange={(e) => setNRole(e.target.value)} style={{ ...input, width: 110 }}>
+                    {['hm', 'auditor', 'writer', 'linker'].map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select>
+                </>
+              )}
+              {nMode === 'workflow' && (
+                <select value={nWf} onChange={(e) => setNWf(e.target.value)} style={{ ...input, flex: 1, minWidth: 220 }}>
+                  <option value="">选一个工作流模板…</option>
+                  {wfList.map((w: any) => (
+                    <option key={w.template_id || w.id} value={w.template_id || w.id}>
+                      {w.name || w.template_id || w.id}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {picked && (
+        <div onClick={() => setPicked(null)} style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 100001,
+          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        }}>
+          <div onClick={(e) => e.stopPropagation()} style={{
+            width: 460, maxWidth: '100%', background: '#0f172a',
+            border: '1px solid #1e293b', borderRadius: 12, padding: 16,
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: '#f1f5f9', marginBottom: 10 }}>
+              {picked.intent}
+            </div>
+            {([
+              ['类型 / 状态', `${picked.kind} · ${picked.state}`],
+              ['计划时间', new Date(picked.scheduled_at).toLocaleString('zh-CN', { hour12: false })],
+              ['对象', picked.subject_ref || '—'],
+              ['结论', picked.outcome || '(尚未执行)'],
+            ] as [string, string][]).map(([k, v]) => (
+              <div key={k} style={{ display: 'grid', gridTemplateColumns: '78px 1fr', gap: 8, fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: '#64748b' }}>{k}</span>
+                <span style={{ color: '#cbd5e1', wordBreak: 'break-all' }}>{v}</span>
+              </div>
+            ))}
+            {picked.context && Object.keys(picked.context).length > 0 && (
+              <pre style={{
+                fontSize: 10, color: '#94a3b8', background: '#0b1220', borderRadius: 6,
+                padding: 8, marginTop: 8, maxHeight: 160, overflow: 'auto',
+              }}>{JSON.stringify(picked.context, null, 2)}</pre>
+            )}
+            <button onClick={() => setPicked(null)} style={{ ...btn('#374151'), marginTop: 10, width: '100%' }}>关闭</button>
+          </div>
         </div>
       )}
 
