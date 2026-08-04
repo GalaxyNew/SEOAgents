@@ -149,6 +149,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
   const [elapsed, setElapsed] = useState(0)
+  const [progress, setProgress] = useState<{kind:string;text:string}[]>([])
   const [openTrace, setOpenTrace] = useState<string | null>(null)
   const [tools, setTools] = useState<string[]>([])
   const [showCtx, setShowCtx] = useState(false)
@@ -427,6 +428,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
     setInput('')
     setBusy(true)
     setElapsed(0)
+    setProgress([])
 
     const timer = window.setInterval(() => setElapsed((e) => e + 1), 1000)
     const fail = (msg: string) => {
@@ -461,6 +463,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         const pct = pr.headers.get('content-type') || ''
         if (!pct.includes('application/json')) continue
         const job = await pr.json()
+        // running 时也带进度 —— 这正是不用干等的原因
+        if (Array.isArray(job.progress)) setProgress(job.progress)
         if (job.status !== 'done') continue
 
         if (job.result_ok) {
@@ -742,6 +746,43 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               <span style={{ color: '#475569' }}>(带工具的任务通常 1-3 分钟)</span>
             </div>
           )}
+          {busy && (
+            <div style={{
+              alignSelf: 'flex-start', maxWidth: '92%', background: '#0b1220',
+              border: '1px solid #1e293b', borderLeft: '3px solid #3b82f6',
+              borderRadius: 8, padding: '8px 10px', fontSize: 12,
+            }}>
+              <div style={{ color: '#60a5fa', fontWeight: 600, marginBottom: 4 }}>
+                执行中 · {elapsed}s
+              </div>
+              {progress.length === 0 && (
+                <div style={{ color: '#64748b' }}>正在连接模型…</div>
+              )}
+              {progress.map((p, i) => (
+                <div key={i} style={{ marginBottom: 3, lineHeight: 1.5 }}>
+                  {p.kind === 'thinking' ? (
+                    // 模型决定调工具之前那段话就是它的思路,原样显示
+                    <div style={{ color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
+                      <span style={{ color: '#818cf8', marginRight: 5 }}>思考</span>
+                      {p.text}
+                    </div>
+                  ) : (
+                    <div style={{ color: p.kind === 'tool' ? '#94a3b8' : '#64748b' }}>
+                      <span style={{
+                        color: p.kind === 'turn' ? '#f59e0b'
+                             : p.kind === 'tool_start' ? '#22d3ee' : '#22c55e',
+                        marginRight: 5,
+                      }}>
+                        {p.kind === 'turn' ? '轮次' : p.kind === 'tool_start' ? '调用' : '完成'}
+                      </span>
+                      {p.text}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+
           <div ref={bottomRef} />
         </div>
 

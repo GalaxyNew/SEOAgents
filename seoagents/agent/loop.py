@@ -74,6 +74,17 @@ class UniversalAgentLoop:
             messages.append(
                 ChatMessage(role="assistant", content=llm.content, tool_calls=llm.tool_calls)
             )
+            # 模型在决定调工具之前那段话,就是它的思路。此前只进 messages、
+            # 不往外发,前端只能看到「正在执行」然后干等两三分钟。
+            if (llm.content or "").strip():
+                await self._emit(
+                    "agent.thinking", session_id=session_id, turn=turn,
+                    text=llm.content.strip(),
+                )
+            await self._emit(
+                "agent.tool_start", session_id=session_id, turn=turn,
+                tools=[c.name for c in llm.tool_calls],
+            )
             tool_results = await self.executor.execute_many(llm.tool_calls, session_id=session_id)
             for call, res in zip(llm.tool_calls, tool_results):
                 result.trace.append(

@@ -1,16 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 
 /**
- * 横向时间轴。当前时刻居中,左边已发生、右边将发生,节点上下交替。
+ * 横向时间轴。当前时刻居中,左边已发生、右边将发生。
  *
- * 几个刻意的决定:
+ * 三个刻意的决定:
  *
- * * **「现在」这条线固定在中央,不随拖动移动**。拖的是时间本身。如果让
- *   现在线跟着跑,人一松手就找不到「此刻在哪」了。
- * * **已发生的节点必须显示 outcome**。一个只标「做过了」的圆点没有价值 ——
- *   要能一眼看出那轮结论是什么、数据可不可信。
- * * **缩放按时间跨度而不是像素**。按像素缩放会让「一天」在不同缩放级别下
- *   宽度不同,人对照两个节点间隔时会得出错误的时间感。
+ * * **「现在」这条线固定在中央,不随拖动移动**。拖的是时间本身。让现在线
+ *   跟着跑的话,人一松手就找不到「此刻在哪」。
+ * * **卡片贪心分层装箱,保证不重叠**。上下交替加固定阈值是不够的 ——
+ *   密集时段照样叠在一起。这里给每张卡算出实际占用区间,逐层找第一个放得下
+ *   的位置;放不下就再开一层。
+ * * **滚轮缩放锚定光标下的时刻**。缩放时如果锚在中心,光标指着的那个节点会
+ *   跑掉,人得重新找。锚在光标处,指着谁就一直是谁。
  */
 
 type Node = {
@@ -35,18 +36,23 @@ const KIND_LABEL: Record<string, string> = {
 const STATE_LABEL: Record<string, string> = {
   SCHEDULED: '待执行', FIRED: '已投递', ACKED: '已完成',
   CATCHUP: '补办', DROPPED: '已放弃', CANCELLED: '已取消',
+  MISSED: '未触发', UNACKED: '无人处理',
 }
 
-// 缩放档位:每像素代表多少毫秒。跨度是真实时间,不是像素比例。
-const ZOOMS = [
-  { label: '6 小时', msPerPx: (6 * 3600e3) / 900 },
-  { label: '1 天', msPerPx: (24 * 3600e3) / 900 },
-  { label: '3 天', msPerPx: (72 * 3600e3) / 900 },
-  { label: '7 天', msPerPx: (168 * 3600e3) / 900 },
-]
+const CARD_W = 186
+const CARD_GAP = 8
+const LANE_H = 62          // 一层的高度(卡片 + 间距)
+const MIN_MS_PER_PX = 30_000        // 最细:约 7.5 小时一屏
+const MAX_MS_PER_PX = 3_600_000     // 最粗:约 37 天一屏
 
-const fmtTime = (iso: string) =>
-  new Date(iso).toLocaleString('zh-CN', { hour12: false, month: '2-digit',
+const fmtSpan = (ms: number) => {
+  const h = ms / 3600e3
+  if (h < 48) return `${h.toFixed(h < 10 ? 1 : 0)} 小时`
+  const d = h / 24
+  return d < 60 ? `${d.toFixed(d < 10 ? 1 : 0)} 天` : `${(d / 30).toFixed(1)} 个月`
+}
+const fmtTime = (t: number | string) =>
+  new Date(t).toLocaleString('zh-CN', { hour12: false, month: '2-digit',
     day: '2-digit', hour: '2-digit', minute: '2-digit' })
 
 export const TimelineTrack: React.FC<{
@@ -55,8 +61,8 @@ export const TimelineTrack: React.FC<{
 }> = ({ nodes, onPick }) => {
   const boxRef = useRef<HTMLDivElement | null>(null)
   const [width, setWidth] = useState(900)
-  const [zoom, setZoom] = useState(1)
-  const [offsetMs, setOffsetMs] = useState(0)     // 视图中心相对「现在」的偏移
+  const [msPerPx, setMsPerPx] = useState(96_000)   // 默认约一天一屏
+  const [offsetMs, setOffsetMs] = useState(0)
   const [drag, setDrag] = useState<{ x: number; base: number } | null>(null)
   const [hover, setHover] = useState<string | null>(null)
   const [now, setNow] = useState(() => Date.now())
@@ -75,41 +81,55 @@ export const TimelineTrack: React.FC<{
     return () => ro.disconnect()
   }, [])
 
-  const msPerPx = ZOOMS[zoom].msPerPx
   const centerMs = now + offsetMs
-  const half = (width / 2) * msPerPx
-
   const toX = (iso: string) => (new Date(iso).getTime() - centerMs) / msPerPx + width / 2
 
-  // 上下交替,同侧再按时间错开高度 —— 否则密集时段的标签会叠在一起
+  // ── 贪心分层装箱 ────────────────────────────────────────────────────
+  // 上下交替只解决了「两张卡」的情况。真正要保证不重叠,得给每张卡算出它
+  // 占用的横向区间,然后逐层找第一个放得下的位置。同一层内按左边界排序,
+  // 只需和该层最后一张比 —— 因为节点已按时间排序,后来的一定在右边。
   const laid = useMemo(() => {
     const sorted = [...nodes].sort(
       (a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime())
-    const lastX: Record<number, number> = {}
-    return sorted.map((n, i) => {
+    const laneEnd: Record<string, number> = {}   // "side:lane" → 该层已占到的右边界
+    return sorted.map((n) => {
       const x = toX(n.scheduled_at)
-      const side = i % 2 === 0 ? -1 : 1
-      // 同侧前一个太近就再抬高一层
-      const key = side
-      const crowded = lastX[key] !== undefined && Math.abs(x - lastX[key]) < 150
-      lastX[key] = x
-      return { node: n, x, side, lane: crowded ? 1 : 0 }
+      const left = x - CARD_W / 2
+      const right = x + CARD_W / 2 + CARD_GAP
+      // 先试上方,再试下方,同层放不下就加一层 —— 交替是为了视觉平衡,
+      // 但不以牺牲「不重叠」为代价
+      let lane = 0
+      let side: -1 | 1 = -1
+      for (let k = 0; k < 40; k++) {
+        lane = Math.floor(k / 2)
+        side = (k % 2 === 0 ? -1 : 1) as -1 | 1
+        const key = `${side}:${lane}`
+        if (laneEnd[key] === undefined || laneEnd[key] <= left) {
+          laneEnd[key] = right
+          break
+        }
+      }
+      return { node: n, x, side, lane }
     })
   }, [nodes, centerMs, msPerPx, width])
 
-  const visible = laid.filter((l) => l.x > -220 && l.x < width + 220)
+  const visible = laid.filter((l) => l.x > -CARD_W && l.x < width + CARD_W)
+  const maxLane = visible.reduce((m, l) => Math.max(m, l.lane), 0)
+  // 高度跟着最深的那一层长,卡片永远不会被容器裁掉
+  const H = Math.max(240, (maxLane + 1) * LANE_H * 2 + 70)
 
-  // 刻度:按缩放选一个整齐的间隔
-  const tickMs = msPerPx * 150
-  const step = [3600e3, 6 * 3600e3, 12 * 3600e3, 24 * 3600e3, 72 * 3600e3]
-    .find((s) => s >= tickMs) || 168 * 3600e3
-  const firstTick = Math.ceil((centerMs - half) / step) * step
+  // ── 刻度 ────────────────────────────────────────────────────────────
+  const half = (width / 2) * msPerPx
+  const step = [
+    15 * 60e3, 30 * 60e3, 3600e3, 3 * 3600e3, 6 * 3600e3, 12 * 3600e3,
+    24 * 3600e3, 3 * 24 * 3600e3, 7 * 24 * 3600e3, 30 * 24 * 3600e3,
+  ].find((s) => s >= msPerPx * 130) || 90 * 24 * 3600e3
   const ticks: number[] = []
-  for (let t = firstTick; t < centerMs + half; t += step) ticks.push(t)
-
-  const onDown = (e: React.MouseEvent) => {
-    setDrag({ x: e.clientX, base: offsetMs })
+  for (let t = Math.ceil((centerMs - half) / step) * step; t < centerMs + half; t += step) {
+    ticks.push(t)
   }
+
+  // ── 拖动 ────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!drag) return
     const move = (e: MouseEvent) =>
@@ -123,7 +143,30 @@ export const TimelineTrack: React.FC<{
     }
   }, [drag, msPerPx])
 
-  const H = 250
+  // ── 滚轮缩放 ────────────────────────────────────────────────────────
+  // 用原生监听器 + passive:false,否则 React 的合成事件里 preventDefault
+  // 不生效,缩放时整页会跟着滚。
+  useEffect(() => {
+    const el = boxRef.current
+    if (!el) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const cursorX = e.clientX - rect.left
+      const next = Math.min(MAX_MS_PER_PX, Math.max(MIN_MS_PER_PX,
+        msPerPx * (e.deltaY > 0 ? 1.15 : 1 / 1.15)))
+      // 锚定光标下的时刻:缩放前后,光标指着的仍是同一时刻。
+      // 锚在中心的话,人盯着的那个节点会跑掉,得重新找。
+      const timeAtCursor = centerMs + (cursorX - width / 2) * msPerPx
+      const nextCenter = timeAtCursor - (cursorX - width / 2) * next
+      setMsPerPx(next)
+      setOffsetMs(nextCenter - now)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [msPerPx, centerMs, width, now])
+
+  const spanMs = width * msPerPx
 
   return (
     <div style={{
@@ -131,23 +174,24 @@ export const TimelineTrack: React.FC<{
       borderRadius: 10, padding: '10px 0 12px', marginBottom: 14,
     }}>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 8,
+        display: 'flex', alignItems: 'center', gap: 10,
         padding: '0 14px 8px', flexWrap: 'wrap',
       }}>
-        <strong style={{ fontSize: 13, color: '#e5e7eb', marginRight: 'auto' }}>
-          时间轴
-          <span style={{ fontSize: 11, color: '#6b7280', fontWeight: 400, marginLeft: 8 }}>
-            按住拖动 · 左为已发生
-          </span>
-        </strong>
-        {ZOOMS.map((z, i) => (
-          <button key={z.label} onClick={() => setZoom(i)} style={{
-            background: zoom === i ? '#1e293b' : 'transparent',
-            color: zoom === i ? '#60a5fa' : '#94a3b8',
-            border: `1px solid ${zoom === i ? '#3b82f6' : '#1f2937'}`,
-            borderRadius: 6, padding: '3px 9px', fontSize: 11, cursor: 'pointer',
-          }}>{z.label}</button>
-        ))}
+        <strong style={{ fontSize: 13, color: '#e5e7eb' }}>时间轴</strong>
+        {/* 当前跨度实时显示 —— 缩放时人要知道自己看的是多长一段时间 */}
+        <span style={{
+          fontSize: 11, color: '#22d3ee', fontFamily: 'ui-monospace, monospace',
+          background: '#0b1220', border: '1px solid #1e293b',
+          borderRadius: 5, padding: '2px 8px',
+        }}>
+          视野 {fmtSpan(spanMs)}
+        </span>
+        <span style={{ fontSize: 11, color: '#475569' }}>
+          {fmtTime(centerMs - spanMs / 2)} ~ {fmtTime(centerMs + spanMs / 2)}
+        </span>
+        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>
+          拖动平移 · 滚轮缩放
+        </span>
         {offsetMs !== 0 && (
           <button onClick={() => setOffsetMs(0)} style={{
             background: '#2563eb', color: '#fff', border: 0,
@@ -158,13 +202,12 @@ export const TimelineTrack: React.FC<{
 
       <div
         ref={boxRef}
-        onMouseDown={onDown}
+        onMouseDown={(e) => setDrag({ x: e.clientX, base: offsetMs })}
         style={{
           position: 'relative', height: H, overflow: 'hidden',
           cursor: drag ? 'grabbing' : 'grab', userSelect: 'none',
         }}
       >
-        {/* 刻度 */}
         {ticks.map((t) => {
           const x = (t - centerMs) / msPerPx + width / 2
           return (
@@ -174,21 +217,16 @@ export const TimelineTrack: React.FC<{
                 position: 'absolute', top: H / 2 + 8, left: 4, fontSize: 10,
                 color: '#475569', whiteSpace: 'nowrap',
                 fontFamily: 'ui-monospace, monospace',
-              }}>
-                {new Date(t).toLocaleString('zh-CN', { hour12: false, month: '2-digit',
-                  day: '2-digit', hour: '2-digit', minute: '2-digit' })}
-              </div>
+              }}>{fmtTime(t)}</div>
             </div>
           )
         })}
 
-        {/* 主轴 */}
         <div style={{
           position: 'absolute', left: 0, right: 0, top: H / 2, height: 2,
           background: 'linear-gradient(90deg, #1f2937, #334155, #1f2937)',
         }} />
 
-        {/* 现在线 —— 固定在正中,拖动的是时间不是它 */}
         <div style={{
           position: 'absolute', left: width / 2, top: 0, bottom: 0,
           width: 2, background: '#ef4444', opacity: .85,
@@ -199,19 +237,18 @@ export const TimelineTrack: React.FC<{
           }}>现在</div>
         </div>
 
-        {/* 节点 */}
         {visible.map(({ node: n, x, side, lane }) => {
           const color = KIND_COLOR[n.kind] || '#64748b'
           const done = n.state === 'ACKED'
-          const stalk = 26 + lane * 46
-          const cardTop = side < 0 ? H / 2 - stalk - 62 : H / 2 + stalk
+          const stalk = 24 + lane * LANE_H
+          const cardTop = side < 0 ? H / 2 - stalk - 56 : H / 2 + stalk
           const isHover = hover === n.node_id
           return (
             <div key={n.node_id}>
               <div style={{
                 position: 'absolute', left: x - 1,
                 top: side < 0 ? H / 2 - stalk : H / 2,
-                width: 2, height: stalk, background: color, opacity: .5,
+                width: 2, height: stalk, background: color, opacity: .45,
               }} />
               <div style={{
                 position: 'absolute', left: x - 5, top: H / 2 - 5,
@@ -225,10 +262,12 @@ export const TimelineTrack: React.FC<{
                 onMouseLeave={() => setHover(null)}
                 onClick={(e) => { e.stopPropagation(); onPick?.(n) }}
                 style={{
-                  position: 'absolute', left: x - 92, top: cardTop, width: 184,
+                  position: 'absolute', left: x - CARD_W / 2, top: cardTop,
+                  width: CARD_W, height: 52, boxSizing: 'border-box',
                   background: '#0f172a', border: `1px solid ${isHover ? color : '#1f2937'}`,
                   borderLeft: `3px solid ${color}`, borderRadius: 6,
-                  padding: '5px 8px', cursor: 'pointer', transition: 'border-color .15s',
+                  padding: '5px 8px', cursor: 'pointer', overflow: 'hidden',
+                  transition: 'border-color .15s',
                 }}
               >
                 <div style={{ display: 'flex', gap: 5, alignItems: 'center' }}>
@@ -240,21 +279,13 @@ export const TimelineTrack: React.FC<{
                   </span>
                 </div>
                 <div style={{
-                  fontSize: 11, color: '#e2e8f0', marginTop: 1,
+                  fontSize: 11, color: '#e2e8f0',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{n.intent}</div>
-                {/* 已完成的必须显示结论 —— 只标「做过了」的圆点没有价值 */}
-                {n.outcome ? (
-                  <div style={{
-                    fontSize: 10, color: '#94a3b8', marginTop: 2, lineHeight: 1.35,
-                    display: '-webkit-box', WebkitLineClamp: 2,
-                    WebkitBoxOrient: 'vertical', overflow: 'hidden',
-                  }}>{n.outcome}</div>
-                ) : (
-                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
-                    {fmtTime(n.scheduled_at)}
-                  </div>
-                )}
+                <div style={{
+                  fontSize: 10, color: n.outcome ? '#94a3b8' : '#475569',
+                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>{n.outcome || fmtTime(n.scheduled_at)}</div>
               </div>
             </div>
           )
@@ -265,7 +296,7 @@ export const TimelineTrack: React.FC<{
             position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
             color: '#475569', fontSize: 12,
           }}>
-            这段时间没有节点 —— 拖动或换个跨度看看
+            这段时间没有节点 —— 拖动或滚轮缩小看看
           </div>
         )}
       </div>

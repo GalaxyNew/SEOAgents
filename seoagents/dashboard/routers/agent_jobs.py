@@ -45,12 +45,59 @@ def _sweep() -> None:
             _JOBS.pop(k, None)
 
 
+_MAX_PROGRESS = 60          # 一条对话的步骤上限,防止极端情况撑爆内存
+
+
+def _attach_progress(rt: Any, job: dict[str, Any], session_id: str) -> None:
+    """把 agent 的进度事件收进任务记录,供前端轮询。
+
+    **按 session_id 过滤**:事件总线是全局的,多个任务并发时不过滤会把
+    别人的步骤显示到你这条对话里 —— 那比没有进度更糟,因为看起来是真的。
+    """
+    def _push(kind: str, text: str) -> None:
+        prog = job.setdefault("progress", [])
+        if len(prog) < _MAX_PROGRESS:
+            prog.append({"kind": kind, "text": text, "ts": time.time()})
+
+    def on_turn(ev: Any) -> None:
+        if ev.payload.get("session_id") != session_id:
+            return
+        _push("turn", f"第 {ev.payload.get('turn')} 轮")
+
+    def on_thinking(ev: Any) -> None:
+        if ev.payload.get("session_id") != session_id:
+            return
+        _push("thinking", str(ev.payload.get("text") or "")[:600])
+
+    def on_tool_start(ev: Any) -> None:
+        if ev.payload.get("session_id") != session_id:
+            return
+        _push("tool_start", "调用 " + "、".join(ev.payload.get("tools") or []))
+
+    def on_tool(ev: Any) -> None:
+        if ev.payload.get("session_id") != session_id:
+            return
+        ok = ev.payload.get("ok")
+        ms = ev.payload.get("latency_ms")
+        _push("tool", f"{ev.payload.get('tool')} {'成功' if ok else '失败'}"
+                      f"{f' · {ms}ms' if ms is not None else ''}")
+
+    bus = rt.event_bus
+    bus.subscribe("agent.turn", on_turn)
+    bus.subscribe("agent.thinking", on_thinking)
+    bus.subscribe("agent.tool_start", on_tool_start)
+    bus.subscribe("agent.tool", on_tool)
+
+
 async def _run_job(job_id: str, task: str, role_name: str) -> None:
     job = _JOBS[job_id]
     job["status"] = "running"
     job["started_at"] = time.time()
+    job["progress"] = []
     try:
         rt = get_runtime()
+        session_id = f"job_{job_id}"
+        _attach_progress(rt, job, session_id)
         role = _ROLE_MAP.get(role_name)
         if role is HM:
             system = hm_system_prompt()
@@ -63,6 +110,7 @@ async def _run_job(job_id: str, task: str, role_name: str) -> None:
             task,
             system=system,
             allowed_tools=set(role.allowed_tools) if role and role.allowed_tools else None,
+            session_id=session_id,
         )
         job.update(
             status="done",
@@ -115,6 +163,8 @@ async def get_job(job_id: str) -> dict[str, Any]:
         "job_id": job_id,
         "status": job["status"],
         "elapsed_seconds": round(elapsed, 1),
+        # 思考过程与工具调用,running 时也给 —— 这正是前端不用干等的原因
+        "progress": job.get("progress") or [],
     }
     if job["status"] == "done":
         out.update(
