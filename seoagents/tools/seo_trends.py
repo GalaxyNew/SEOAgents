@@ -30,6 +30,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
     """整合 Google Trends 趋势探测与 GSC 流量表现指标 (真实 API / 无密钥 mock 双模)."""
 
     def __init__(self, config: SeoAgentsConfig, store: SeoHistoryStore | None = None) -> None:
+        self.config = config          # 趋势走 DataForSEO 时要读凭证与地域
         gsc = config.seo_credentials.google_search_console
         self.token_path = os.path.expanduser(gsc.token_path)
         self.service_account_path = config.seo_credentials.google_search_console.service_account_path
@@ -91,7 +92,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             return self._query_gsc_performance(target_site, days_limit, dimensions=dims)
 
         if action == "query_rising_keywords":
-            return self._query_rising_keywords(keywords)
+            return await self._query_rising_keywords(keywords)
         return unavailable(
             source="google_seo_monitor", reason=f"unknown action '{action}'"
         )
@@ -270,32 +271,184 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         )
 
 
-    def _query_rising_keywords(self, keywords: list[str]) -> dict[str, Any]:
+    # ── 趋势:优先 DataForSEO,pytrends 仅作兜底 ──────────────────────
+    def _dfs_credentials(self) -> tuple[str, str, str, str]:
+        cfg = self.config
+        key = (cfg.seo_credentials.dataforseo_api_key or "").strip()
+        base = cfg.seo_credentials.dataforseo_base_url.rstrip("/")
+        loc = (getattr(cfg.sites, "serp_location_name", "") or "").strip()
+        lang = (getattr(cfg.sites, "serp_language_code", "") or "").strip()
+        return key, base, loc, lang
+
+    @staticmethod
+    def _weight_from_series(values: list[float]) -> float | None:
+        """把一条兴趣度时间序列压成一个权重。
+
+        取「近四周均值 ÷ 全期均值」:排在一个正在上升的词上,比排在一个正在
+        消退的词上值钱 —— 这正是 M_t 的 γ 项里 W_i 该表达的意思。
+
+        夹在 [0.5, 2.0] 之间。不夹的话,一个从 1 涨到 80 的季节性词会得到
+        权重 20,单它一个就能主导整个 M_t。
+
+        **「量到了零」和「量不到」是两回事**,这里必须分开:
+
+        * 拿到足够样本、但全期搜索量为 0 → 这是一次**成功的测量**,结论是
+          「这个词没有趋势信号」,返回中性的 1.0。品牌名常常就是这样。
+        * 样本不足(接口没给够点位)→ 这才是量不到,返回 None,由上层报
+          UNAVAILABLE。
+
+        早先两种情况都返回 None,结果是「品牌词没人搜」这个完全正常的事实
+        把整条自进化闭环判成了数据不可用。
+        """
+        clean = [float(v) for v in values if v is not None]
+        if len(clean) < 8:
+            return None                     # 样本太少 —— 这是「量不到」
+        overall = sum(clean) / len(clean)
+        if overall <= 0:
+            return 1.0                      # 量到了,结论是没有搜索热度
+        recent = sum(clean[-4:]) / 4
+        return max(0.5, min(2.0, recent / overall))
+
+    async def _query_rising_keywords(self, keywords: list[str]) -> dict[str, Any]:
         if not keywords:
             return unavailable(
                 source="google_seo_monitor.trends", reason="keywords 为空,无法做趋势分析"
             )
+        kws = keywords[:5]
+        started = window_iso()
+
+        dfs = await self._trends_via_dataforseo(kws)
+        if dfs is not None:
+            return dfs
+
+        # 兜底:pytrends。它是同步库且经常 429,丢到线程里跑,别占着事件循环。
+        import asyncio
+
+        return await asyncio.to_thread(self._trends_via_pytrends, kws, started)
+
+    async def _trends_via_dataforseo(self, keywords: list[str]) -> dict[str, Any] | None:
+        """返回 None 表示「这条路走不通,请换下一条」;返回 envelope 表示已出结果。"""
+        key, base, loc, lang = self._dfs_credentials()
+        if not key:
+            return None
+        if not loc:
+            # 不用默认地域兜底 —— 拿美国的趋势去解释西班牙站的排名,
+            # 算出来的数字看着正常,其实毫无关系。
+            LOGGER.warning("未配置 serp_location_name,跳过 DataForSEO 趋势")
+            return None
+
+        import httpx
+
+        payload = [{"keywords": keywords, "location_name": loc,
+                    "language_code": lang or "es"}]
+        try:
+            async with httpx.AsyncClient(timeout=90.0) as c:
+                resp = await c.post(
+                    f"{base}/v3/keywords_data/google_trends/explore/live",
+                    headers={"Authorization": f"Basic {key}",
+                             "Content-Type": "application/json"},
+                    json=payload,
+                )
+                d = resp.json()
+        except Exception as exc:  # noqa: BLE001 - API 边界
+            LOGGER.warning(f"DataForSEO 趋势请求失败: {exc}")
+            return None
+
+        task = (d.get("tasks") or [{}])[0]
+        if int(task.get("status_code", 0)) != 20000:
+            LOGGER.warning(
+                f"DataForSEO 趋势返回 {task.get('status_code')}: {task.get('status_message')}"
+            )
+            return None
+
+        # 真实返回形态(已实测):result[].items[] 里 type=google_trends_graph,
+        # data[] 每项是一周,values[] 与请求的 keywords 顺序一一对应。
+        series: dict[str, list[float]] = {k: [] for k in keywords}
+        got_graph = False
+        for res in (task.get("result") or []):
+            for item in (res.get("items") or []):
+                if item.get("type") != "google_trends_graph":
+                    continue
+                got_graph = True
+                order = item.get("keywords") or keywords
+                for point in (item.get("data") or []):
+                    if point.get("missing_data"):
+                        continue
+                    vals = point.get("values") or []
+                    for i, kw in enumerate(order):
+                        if i < len(vals) and vals[i] is not None and kw in series:
+                            series[kw].append(float(vals[i]))
+
+        if not got_graph:
+            # 连图都没返回 —— 这才是真的量不到
+            LOGGER.warning("DataForSEO 趋势没有返回 google_trends_graph,转 pytrends 兜底")
+            return None
+
+        measured: dict[str, float] = {}
+        below_threshold: list[str] = []
+        for kw, vals in series.items():
+            w = self._weight_from_series(vals)
+            if w is not None:
+                measured[kw] = round(w, 4)
+            else:
+                # 图返回了但这个词一个点位都没有 —— Google Trends 对搜索量低于
+                # 可报告阈值的词就是这样。这是**量到了**:结论是没有搜索热度,
+                # 权重中性。把它当成「数据不可用」会让品牌词这种正常情况
+                # 把整条自进化闭环判死。
+                measured[kw] = 1.0
+                below_threshold.append(kw)
+            self.set_trend_weight(kw, measured[kw])
+
+        if below_threshold:
+            LOGGER.info(
+                f"以下关键词搜索量低于 Google Trends 可报告阈值,权重取中性 1.0:"
+                f"{below_threshold}"
+            )
+
+        lines = [
+            f"- `{kw}`:权重 {w}" + (
+                "(搜索量低于 Google Trends 可报告阈值,取中性值)"
+                if kw in below_threshold else "(近四周 / 全期兴趣度之比)"
+            )
+            for kw, w in sorted(measured.items(), key=lambda x: -x[1])
+        ]
+        return real(
+            {
+                "keywords": keywords,
+                "trend_weights": measured,
+                "below_threshold": below_threshold,
+                "geo": loc,
+                "provider": "dataforseo",
+                "cost_usd": d.get("cost"),
+                "markdown": "### 关键词趋势权重(地域:%s)\n%s" % (loc, "\n".join(lines)),
+            },
+            source="google_seo_monitor.trends",
+            data_window=window_iso(),
+        )
+
+    def _trends_via_pytrends(self, keywords: list[str], started: str) -> dict[str, Any]:
+        geo = (getattr(self.config.sites, "serp_location_code", "") or "").strip()
         summary_output: list[str] = []
         related: dict[str, Any] = {}
-        started = window_iso()
         try:
             if self._pytrends is None:
                 from pytrends.request import TrendReq  # lazy optional import
 
                 self._pytrends = TrendReq(hl="en-US", tz=360)
-            self._pytrends.build_payload(keywords[:5], cat=0, timeframe="today 3-m", geo="US")
+            # geo 此前写死 "US" —— 监控的是西班牙站点,用美国趋势解释它的排名
+            # 毫无意义。留空表示全球,比错误地指定一个国家好。
+            self._pytrends.build_payload(keywords, cat=0, timeframe="today 3-m", geo=geo)
             related = self._pytrends.related_queries() or {}
         except ImportError:
             return unavailable(
                 source="google_seo_monitor.trends",
-                reason="pytrends 未安装 (pip install 'seoagents[trends]')",
+                reason="DataForSEO 不可用,且 pytrends 未安装",
                 keywords=keywords,
             )
         except Exception as exc:  # noqa: BLE001 - API boundary
-            LOGGER.exception("pytrends query failed")
             return unavailable(
                 source="google_seo_monitor.trends",
-                reason=f"pytrends 查询失败: {exc}",
+                reason=f"DataForSEO 不可用,pytrends 也失败: {exc}",
                 keywords=keywords,
             )
 
@@ -313,19 +466,20 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                 rising[kw] = []
                 summary_output.append(f"### 关键词 '{kw}': 暂未检测到显著飙升的搜索趋势指标。")
         return real(
-            {"keywords": keywords, "rising": rising, "markdown": "\n\n".join(summary_output)},
+            {"keywords": keywords, "rising": rising, "provider": "pytrends",
+             "markdown": "\n\n".join(summary_output)},
             source="google_seo_monitor.trends",
             data_window=started,
         )
 
-
     def trend_weight(self, keyword: str) -> float:
         """W_i for the scoring engine.
 
-        Returns a neutral 1.0 unless a real Trends measurement has been cached
-        by :meth:`_query_rising_keywords`. The previous implementation derived
-        the weight from ``sha256(keyword)``, which made the γ term of M_t a
-        function of keyword spelling rather than of search demand.
+        权重由 :meth:`_trends_via_dataforseo` 从真实兴趣度序列算出并缓存:
+        近四周均值 ÷ 全期均值,夹在 [0.5, 2.0]。取不到测量值时返回中性的 1.0。
+
+        更早的实现是拿 ``sha256(keyword)`` 推权重 —— 那让 M_t 的 γ 项变成了
+        关键词拼写的函数,而不是搜索需求的函数。
         """
         cached = self._trend_weights.get(keyword)
         return float(cached) if cached is not None else 1.0
