@@ -318,3 +318,117 @@ adapter 自己把 daemon 拉起来了,落点仍是 `/data/hermes-seo/memos-state
 - viewer 监听 `0.0.0.0:18901`(不是 127.0.0.1),现在纯靠 ufw 只放行 22/80/443 挡着
 
 要暴露的话,前面得再套一层(nginx basic auth 或复用 dashboard 的会话)。
+
+---
+
+# 三追记 · 入口选错了 —— 宿主 shim 一次解决三个「没接线」
+
+## 十七、结论:问题不是三个 bug,是一个入口选择
+
+今天先后发现三处「代码在但没接线」:`SkillEvolver`、`HubServer`、`connectToHub`。
+数一下就清楚了:
+
+```
+bridge.cts : SkillEvolver 0 · HubServer 0 · connectToHub 0 · sharing 0
+index.ts   : SkillEvolver(:381 接 onTaskCompleted) · HubServer(:2382) · connectToHub(×2)
+```
+
+`index.ts` 是包的 `main`。**联邦(Hub/Client)与技能进化整套都只在它里面接线**,
+而 Hermes adapter 跑的是 `bridge.cts` 编译出的精简 daemon —— `dist-bridge/src/`
+里连 `hub` 目录都没有。`client/` 之所以在,只因为 viewer 要读状态和按需跨端搜索,
+**不是后台同步**。
+
+所以不该在三个地方各打一个补丁,该换入口。
+
+## 十八、宿主 shim
+
+`index.ts` 是 OpenClaw 插件对象 `{id, name, kind:"memory", configSchema, register(api)}`,
+`register` 只用到 **9 个** api 成员:
+
+```
+logger(38次) · registerTool(20) · config(4) · resolvePath(2) · on(2)
+registerService(1) · registerMemoryCapability(1) · pluginConfig(1) · id(1)
+```
+
+补一层 `host-shim.ts` 就能让它脱离 OpenClaw 独立跑(`/data/hermes-seo/hubtest/`)。
+不改任何第三方源码,升级不丢。启动器 `run-shim.sh`。
+
+> 注意 `index.ts` 里 `stateDir = process.env.OPENCLAW_STATE_DIR || api.resolvePath("~/.openclaw")`
+> —— 与 bridge 那条链**完全不同**:这条入口里 `OPENCLAW_STATE_DIR` 是真管落点的。
+
+## 十九、装的过程里第五个坑:1.0.4 的 index.ts 从 npm 装出来根本加载不了
+
+```
+Error: ENOENT: no such file or directory,
+  open '.../memos-plugin/skill/memos-memory-guide/SKILL.md'
+  at src/skill/bundled-memory-guide.ts:9
+```
+
+`package.json` 的 `files` 是
+`["index.ts","bridge.cts","src","adapters","prebuilds","install.sh",...]`
+—— **没有 `skill/`**。而 `bundled-memory-guide.ts` 在**模块顶层、无 try/catch**
+地 `readFileSync` 它。于是 npm 装出来的 1.0.4,`index.ts` 这条主入口一加载就炸。
+bridge 入口不 import 它,所以这个缺陷一直没暴露 —— 也解释了为什么没人用主入口。
+
+已用 `adapters/openharness/skills/memos-memory.md`(同一份指南的适配器副本)补齐
+`skill/memos-memory-guide/SKILL.md`。**升级后要重做。**
+
+## 二十、第六个坑:技能生成的 LLM 链第一跳默认指向宿主
+
+```
+[warn] SkillGenerator.step1 failed (openclaw/?), trying next fallback:
+       Error: OpenClaw API not available. Ensure sharing.capabilities.hostCompletion is enabled.
+```
+
+`buildSkillConfigChain(ctx)` = `[skillEvolution.summarizer, summarizer, openclaw fallback]`。
+第一跳解析成了 `openclaw`(宿主补全)。宿主不提供补全时,**技能评估已经通过、
+名字和理由都生成了,却卡在 `skill_status=generating` 不再前进** —— 又是一次
+「不报错、只停住」。
+
+解法:在插件配置里**显式**给 `skillEvolution.summarizer`,别依赖回退。
+
+## 二十一、实测:全链路自动跑通(独立库,没碰生产)
+
+```
+agent_end hook 捕获 → 摘要 → 任务切分 → 换会话自动收尾
+  → SkillEvolver 自动触发(无人工 retry-skill)→ 4 步生成 → 落盘入库
+
+[info] Session changed within agent: finalizing task=... from session=hm:seo:s2:a
+[info] SkillEvolver: generating new skill "nginx-multi-domain-tls-sni-troubleshooting"
+[info] SkillGenerator: Step 1/4 → 2/4 → 3/4 → 4/4
+[info] Skill generated: v1 [active] score=8.6 evals=4 evalHits=4/4
+       from task "Nginx 多域名证书与 SNI 排障"
+```
+
+228 行 SKILL.md + 4 条 eval,`installed=0` 提案态。
+**这是「技能沉淀」第一次在实时链路里自动发生**,此前那次是手工调 retry-skill。
+
+同一进程里 Hub 也自动起来了:`memos-local: hub started at http://127.0.0.1:19011`。
+
+Hub 服务端此前已单独验过(见十五节之外的独立验证):
+错误 teamToken 403 · 正确 → pending 不直发 token · 无 token 401 ·
+admin 拉待批 → 批准 → 客户端换取 userToken(214 字符)→
+`/hub/me` `/hub/memories` `/hub/skills` 全 200。带限流(60/分,搜索 30/分)
+与离线检测(2 分钟无心跳)。
+
+> 09 号文当年把「Hub 模式跨机不稳」列为切走 MemOS 的触发条件之一。
+> 现在可以结掉:**Hub 能跑**。当年的判断没有依据,因为从没启用过。
+
+## 二十二、复现时的两个操作坑
+
+1. `agent_end` 的游标:**首次见到某会话时从最后一条 user 消息起算**
+   (设计如此,避免重启后重灌历史)。一次性喂 8 条只会进最后一轮 ——
+   重放必须按真实宿主那样**逐轮 fire、消息数组逐轮增长**。
+2. 每步间隔给够。5 秒时摘要还在队列里,`TaskProcessor` 的 `processing` 守卫
+   会把回调吞掉,前一个会话的 chunk 全部 `task_id IS NULL`。放到 25 秒才正常。
+
+## 二十三、待定:要不要把生产切到这条入口
+
+切的话要动的:
+- Hermes adapter 的 `daemon_manager` 改为起 shim 而不是 bridge daemon
+- 宿主配置要提供 `models.providers`(否则 `openclawAPI` 为空,链第一跳仍会失败)
+- 端口:viewer = gatewayPort+10,hub = gatewayPort+11,得和现有 18901/18992 对齐
+- `skill/memos-memory-guide/SKILL.md` 与 `dist/package.json` 两个本地修补要进
+  安装说明,`npm install` 后必须重做
+
+不切的话,技能沉淀和联邦这两件永远只能手工触发。
