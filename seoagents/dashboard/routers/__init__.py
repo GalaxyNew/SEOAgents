@@ -6,6 +6,7 @@ from seoagents.dashboard.routers import (
     catalog_api,
     collab_api,
     config_api,
+    conversations,
     departments_api,
     gsc_api,
     kanban_api,
@@ -29,6 +30,7 @@ all_routers = [
     kanban_api.router,
     departments_api.router,
     storage_api.router,
+    conversations.router,
     timeline_router,
 ]
 

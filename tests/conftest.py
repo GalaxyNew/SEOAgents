@@ -78,12 +78,18 @@ def _authenticated_session(tmp_path, monkeypatch):
     _auth._save_users(users)
     cookie = f"{_auth.COOKIE}={_auth._sign('admin', int(_time.time()) + 3600)}"
 
+    # collab 协议(/api/v1/*)走服务令牌而不是浏览器会话。给测试设一个固定值并
+    # 随请求带上 —— 这样测的仍是「真的要令牌」的那条路径,而不是把闸门关掉。
+    svc = "test-service-token"
+    monkeypatch.setenv("SEOAGENTS_SERVICE_TOKEN", svc)
+
     def _patch(cls):
         orig = cls.request
 
         def wrapper(self, method, url, **kw):
             headers = dict(kw.pop("headers", None) or {})
             headers.setdefault("Cookie", cookie)
+            headers.setdefault("X-Service-Token", svc)
             return orig(self, method, url, headers=headers, **kw)
 
         monkeypatch.setattr(cls, "request", wrapper)

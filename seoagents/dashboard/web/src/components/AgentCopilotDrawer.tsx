@@ -45,6 +45,16 @@ interface ChatMessage {
   elapsed?: number
 }
 
+interface Conversation {
+  id: string
+  title: string
+  archived: boolean
+  created_at: string
+  updated_at: string
+  message_count: number
+  last_text: string
+}
+
 interface ContextItem {
   key: string
   label: string
@@ -145,6 +155,14 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
   const [ctxItems, setCtxItems] = useState<ContextItem[]>([])
   const [ctxPicked, setCtxPicked] = useState<Record<string, boolean>>({})
   const [isResizing, setIsResizing] = useState(false)
+  const [convId, setConvId] = useState<string | null>(null)
+  const [convs, setConvs] = useState<Conversation[]>([])
+  const [showHistory, setShowHistory] = useState(false)
+  const [histTab, setHistTab] = useState<'active' | 'archived'>('active')
+  const [convTitle, setConvTitle] = useState('新对话')
+  // 移动端浏览器的地址栏会伸缩,100vh 是「地址栏收起后」的高度 —— 用它布局
+  // 底部会被顶到可视区外。visualViewport 给的是真实可视高度,键盘弹出时也准。
+  const [vh, setVh] = useState<number | null>(null)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
   const bottomRef = useRef<HTMLDivElement | null>(null)
 
@@ -158,6 +176,111 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  // 真实可视高度。visualViewport 会随地址栏伸缩和键盘弹出而变,
+  // 拿它当抽屉高度,输入框就不会被挤到屏幕外面去。
+  useEffect(() => {
+    const vv = window.visualViewport
+    const sync = () => setVh(vv ? vv.height : window.innerHeight)
+    sync()
+    vv?.addEventListener('resize', sync)
+    vv?.addEventListener('scroll', sync)
+    window.addEventListener('resize', sync)
+    window.addEventListener('orientationchange', sync)
+    return () => {
+      vv?.removeEventListener('resize', sync)
+      vv?.removeEventListener('scroll', sync)
+      window.removeEventListener('resize', sync)
+      window.removeEventListener('orientationchange', sync)
+    }
+  }, [])
+
+  // ── 会话 ──────────────────────────────────────────────────────────
+  const loadConvs = async (archived = false) => {
+    try {
+      const d = await fetch(`/api/conversations?archived=${archived}`).then((r) => r.json())
+      setConvs(d.conversations || [])
+    } catch { setConvs([]) }
+  }
+
+  // 首次打开:接着最近一次的对话,而不是每次都从空白开始。
+  // 会话记录的意义就在于「上次说到哪了」还在。
+  useEffect(() => {
+    if (!isOpen || convId) return
+    ;(async () => {
+      try {
+        const d = await fetch('/api/conversations').then((r) => r.json())
+        const latest = (d.conversations || [])[0]
+        if (latest) await openConv(latest.id)
+        else await newConv()
+      } catch { /* 后端不可用时保持本地状态,不打断使用 */ }
+    })()
+  }, [isOpen])
+
+  const persist = async (cid: string | null, msg: Partial<ChatMessage> & { sender: 'user' | 'agent'; text: string }) => {
+    if (!cid) return
+    try {
+      await fetch(`/api/conversations/${cid}/messages`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sender: msg.sender, text: msg.text,
+          turns: msg.turns ?? null, elapsed: msg.elapsed ?? null,
+          trace: msg.trace ?? [],
+        }),
+      })
+    } catch { /* 存不下不该影响正在进行的对话 */ }
+  }
+
+  const WELCOME: ChatMessage = {
+    id: 'welcome', sender: 'agent',
+    text: '我是 hm,SEO 这摊归我管。技术审计、内容、内链这些我会自己派给专员,你直接说要什么就行。\n\n下面的快捷指令按当前真实可用的工具生成;点「📎 页面上下文」可以挑要带上的数据。',
+    ts: new Date().toLocaleTimeString(),
+  }
+
+  const newConv = async () => {
+    try {
+      const d = await fetch('/api/conversations', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+      }).then((r) => r.json())
+      setConvId(d.id)
+      setConvTitle(d.title || '新对话')
+    } catch { setConvId(null) }
+    setMessages([WELCOME])
+    setShowHistory(false)
+  }
+
+  const openConv = async (cid: string) => {
+    try {
+      const d = await fetch(`/api/conversations/${cid}`).then((r) => r.json())
+      setConvId(d.id)
+      setConvTitle(d.title || '对话')
+      const loaded: ChatMessage[] = (d.messages || []).map((m: any, i: number) => ({
+        id: m.id || `m_${i}`, sender: m.sender, text: m.text,
+        turns: m.turns ?? undefined, elapsed: m.elapsed ?? undefined,
+        trace: m.trace || [],
+        ts: new Date(m.ts).toLocaleTimeString(),
+      }))
+      setMessages(loaded.length ? loaded : [WELCOME])
+    } catch { /* 打不开就保持当前 */ }
+    setShowHistory(false)
+  }
+
+  const archiveConv = async (cid: string, archived: boolean) => {
+    await fetch(`/api/conversations/${cid}`, {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ archived }),
+    })
+    await loadConvs(histTab === 'archived')
+    if (archived && cid === convId) await newConv()
+  }
+
+  const deleteConv = async (cid: string) => {
+    // 归档是可逆的,删除不是 —— 所以只有这一个动作要确认
+    if (!window.confirm('删除后无法恢复。只是想收起来的话用归档。确定删除?')) return
+    await fetch(`/api/conversations/${cid}`, { method: 'DELETE' })
+    await loadConvs(histTab === 'archived')
+    if (cid === convId) await newConv()
+  }
 
   // 宽度拖拽
   useEffect(() => {
@@ -300,6 +423,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
     if (!text || busy) return
     const now = new Date().toLocaleTimeString()
     setMessages((m) => [...m, { id: `u_${Date.now()}`, sender: 'user', text, ts: now }])
+    void persist(convId, { sender: 'user', text })
     setInput('')
     setBusy(true)
     setElapsed(0)
@@ -310,6 +434,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         id: `e_${Date.now()}`, sender: 'agent', text: `⚠️ ${msg}`,
         ts: new Date().toLocaleTimeString(),
       }])
+      // 失败也要留痕。翻旧对话时看到「这里断了」比看到一段空白有用得多。
+      void persist(convId, { sender: 'agent', text: `⚠️ ${msg}` })
     }
 
     try {
@@ -345,6 +471,12 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
             elapsed: job.elapsed_seconds,
             ts: new Date().toLocaleTimeString(),
           }])
+          // trace 一起存 —— 回看旧对话时「当时调了哪些工具、拿到什么」
+          // 比最后那段话更有价值
+          void persist(convId, {
+            sender: 'agent', text: job.final_text || '任务处理完毕。',
+            turns: job.turns, elapsed: job.elapsed_seconds, trace: job.trace || [],
+          })
         } else {
           fail(`执行失败: ${job.error || '未知错误'}`)
         }
@@ -372,10 +504,121 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
       {isResizing && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 999999, cursor: 'col-resize', userSelect: 'none' }} />
       )}
+
+      {showHistory && (
+        <div
+          onClick={() => setShowHistory(false)}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 100001,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 460, maxWidth: '100%', maxHeight: '78vh', background: '#0f172a',
+              border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden',
+              display: 'flex', flexDirection: 'column',
+            }}
+          >
+            <div style={{
+              padding: '12px 14px', borderBottom: '1px solid #1e293b',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              <strong style={{ fontSize: 14, color: '#f8fafc', marginRight: 'auto' }}>历史对话</strong>
+              {(['active', 'archived'] as const).map((t) => (
+                <button
+                  key={t}
+                  onClick={() => { setHistTab(t); void loadConvs(t === 'archived') }}
+                  style={{
+                    background: histTab === t ? '#1e293b' : 'transparent',
+                    color: histTab === t ? '#60a5fa' : '#94a3b8',
+                    border: `1px solid ${histTab === t ? '#3b82f6' : 'transparent'}`,
+                    borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
+                  }}
+                >{t === 'active' ? '进行中' : '已归档'}</button>
+              ))}
+              <button onClick={() => setShowHistory(false)} style={{
+                background: 'transparent', border: 0, color: '#94a3b8',
+                fontSize: 16, cursor: 'pointer', padding: '2px 6px',
+              }}>✕</button>
+            </div>
+
+            <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
+              {convs.length === 0 && (
+                <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+                  {histTab === 'archived' ? '没有已归档的对话' : '还没有历史对话'}
+                </div>
+              )}
+              {convs.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => void openConv(c.id)}
+                  style={{
+                    padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
+                    background: c.id === convId ? '#1e293b' : 'transparent',
+                    border: `1px solid ${c.id === convId ? '#334155' : 'transparent'}`,
+                    marginBottom: 4,
+                  }}
+                  onMouseEnter={(e) => { if (c.id !== convId) e.currentTarget.style.background = '#131c2e' }}
+                  onMouseLeave={(e) => { if (c.id !== convId) e.currentTarget.style.background = 'transparent' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{
+                      fontSize: 13, color: '#e2e8f0', fontWeight: 500, flex: 1,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{c.title}</span>
+                    <span style={{ fontSize: 10, color: '#475569' }}>{c.message_count} 条</span>
+                    <button
+                      title={histTab === 'archived' ? '取回' : '归档'}
+                      onClick={(e) => { e.stopPropagation(); void archiveConv(c.id, histTab !== 'archived') }}
+                      style={{
+                        background: 'transparent', border: 0, color: '#64748b',
+                        cursor: 'pointer', fontSize: 12, padding: '2px 4px',
+                      }}
+                    >{histTab === 'archived' ? '↩' : '📥'}</button>
+                    <button
+                      title="删除"
+                      onClick={(e) => { e.stopPropagation(); void deleteConv(c.id) }}
+                      style={{
+                        background: 'transparent', border: 0, color: '#64748b',
+                        cursor: 'pointer', fontSize: 12, padding: '2px 4px',
+                      }}
+                    >🗑</button>
+                  </div>
+                  {c.last_text && (
+                    <div style={{
+                      fontSize: 11, color: '#64748b', marginTop: 3,
+                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                    }}>{c.last_text}</div>
+                  )}
+                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+                    {new Date(c.updated_at).toLocaleString('zh-CN', { hour12: false })}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ padding: 10, borderTop: '1px solid #1e293b' }}>
+              <button
+                onClick={() => void newConv()}
+                style={{
+                  width: '100%', padding: '8px 0', borderRadius: 8, border: 0,
+                  background: '#2563eb', color: '#fff', fontSize: 13,
+                  fontWeight: 600, cursor: 'pointer',
+                }}
+              >✚ 新建对话</button>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         className="copilot-drawer"
         style={{
-          position: 'fixed', top: 0, right: 0, width, maxWidth: '100vw', height: '100vh',
+          position: 'fixed', top: 0, right: 0, width, maxWidth: '100vw',
+          // 优先用实测可视高度;拿不到时退回 dvh(动态视口),再退回 vh。
+          // 直接写 100vh 会让底部输入框沉到移动端可视区外面。
+          height: vh ? `${vh}px` : '100dvh',
           background: '#0f172a', borderLeft: '1px solid #1e293b',
           boxShadow: '-8px 0 24px rgba(0,0,0,0.5)', zIndex: 9999,
           display: 'flex', flexDirection: 'column',
@@ -408,15 +651,30 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 SEOAgent
                 <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>hm · Hermes</span>
               </div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                SEO 负责人 · 专员由它内部调度
+              <div style={{
+                fontSize: 11, color: '#94a3b8', maxWidth: 180,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }} title={convTitle}>
+                {convTitle}
               </div>
             </div>
           </div>
-          <button onClick={onClose} title="收起" style={{
-            background: 'transparent', border: 0, color: '#94a3b8',
-            fontSize: 18, cursor: 'pointer', padding: '4px 8px',
-          }}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <button onClick={() => void newConv()} title="新建对话" style={{
+              background: 'transparent', border: 0, color: '#94a3b8',
+              fontSize: 16, cursor: 'pointer', padding: '4px 7px',
+            }}>✚</button>
+            <button
+              onClick={() => { setHistTab('active'); void loadConvs(false); setShowHistory(true) }}
+              title="历史对话" style={{
+                background: 'transparent', border: 0, color: '#94a3b8',
+                fontSize: 15, cursor: 'pointer', padding: '4px 7px',
+              }}>🕘</button>
+            <button onClick={onClose} title="收起" style={{
+              background: 'transparent', border: 0, color: '#94a3b8',
+              fontSize: 18, cursor: 'pointer', padding: '4px 8px',
+            }}>✕</button>
+          </div>
         </div>
 
         {/* 消息区 */}
