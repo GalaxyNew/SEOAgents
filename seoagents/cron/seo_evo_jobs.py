@@ -283,6 +283,69 @@ async def run_evolution_for_site(rt: Runtime, site_item: Any) -> dict[str, Any]:
     return summary
 
 
+# ── 时间线留痕 ────────────────────────────────────────────────────────
+def _record_on_timeline(rt: Any, summary: dict[str, Any]) -> None:
+    """把这一轮演化写进时间线,并排下一轮。
+
+    整个函数被 try 包住:时间线是记录,演化是主线。让记录的失败中断主线,
+    是把优先级搞反了 —— 那样一个存储小故障就能停掉整个自进化。
+    """
+    import datetime as _dt
+
+    from dojocore.timeline import NodeKind, get_timeline
+
+    try:
+        tl = get_timeline(rt.config, owner="seoagents")
+        brand = summary.get("brand") or summary.get("site") or "站点"
+        m_t = summary.get("m_t")
+        status = summary.get("score_status")
+        excluded = summary.get("excluded_inputs") or []
+
+        # outcome 必须自带可信度。只写「M_t = -0.65」而不写数据状态,
+        # 回看时无法判断那个数字能不能用。
+        outcome = (
+            f"M_t={m_t if m_t is not None else '不可计算'} · {status}"
+            f" · 死链 {summary.get('dead_links', 0)} 提案 {summary.get('links_proposed', 0)}"
+            f" · 技能提案 {summary.get('compiled_skill') or '无'}"
+        )
+        if excluded:
+            outcome += f" · 非 REAL 输入: {excluded}"
+
+        now = _dt.datetime.now(_dt.timezone.utc)
+        node = tl.schedule({
+            "kind": NodeKind.REVIEW,
+            "intent": f"{brand} 自适应演化复盘",
+            "subject_ref": summary.get("site", ""),
+            # 这一轮刚跑完,时间就是此刻 —— scheduled_at 是必填,漏了会
+            # KeyError,而整段被 try 包着,只会留下一行 warning 然后静默跳过
+            "scheduled_at": now.isoformat(),
+            "expected_minutes": 1,
+            "created_by": "seo_evo_pipeline",
+            "context": {
+                "m_t": m_t, "score_status": status,
+                "data_sources": summary.get("data_sources") or {},
+                "excluded_inputs": excluded,
+            },
+        }, allow_conflict=True)
+        tl.fire(node.node_id)
+        tl.ack(node.node_id, outcome=outcome)
+
+        # 下一轮的排期。定时任务是每日 02:00 UTC,照这个节奏排。
+        nxt = (now + _dt.timedelta(days=1)).replace(
+            hour=2, minute=0, second=0, microsecond=0
+        )
+        tl.schedule({
+            "kind": NodeKind.RECURRING,
+            "intent": f"{brand} 下一轮自适应演化",
+            "subject_ref": summary.get("site", ""),
+            "scheduled_at": nxt.isoformat(),
+            "expected_minutes": 10,
+            "created_by": "seo_evo_pipeline",
+        }, allow_conflict=True)
+    except Exception as exc:  # noqa: BLE001 - 记录失败不该拖垮演化
+        LOGGER.warning(f"时间线留痕失败(不影响演化本身): {type(exc).__name__}: {exc}")
+
+
 async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dict[str, Any]:
     """遍历**全部**受监控站点,各跑一轮演化。
 
@@ -309,6 +372,9 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
                 "score_status": "ERROR",
                 "error": f"{type(exc).__name__}: {exc}",
             })
+
+    for _r in results:
+        _record_on_timeline(rt, _r)
 
     scored = [r for r in results if r.get("m_t") is not None]
     summary = {
