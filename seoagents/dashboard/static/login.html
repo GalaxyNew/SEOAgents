@@ -5,7 +5,13 @@
 html,body{margin:0;height:100%;background:#04060d}
 
 @keyframes sg-rotate { to { transform: rotate(360deg) } }
-@keyframes sg-scan   { 0% { top: -10% } 100% { top: 110% } }
+/* 幻彩流动。四团各走各的路径,周期取互质的数(29/37/43/53 秒),
+   合起来要几十分钟才回到同一画面 —— 看上去是随机的,而不是
+   「哦这个动画又循环了」。 */
+@keyframes sg-f1 { 0%{transform:translate(-14%,-10%) scale(1)} 33%{transform:translate(16%,8%) scale(1.18)} 66%{transform:translate(6%,-16%) scale(.92)} 100%{transform:translate(-14%,-10%) scale(1)} }
+@keyframes sg-f2 { 0%{transform:translate(18%,12%) scale(1.1)} 30%{transform:translate(-12%,-6%) scale(.94)} 70%{transform:translate(-4%,18%) scale(1.22)} 100%{transform:translate(18%,12%) scale(1.1)} }
+@keyframes sg-f3 { 0%{transform:translate(6%,-18%) scale(.96)} 40%{transform:translate(-18%,10%) scale(1.2)} 75%{transform:translate(14%,14%) scale(1.04)} 100%{transform:translate(6%,-18%) scale(.96)} }
+@keyframes sg-f4 { 0%{transform:translate(-10%,16%) scale(1.14)} 45%{transform:translate(12%,-14%) scale(.9)} 80%{transform:translate(-16%,-4%) scale(1.16)} 100%{transform:translate(-10%,16%) scale(1.14)} }
 @keyframes sg-blink  { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
 @keyframes sg-rise   { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
 @keyframes sg-orbit  { to { transform: rotate(-360deg) } }
@@ -14,23 +20,51 @@ html,body{margin:0;height:100%;background:#04060d}
   display: grid; place-items: center; overflow: hidden;
   font-family: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
 
-.sg-grid { position: absolute; inset: -50%; opacity: .5;
+.sg-grid { position: absolute; inset: -50%; opacity: .45;
   background-image:
     linear-gradient(rgba(56,189,248,.055) 1px, transparent 1px),
     linear-gradient(90deg, rgba(56,189,248,.055) 1px, transparent 1px);
   background-size: 46px 46px;
   transform: perspective(560px) rotateX(62deg) translateY(-16%); }
 
-.sg-glow { position: absolute; width: 900px; height: 900px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(37,99,235,.20) 0%, rgba(14,116,144,.09) 40%, transparent 68%);
-  filter: blur(28px); pointer-events: none; }
+/* 每团都用多档缓入的 alpha,而不是「实心→透明」两档。
+   两档的径向渐变在大尺寸上会被 8 位色量化出一圈圈同心环 —— 就是肉眼看到的
+   那条分界线。档位密了,相邻档之间色差小于 1/255,环就没了。 */
+.sg-flow { position: absolute; inset: -30%; pointer-events: none;
+  filter: blur(70px); mix-blend-mode: screen; }
+.sg-flow i { position: absolute; width: 62%; height: 62%; border-radius: 50%;
+  will-change: transform; }
+.sg-flow i:nth-child(1) { top: 4%; left: 2%;  animation: sg-f1 29s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(34,211,238,.30) 0%, rgba(34,211,238,.26) 14%, rgba(30,180,220,.20) 28%,
+    rgba(26,140,190,.14) 42%, rgba(22,100,155,.09) 56%, rgba(18,64,118,.05) 70%,
+    rgba(14,36,80,.02) 84%, transparent 100%); }
+.sg-flow i:nth-child(2) { top: 0%; right: 0%; animation: sg-f2 37s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(129,90,240,.28) 0%, rgba(129,90,240,.24) 14%, rgba(112,84,225,.19) 28%,
+    rgba(94,76,205,.13) 42%, rgba(76,66,178,.085) 56%, rgba(56,52,140,.045) 70%,
+    rgba(36,34,96,.018) 84%, transparent 100%); }
+.sg-flow i:nth-child(3) { bottom: 2%; left: 14%; animation: sg-f3 43s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(232,90,180,.20) 0%, rgba(232,90,180,.17) 14%, rgba(205,84,170,.135) 28%,
+    rgba(172,76,155,.095) 42%, rgba(136,66,132,.06) 56%, rgba(96,52,102,.032) 70%,
+    rgba(58,34,66,.013) 84%, transparent 100%); }
+.sg-flow i:nth-child(4) { bottom: 6%; right: 8%; animation: sg-f4 53s ease-in-out infinite;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(45,212,191,.22) 0%, rgba(45,212,191,.19) 14%, rgba(40,190,180,.15) 28%,
+    rgba(34,162,162,.105) 42%, rgba(28,130,138,.068) 56%, rgba(22,96,106,.036) 70%,
+    rgba(14,58,68,.014) 84%, transparent 100%); }
+
+/* 颗粒。大面积平滑渐变在 8 位色下必然分层,加渐变档位只能减轻不能根治。
+   叠一层极淡的噪点把相邻色阶打散 —— 印刷业的抖动算法,搬到屏幕上一样管用。
+   用 SVG feTurbulence 生成,不额外请求图片。 */
+.sg-noise { position: absolute; inset: 0; pointer-events: none; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
 
 .sg-vignette { position: absolute; inset: 0; pointer-events: none;
-  background: radial-gradient(ellipse at center, transparent 34%, rgba(2,4,10,.82) 100%); }
-
-.sg-scan { position: absolute; left: 0; right: 0; height: 120px; pointer-events: none;
-  background: linear-gradient(180deg, transparent, rgba(56,189,248,.05), transparent);
-  animation: sg-scan 7s linear infinite; }
+  background: radial-gradient(ellipse at center,
+    transparent 30%, rgba(3,5,12,.20) 48%, rgba(3,5,12,.46) 64%,
+    rgba(2,4,10,.68) 80%, rgba(2,4,10,.84) 100%); }
 
 .sg-card { position: relative; width: 372px; padding: 2px; border-radius: 16px;
   animation: sg-rise .5s cubic-bezier(.22,1,.36,1) both; }
@@ -109,7 +143,8 @@ html,body{margin:0;height:100%;background:#04060d}
   margin-right:5px; box-shadow:0 0 7px #22c55e; animation: sg-blink 2.1s ease-in-out infinite; }
 
 @media (prefers-reduced-motion: reduce) {
-  .sg-card::before, .sg-scan, .sg-mark i:nth-child(2), .sg-dot, .sg-sub s { animation: none }
+  .sg-card::before, .sg-mark i:nth-child(2), .sg-dot, .sg-sub s,
+  .sg-flow i { animation: none }
 }
 @media (max-width: 420px) { .sg-card { width: calc(100vw - 34px) } }
 .sg-wrap{position:fixed;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
@@ -121,11 +156,11 @@ html,body{margin:0;height:100%;background:#04060d}
 </style></head><body>
 
 <div class="sg-wrap" oncontextmenu="return false">
+  <div class="sg-flow"><i></i><i></i><i></i><i></i></div>
   <div class="sg-grid"></div>
   <canvas id="net" style="position:absolute;inset:0;width:100%;height:100%;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></canvas>
-  <div class="sg-glow"></div>
   <div class="sg-vignette"></div>
-  <div class="sg-scan"></div>
+  <div class="sg-noise"></div>
 
   <div class="sg-card"><div class="sg-inner">
     <i class="sg-corner tl"></i><i class="sg-corner tr"></i>
