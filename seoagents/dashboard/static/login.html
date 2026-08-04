@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="zh"><head><meta charset="utf-8">
+<title>SEOAgents 登录界面预览</title>
+<style>
+html,body{margin:0;height:100%;background:#04060d}
+
+@keyframes sg-rotate { to { transform: rotate(360deg) } }
+@keyframes sg-scan   { 0% { top: -10% } 100% { top: 110% } }
+@keyframes sg-blink  { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+@keyframes sg-rise   { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
+@keyframes sg-orbit  { to { transform: rotate(-360deg) } }
+
+.sg-wrap { position: fixed; inset: 0; z-index: 9999; background: #04060d;
+  display: grid; place-items: center; overflow: hidden;
+  font-family: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
+
+.sg-grid { position: absolute; inset: -50%; opacity: .5;
+  background-image:
+    linear-gradient(rgba(56,189,248,.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(56,189,248,.055) 1px, transparent 1px);
+  background-size: 46px 46px;
+  transform: perspective(560px) rotateX(62deg) translateY(-16%); }
+
+.sg-glow { position: absolute; width: 900px; height: 900px; border-radius: 50%;
+  background: radial-gradient(circle, rgba(37,99,235,.20) 0%, rgba(14,116,144,.09) 40%, transparent 68%);
+  filter: blur(28px); pointer-events: none; }
+
+.sg-vignette { position: absolute; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 34%, rgba(2,4,10,.82) 100%); }
+
+.sg-scan { position: absolute; left: 0; right: 0; height: 120px; pointer-events: none;
+  background: linear-gradient(180deg, transparent, rgba(56,189,248,.05), transparent);
+  animation: sg-scan 7s linear infinite; }
+
+.sg-card { position: relative; width: 372px; padding: 2px; border-radius: 16px;
+  animation: sg-rise .5s cubic-bezier(.22,1,.36,1) both; }
+.sg-card::before { content:''; position:absolute; inset:-1px; border-radius:17px; padding:1px;
+  background: conic-gradient(from 0deg, transparent 0deg, #22d3ee 40deg, #6366f1 90deg, transparent 150deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor; mask-composite: exclude;
+  animation: sg-rotate 6s linear infinite; }
+
+.sg-inner { position: relative; border-radius: 15px; padding: 30px 28px 24px;
+  background: linear-gradient(165deg, rgba(13,19,34,.94), rgba(7,11,22,.97));
+  border: 1px solid rgba(56,189,248,.13);
+  box-shadow: 0 24px 70px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.045); }
+
+.sg-corner { position:absolute; width:15px; height:15px; border-color:#22d3ee; opacity:.55; }
+.sg-corner.tl { top:9px; left:9px;  border-top:1.5px solid; border-left:1.5px solid; }
+.sg-corner.tr { top:9px; right:9px; border-top:1.5px solid; border-right:1.5px solid; }
+.sg-corner.bl { bottom:9px; left:9px;  border-bottom:1.5px solid; border-left:1.5px solid; }
+.sg-corner.br { bottom:9px; right:9px; border-bottom:1.5px solid; border-right:1.5px solid; }
+
+.sg-mark { position: relative; width: 52px; height: 52px; margin: 0 auto 16px; }
+.sg-mark i { position:absolute; inset:0; border-radius:50%;
+  border:1px solid rgba(34,211,238,.28); }
+.sg-mark i:nth-child(2) { inset:7px; border-color:rgba(99,102,241,.34);
+  animation: sg-orbit 9s linear infinite; border-style:dashed; }
+.sg-mark b { position:absolute; inset:15px; border-radius:9px; display:grid; place-items:center;
+  background: linear-gradient(135deg,#22d3ee,#4f46e5); color:#04060d;
+  font-size:12px; font-weight:800; letter-spacing:.4px; font-style:normal;
+  box-shadow: 0 0 18px rgba(34,211,238,.5); }
+
+.sg-title { text-align:center; font-size:21px; font-weight:700; letter-spacing:2.5px;
+  color:#e8f4ff; margin:0 0 5px;
+  text-shadow: 0 0 22px rgba(56,189,248,.42); }
+.sg-sub { text-align:center; font-size:10.5px; letter-spacing:1.6px; margin:0 0 22px;
+  color:#4d7fa6; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.sg-sub s { text-decoration:none; color:#22d3ee; animation: sg-blink 1.4s steps(1) infinite; }
+
+.sg-field { position:relative; margin-bottom:12px; }
+.sg-field label { position:absolute; left:12px; top:-7px; padding:0 5px; font-size:9.5px;
+  letter-spacing:1.3px; color:#4d7fa6; background:#0a1122; border-radius:3px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.sg-field input { width:100%; box-sizing:border-box; height:42px; padding:0 13px;
+  background:rgba(6,12,26,.85); color:#dcefff; font-size:14px;
+  border:1px solid rgba(56,189,248,.16); border-radius:9px; outline:none;
+  transition: border-color .18s, box-shadow .18s, background .18s; }
+.sg-field input::placeholder { color:#33526e; }
+.sg-field input:focus { border-color:#22d3ee; background:rgba(8,17,34,.95);
+  box-shadow: 0 0 0 3px rgba(34,211,238,.11), 0 0 22px rgba(34,211,238,.14); }
+
+.sg-btn { position:relative; width:100%; height:43px; margin-top:6px; border:0;
+  border-radius:9px; cursor:pointer; overflow:hidden; color:#04060d;
+  font-size:14px; font-weight:700; letter-spacing:2.5px;
+  background: linear-gradient(100deg,#22d3ee,#4f46e5);
+  box-shadow: 0 8px 26px rgba(34,211,238,.24);
+  transition: transform .14s, box-shadow .18s, filter .18s; }
+.sg-btn:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.07);
+  box-shadow: 0 12px 34px rgba(34,211,238,.36); }
+.sg-btn:active:not(:disabled) { transform:translateY(0) scale(.99); }
+.sg-btn:disabled { opacity:.34; cursor:not-allowed; box-shadow:none; }
+.sg-btn span { position:absolute; top:0; left:-120%; width:60%; height:100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
+  transition: left .5s; }
+.sg-btn:hover:not(:disabled) span { left:130%; }
+
+.sg-warn { font-size:11.5px; line-height:1.65; color:#fbbf24; margin-bottom:13px;
+  padding:9px 11px; border-radius:8px; background:rgba(69,26,3,.42);
+  border:1px solid rgba(180,83,9,.42); }
+
+.sg-err { margin-top:12px; font-size:11.5px; color:#fca5a5; text-align:center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+.sg-foot { margin-top:18px; padding-top:13px; border-top:1px solid rgba(56,189,248,.09);
+  display:flex; justify-content:space-between; font-size:9.5px; letter-spacing:.7px;
+  color:#3c6484; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.sg-dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:#22c55e;
+  margin-right:5px; box-shadow:0 0 7px #22c55e; animation: sg-blink 2.1s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sg-card::before, .sg-scan, .sg-mark i:nth-child(2), .sg-dot, .sg-sub s { animation: none }
+}
+@media (max-width: 420px) { .sg-card { width: calc(100vw - 34px) } }
+.sg-wrap{position:fixed;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.sg-toggle{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:10001;
+  display:flex;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
+.sg-toggle button{background:rgba(13,19,34,.9);color:#7dd3fc;border:1px solid rgba(56,189,248,.3);
+  border-radius:6px;padding:7px 14px;cursor:pointer;letter-spacing:1px}
+.sg-toggle button.on{background:#22d3ee;color:#04060d;border-color:#22d3ee}
+</style></head><body>
+
+<div class="sg-wrap" oncontextmenu="return false">
+  <div class="sg-grid"></div>
+  <canvas id="net" style="position:absolute;inset:0;width:100%;height:100%;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></canvas>
+  <div class="sg-glow"></div>
+  <div class="sg-vignette"></div>
+  <div class="sg-scan"></div>
+
+  <div class="sg-card"><div class="sg-inner">
+    <i class="sg-corner tl"></i><i class="sg-corner tr"></i>
+    <i class="sg-corner bl"></i><i class="sg-corner br"></i>
+
+    <div class="sg-mark"><i></i><i></i><b>SEO</b></div>
+    <h1 class="sg-title">SEOAGENTS</h1>
+    <p class="sg-sub"><span id="sub">自适应演化 · SEO 智能体集群</span><s>_</s></p>
+
+    <div id="viewLogin">
+      <div class="sg-field"><label>USER</label><input placeholder="用户名" value="admin"></div>
+      <div class="sg-field"><label>PASS</label><input type="password" placeholder="口令" value="admin123"></div>
+      <button class="sg-btn" id="loginBtn" onclick="doLogin()">接 入 系 统<span></span></button>
+    </div>
+
+    <div id="viewChange" style="display:none">
+      <div class="sg-warn">这个后台可以从公网访问,而 admin/admin123 正是扫描器最先试的一组。换掉它之前,其它功能都用不了。</div>
+      <div class="sg-field"><label>CURRENT</label><input type="password" placeholder="当前口令"></div>
+      <div class="sg-field"><label>NEW</label><input type="password" placeholder="新口令（至少 8 位）"></div>
+      <div class="sg-field"><label>CONFIRM</label><input type="password" placeholder="再输一次"></div>
+      <button class="sg-btn" id="changeBtn" onclick="doChange()">设 置 新 口 令<span></span></button>
+    </div>
+
+    <div class="sg-foot">
+      <span><i class="sg-dot"></i>SYSTEM ONLINE</span>
+      <span>DATA_STATUS · REAL</span>
+    </div>
+  </div></div>
+</div>
+
+<div class="sg-toggle">
+  <button id="b1" class="on">登录态</button>
+  <button id="b2">首次改口令态</button>
+</div>
+
+<script>
+var L=document.getElementById('viewLogin'),C=document.getElementById('viewChange'),
+    S=document.getElementById('sub'),b1=document.getElementById('b1'),b2=document.getElementById('b2');
+b1.onclick=function(){L.style.display='';C.style.display='none';S.textContent='自适应演化 · SEO 智能体集群';b1.className='on';b2.className='';};
+b2.onclick=function(){L.style.display='none';C.style.display='';S.textContent='SET NEW CREDENTIALS';b2.className='on';b1.className='';};
+
+var cv=document.getElementById('net'),ctx=cv.getContext('2d'),w,h,pts=[],
+    dpr=Math.min(window.devicePixelRatio||1,2),mouse={x:-9999,y:-9999};
+function seed(){w=cv.clientWidth;h=cv.clientHeight;cv.width=w*dpr;cv.height=h*dpr;
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  var n=Math.min(110,Math.round(w*h/13000));pts=[];
+  for(var i=0;i<n;i++)pts.push({x:Math.random()*w,y:Math.random()*h,
+    vx:(Math.random()-.5)*.22,vy:(Math.random()-.5)*.22,r:Math.random()*1.5+.6});}
+var LINK2=130*130,PULL2=170*170;
+function draw(){ctx.clearRect(0,0,w,h);
+  for(var i=0;i<pts.length;i++){var p=pts[i],mdx=mouse.x-p.x,mdy=mouse.y-p.y,md2=mdx*mdx+mdy*mdy;
+    if(md2<PULL2&&md2>1){var f=(1-md2/PULL2)*.0016;p.vx+=mdx*f;p.vy+=mdy*f;}
+    p.x+=p.vx;p.y+=p.vy;p.vx*=.994;p.vy*=.994;
+    if(p.x<0||p.x>w)p.vx*=-1;if(p.y<0||p.y>h)p.vy*=-1;
+    p.x=Math.max(0,Math.min(w,p.x));p.y=Math.max(0,Math.min(h,p.y));}
+  for(var i=0;i<pts.length;i++)for(var j=i+1;j<pts.length;j++){
+    var dx=pts[i].x-pts[j].x,dy=pts[i].y-pts[j].y,d2=dx*dx+dy*dy;
+    if(d2>LINK2)continue;var a=(1-d2/LINK2)*.5;
+    ctx.strokeStyle='rgba(56,189,248,'+(a*.55)+')';ctx.lineWidth=.6;
+    ctx.beginPath();ctx.moveTo(pts[i].x,pts[i].y);ctx.lineTo(pts[j].x,pts[j].y);ctx.stroke();}
+  for(var i=0;i<pts.length;i++){var p=pts[i];ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,6.284);
+    ctx.fillStyle='rgba(125,211,252,.85)';ctx.fill();}
+  requestAnimationFrame(draw);}
+window.addEventListener('resize',seed);
+window.addEventListener('mousemove',function(e){var b=cv.getBoundingClientRect();
+  mouse.x=e.clientX-b.left;mouse.y=e.clientY-b.top;});
+seed();draw();
+</script>
+
+<script>
+// 检查会话
+fetch('/api/auth/session').then(r=>r.json()).then(s=>{
+  if(s.authenticated && !s.must_change){
+    window.location.href='/';
+  }
+  if(s.authenticated && s.must_change){
+    showChange();
+  }
+});
+
+function showChange(){
+  document.getElementById('viewLogin').style.display='none';
+  document.getElementById('viewChange').style.display='';
+  document.getElementById('sub').textContent='SET NEW CREDENTIALS';
+}
+function showLogin(){
+  document.getElementById('viewLogin').style.display='';
+  document.getElementById('viewChange').style.display='none';
+  document.getElementById('sub').textContent='自适应演化 · SEO 智能体集群';
+}
+
+function doLogin(){
+  var btn=document.getElementById('loginBtn');
+  var inputs=document.querySelectorAll('#viewLogin input');
+  var u=inputs[0].value, p=inputs[1].value;
+  btn.disabled=true; btn.textContent='接 入 中…';
+  fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})})
+    .then(r=>r.json()).then(b=>{
+      btn.disabled=false; btn.textContent='接 入 系 统';
+      if(b.must_change){ showChange(); }
+      else if(b.username){ window.location.href='/'; }
+      else { var e=document.querySelector('.sg-err')||document.createElement('div'); e.className='sg-err'; e.textContent=b.detail||'登录失败'; document.getElementById('viewLogin').appendChild(e); }
+    }).catch(e=>{ btn.disabled=false; btn.textContent='接 入 系 统'; });
+}
+
+function doChange(){
+  var btn=document.getElementById('changeBtn');
+  var inputs=document.querySelectorAll('#viewChange input');
+  var cur=inputs[0].value, np=inputs[1].value, np2=inputs[2].value;
+  if(np!==np2){alert('两次输入不一致');return;}
+  btn.disabled=true; btn.textContent='提 交 中…';
+  fetch('/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:cur||'admin123',new_password:np})})
+    .then(r=>r.json()).then(b=>{
+      btn.disabled=false; btn.textContent='设 置 新 口 令';
+      if(b.ok||b.username){ window.location.href='/'; }
+      else { alert(b.detail||'修改失败'); }
+    }).catch(e=>{ btn.disabled=false; btn.textContent='设 置 新 口 令'; });
+}
+</script>
+
+</body></html>

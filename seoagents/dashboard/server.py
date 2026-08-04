@@ -75,6 +75,11 @@ def create_app() -> FastAPI:
         """
         return FileResponse(_STATIC_DIR / "console.html")
 
+    @app.get("/login", include_in_schema=False)
+    def login_page() -> FileResponse:
+        """Cyberpunk login page — raw HTML, no React."""
+        return FileResponse(_STATIC_DIR / "login.html")
+
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict:
         return {"ok": True, "version": __version__}

@@ -56,7 +56,7 @@ SESSION_TTL = 7 * 24 * 3600  # 一周,够用又不至于长期有效的令牌到
 # 除此之外不开口子。
 _PUBLIC_PREFIXES = (
     "/api/auth/login", "/api/auth/session",
-    "/static/", "/assets/", "/favicon", "/health",
+    "/static/", "/assets/", "/favicon", "/login", "/health",
 )
 
 # 机器对机器的入口。`/api/v1/*` 是别的部门实例调本部门用的 collab 协议:
