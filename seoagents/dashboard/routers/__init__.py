@@ -10,6 +10,7 @@ from seoagents.dashboard.routers import (
     departments_api,
     gsc_api,
     kanban_api,
+    keywords_api,
     metrics,
     storage_api,
     workflow_api,
@@ -31,6 +32,7 @@ all_routers = [
     departments_api.router,
     storage_api.router,
     conversations.router,
+    keywords_api.router,
     timeline_router,
 ]
 

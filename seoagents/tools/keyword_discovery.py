@@ -221,7 +221,29 @@ class KeywordDiscoverySpec(BaseToolSpec):
     # ── 合并与打分 ──────────────────────────────────────────────────
     async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
         site_url = str(arguments.get("site_url") or self.config.sites.site_url).rstrip("/")
-        gsc_property = str(arguments.get("gsc_property") or self.config.sites.gsc_property)
+        # 没显式传 gsc_property 时,必须按 site_url 去 monitored_sites 里找对应的那一个。
+        # 落回全局 self.config.sites.gsc_property 会造成「分析 A 站却拉了 B 站的
+        # GSC 数据」—— 不报错、结果看着正常,但推荐词全是另一个站的。
+        # 实测踩过:site=mejorsiptv.shop 却拿到 sc-domain:igoriptv2.com,
+        # 于是 core_tokens 变成 ["igor","iptv"],推荐词全是 igor 开头。
+        gsc_property = str(arguments.get("gsc_property") or "").strip()
+        if not gsc_property:
+            _host = (urlparse(site_url).hostname or "").lower().lstrip("www.")
+            for _s in self.config.sites.monitored_sites:
+                if (urlparse(_s.site_url).hostname or "").lower().lstrip("www.") == _host:
+                    gsc_property = _s.gsc_property
+                    break
+        if not gsc_property:
+            if (urlparse(self.config.sites.site_url).hostname or "").lower().lstrip("www.") == \
+                    (urlparse(site_url).hostname or "").lower().lstrip("www."):
+                gsc_property = self.config.sites.gsc_property
+            else:
+                return unavailable(
+                    source="keyword_discovery",
+                    reason=(f"{site_url} 不在 monitored_sites 里,也没显式传 gsc_property。"
+                            f"拒绝用全局默认值 —— 那会拉到别的站的数据。"),
+                    site=site_url,
+                )
         days = int(arguments.get("days", 28))
         limit = int(arguments.get("limit", 30))
         do_expand = bool(arguments.get("include_expansion", True))
