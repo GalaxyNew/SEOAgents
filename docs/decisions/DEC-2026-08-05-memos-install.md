@@ -119,3 +119,110 @@ grep -n "stateDir" src/config.ts | head
 说明它可能被 `$HOME` 推导覆盖了)。
 
 状态库落点修好之后,才谈得上切 `config.yaml` 和验证技能进化。
+
+---
+
+# 追记(同日晚)· 状态库落点已修
+
+## 七、落点为什么会跑偏 —— 完整推导链
+
+`OPENCLAW_STATE_DIR` 设了没用,是因为**它从来就不管落点**。Node 侧只有一条链:
+
+```
+bridge.cts:299/365
+  const stateDir = configOpts.stateDir ?? `${process.env.HOME}/.openharness/memos-state`
+                          ↑
+  parseConfig()  ——  只读 MEMOS_BRIDGE_CONFIG 这一个环境变量,别无他途
+```
+
+`OPENCLAW_STATE_DIR` 在 Node 侧的唯一用途是 `readPluginConfigFromFile()` 里找
+`openclaw.json`;`MEMOS_STATE_DIR` 则只有 Python 侧的
+`adapters/hermes/config.py::get_memos_state_dir()` 读。**两个都不是落点开关。**
+
+真正的落点开关是 `adapters/hermes/config.py::get_bridge_config()`:
+它把 `stateDir` 拼进 JSON,由 `daemon_manager.start_daemon()` 塞进
+`MEMOS_BRIDGE_CONFIG` 传给 bridge。
+
+而上一版 `memos-start.sh` 是**直接 `node dist-bridge/bridge.cjs --daemon`**,
+绕过了整个 Python adapter → `MEMOS_BRIDGE_CONFIG` 为空 → `configOpts = {}`
+→ 落到 fallback `$HOME/.openharness/memos-state`,`$HOME` 是 `/root`。
+
+顺带,同一个绕过还让 `MEMOS_DAEMON_PORT` / `MEMOS_VIEWER_PORT` 一起失效 ——
+端口是 adapter 以 `--port` / `--viewer-port` 命令行参数传的,直接跑 node
+拿到的是代码默认值 18990 / 18899,而不是 env 里写的 18992 / 18901。
+**一个绕过,三处失效,但都不报错。**
+
+## 八、改法:让两条启动路径共用一套推导
+
+不是给 `memos-start.sh` 手写一份 `MEMOS_BRIDGE_CONFIG` JSON —— 那就成了第三处
+定义(交接文档 §8.9 那个坑已经踩过两次)。改成:
+
+| 改动 | 说明 |
+|---|---|
+| `memos-start.sh` 重写 | 只是 `daemon_manager.ensure_daemon()` 的一层壳,与 Hermes 运行时同一条码路 |
+| `dist-bridge/bridge.js` → `bridge.cjs` 软链 | `find_bridge_script()` 只对 `.js` 后缀走 `node`,`.cjs` 会被丢给 tsx(Node 20.20 上必炸) |
+| `adapters/hermes/bridge_path.txt` | 记同一路径,没有 env 的场景兜底 |
+| `hermes-seo.service` | 删掉三行 `Environment=MEMOS_*`,改 `EnvironmentFile=/opt/hermes-seo/memos.env`,与手工启动共用一份 |
+| `memos.env` 重写 | 每个变量标注「谁读它」;四个没人读的 `SUMMARIZER_*` 注释掉并写明原因 |
+| 以 `hermes` 用户启动 | gateway 是 `User=hermes`,root 起的 daemon 会把 `memos-state` 写成 root 拥有,之后 gateway 再也写不进去 |
+
+## 九、装的过程里第四个坑:本地 embedding 静默降级
+
+改完落点第一次冒烟就暴露了一个**上一轮不可能发现的问题**(上一轮从没 ingest 过):
+
+```
+Unable to add response to browser cache: EACCES: permission denied,
+  mkdir '/data/hermes-seo/memos-plugin/node_modules/@huggingface/transformers/.cache'
+[warn] Embedding failed for chunk=..., storing without vector
+[debug] Stored chunk=... hasVec=false
+```
+
+`transformers.js` 3.8.1 的 `cacheDir` **写死在包里**
+(`path.join(dirname__, '/.cache/')`,`src/env.js:96`),没有任何环境变量可以改。
+`node_modules` 是 root 装的,daemon 以 hermes 跑 → 建不了缓存目录。
+
+**危险的不是失败,是它失败得很安静**:只 `warn`,chunk 照存,
+`hasVec=false`,检索悄悄退化成纯 FTS,`embeddings` 表恒 0 行。
+选 MemOS 就是为了语义检索和技能沉淀,退成 FTS 等于白装,而且没人会收到通知。
+这正是 16 号文 §9 `data_status` 契约要防的那种假阳性。
+
+修法两条,缺一不可:
+
+1. `.cache` 软链到 `/data/hermes-seo/memos-state/model-cache`(hermes 拥有)。
+   放在 state 目录下还有个好处:23MB 模型不随 `npm install` 重装重下
+2. `memos-start.sh` 加**可写性预检**,不可写就直接 `exit 1` 不启动 ——
+   宁可起不来,也不要带病跑一个检索质量悄悄减半的记忆层
+
+> ⚠️ `npm install` / 升级插件会删掉这个软链,重装后必须重做。预检会拦住。
+
+## 十、实测结果
+
+```
+落点        /data/hermes-seo/memos-state/memos-local/memos.db   ✅
+            (日志原文:Plugin ready. DB: ...,Embedding: local)
+归属        hermes:docker,gateway 可写                          ✅
+/root/.openharness  已挪为 .wrong-landing.20260805,启动后未复活  ✅
+            (旧库全表 0 行,没有数据丢失)
+端口        daemon 127.0.0.1:18992 · viewer 18901                ✅
+向量        修缓存前 hasVec=false / embeddings 0 行
+            修缓存后 hasVec=true  / embeddings 2 行              ✅
+模型        23MB 落在 memos-state/model-cache/Xenova/...         ✅
+检索        ingest → search 双会话命中,summary/ref/score 齐全    ✅
+两条路径    手工启动与 systemd 环境下 adapter 推导出同一个 stateDir ✅
+telemetry   默认是**开**的,已在 memos.env 关掉                   ✅
+```
+
+## 十一、剩下的(接着往下做)
+
+1. `config.yaml` 切 `provider: memtensor`(现仍 `holographic`)—— 切完要重启
+   gateway,新的 `EnvironmentFile` 也在那时生效
+2. systemd / 开机自启:daemon 现在由 adapter 按需拉起,要不要独立 unit 待定
+3. **技能进化与任务总结的功能验证** —— 这两个能力才是选 MemOS 的理由,没验证不算完成。
+   注意 `summarizer` 目前**没有接线**:`get_bridge_config()` 只从 `openclaw.json`
+   的 `plugins.entries.*.config` 取,环境变量那条路不存在。技能进化要 LLM,
+   接线方式得先定
+4. 飞书 ↔ Cowork 对话同步
+5. `memory.775767.xyz` 现在反代的是 8765(dashboard),不是 viewer。
+   要指向 18901 之前先解决鉴权 —— viewer 本地 curl 直接 200,没有门;
+   现在是靠 ufw 只开 22/80/443 挡着(viewer 监听的是 `0.0.0.0:18901`,
+   **不是** 127.0.0.1,防火墙是唯一防线)
