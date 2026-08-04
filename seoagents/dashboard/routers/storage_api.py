@@ -169,6 +169,19 @@ def asset_stats() -> dict[str, Any]:
     return asset_registry.stats()
 
 
+@router.get("/assets/events")
+def asset_events(asset_id: str = "", limit: int = 100) -> dict[str, Any]:
+    """审计轨迹。不给 asset_id 就是全量时间线。
+
+    ⚠️ 这个函数必须定义在 ``/assets/{asset_id}`` **之前**。FastAPI 按定义
+    顺序匹配,反过来的话 "events" 会被当成一个 asset_id 吃掉,永远 404。
+
+    只读 —— 审计没有修改与删除接口,能改的审计等于没有审计。
+    """
+    rows = asset_registry.events(asset_id, limit=limit)
+    return {"events": rows, "total": len(rows), "asset_id": asset_id or "(全部)"}
+
+
 @router.get("/assets/{asset_id}")
 def get_asset(asset_id: str) -> dict[str, Any]:
     row = asset_registry.get(asset_id)

@@ -95,6 +95,18 @@ CREATE INDEX IF NOT EXISTS idx_assets_task  ON assets(task_id);
 CREATE INDEX IF NOT EXISTS idx_assets_class ON assets(class, level, status);
 CREATE INDEX IF NOT EXISTS idx_assets_owner ON assets(owner_hm, owner_department);
 
+CREATE TABLE IF NOT EXISTS asset_events (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    asset_id   TEXT NOT NULL,
+    event      TEXT NOT NULL CHECK (event IN
+                 ('created','uploaded','verified','status_changed',
+                  'accessed','revoked','linked','restored')),
+    actor      TEXT NOT NULL,
+    payload    TEXT NOT NULL DEFAULT '{{}}',
+    at         TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_events_asset ON asset_events(asset_id, at DESC);
+
 CREATE TABLE IF NOT EXISTS asset_lineage (
     parent_id  TEXT NOT NULL REFERENCES assets(asset_id),
     child_id   TEXT NOT NULL REFERENCES assets(asset_id),
@@ -104,6 +116,46 @@ CREATE TABLE IF NOT EXISTS asset_lineage (
     PRIMARY KEY (parent_id, child_id, relation)
 );
 """
+
+
+def record_event(asset_id: str, event: str, *, actor: str,
+                 payload: dict[str, Any] | None = None) -> None:
+    """写一条审计。
+
+    **只增不改**,没有更新和删除接口 —— 能改的审计等于没有审计。
+
+    写失败只告警不抛错:资产已经登记成功了,却因为审计写不进去而报错,
+    会让人以为登记失败并重试一次,反而制造出两份资产。
+    """
+    try:
+        with _lock, _conn() as c:
+            c.execute(
+                "INSERT INTO asset_events (asset_id,event,actor,payload,at)"
+                " VALUES (?,?,?,?,?)",
+                (asset_id, event, actor,
+                 json.dumps(payload or {}, ensure_ascii=False), _now()),
+            )
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning(f"审计写入失败(不影响业务): {asset_id} {event}: {exc}")
+
+
+def events(asset_id: str = "", limit: int = 100) -> list[dict[str, Any]]:
+    """查审计。不给 asset_id 就是全量时间线。"""
+    sql = "SELECT * FROM asset_events"
+    args: list[Any] = []
+    if asset_id:
+        sql += " WHERE asset_id = ?"
+        args.append(asset_id)
+    sql += " ORDER BY at DESC, id DESC LIMIT ?"
+    args.append(limit)
+    with _conn() as c:
+        rows = [dict(r) for r in c.execute(sql, args)]  # noqa: S608 - 列名固定
+    for r in rows:
+        try:
+            r["payload"] = json.loads(r.get("payload") or "{}")
+        except json.JSONDecodeError:
+            r["payload"] = {}
+    return rows
 
 
 class AssetError(RuntimeError):
@@ -227,6 +279,11 @@ def register(
                 "INSERT OR IGNORE INTO asset_lineage VALUES (?,?,?,?)",
                 (supersedes, aid, "supersedes", now),
             )
+    record_event(aid, "created", actor=owner_agent, payload={
+        "level": level, "class": cls, "location": location,
+        "storage_node": storage_node, "task_id": task_id,
+        "backup_location": backup_location or None,
+    })
     LOGGER.info(f"资产已登记 {aid} [{level}] {name}")
     return {"ok": True, "asset_id": aid, "level": level, "location": location,
             "checksum": checksum}
@@ -246,6 +303,8 @@ def link(parent_id: str, child_id: str, relation: str = "derived_from") -> dict[
             )
         c.execute("INSERT OR IGNORE INTO asset_lineage VALUES (?,?,?,?)",
                   (parent_id, child_id, relation, _now()))
+    record_event(child_id, "linked", actor="system",
+                 payload={"parent": parent_id, "relation": relation})
     return {"ok": True, "parent": parent_id, "child": child_id, "relation": relation}
 
 
@@ -300,6 +359,8 @@ def verify(asset_id: str, *, verified_by: str) -> dict[str, Any]:
         c.execute("UPDATE assets SET status='ACTIVE', verified_at=?, verified_by=?,"
                   " updated_at=? WHERE asset_id=?",
                   (_now(), verified_by, _now(), asset_id))
+    record_event(asset_id, "verified", actor=verified_by,
+                 payload={"from": "DECLARED", "to": "ACTIVE"})
     return {"ok": True, "asset_id": asset_id, "status": "ACTIVE", "verified_by": verified_by}
 
 
@@ -317,5 +378,5 @@ def stats() -> dict[str, Any]:
             "unverified_l3": unverified_l3, "lineage_edges": lineage, "db": _DB_PATH}
 
 
-__all__ = ["CLASSES", "LEVELS", "STATUSES", "AssetError", "get", "link",
-           "listing", "register", "stats", "verify"]
+__all__ = ["CLASSES", "LEVELS", "STATUSES", "AssetError", "events", "get",
+           "link", "listing", "record_event", "register", "stats", "verify"]
