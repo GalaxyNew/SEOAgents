@@ -6,6 +6,8 @@ agent loop -> skills -> orchestrator -> gateway -> scoring -> history store.
 """
 from __future__ import annotations
 
+from pathlib import Path
+
 import threading
 from dataclasses import dataclass
 from urllib.parse import urlparse
@@ -73,7 +75,12 @@ class Runtime:
         event_bus = EventBus()
         loop = UniversalAgentLoop(provider, executor, event_bus=event_bus)
 
-        skill_manager = SkillManager(config.storage.skills_dir)
+        skill_manager = SkillManager(
+        config.storage.skills_dir,
+        # 内置技能是部门内容,由部门指给框架 —— EEATSignalRules 之类
+        # 只对 SEO 成立,检索部会有自己的一套
+        built_in_dir=Path(__file__).resolve().parent.parent / "skills" / "built_in",
+    )
         skill_compiler = RuntimeSkillCompiler(skill_manager)
         orchestrator = MultiAgentOrchestrator(loop, config)
         notifier = FeishuSeoNotifierAdapter(config.gateway.feishu_webhook_url)
