@@ -27,11 +27,39 @@ class SkillManager:
     def __init__(self, skills_dir: str | os.PathLike[str]) -> None:
         self.skills_dir = Path(os.path.expanduser(str(skills_dir)))
         self.skills_dir.mkdir(parents=True, exist_ok=True)
+        # 提案单独一个目录。做成同目录下的状态字段是不够的 —— replay 时
+        # 只要有一处没查那个字段,门禁就形同虚设。物理隔开,扫不到就执行不了。
+        self.proposals_dir = self.skills_dir / "proposals"
+        self.proposals_dir.mkdir(parents=True, exist_ok=True)
 
     def _skill_files(self) -> list[Path]:
+        """只返回**已签字**的技能。proposals/ 不在其中,所以提案无法被 replay。"""
         files = sorted(self.skills_dir.glob("*.yaml"))
         files += sorted(_BUILT_IN_DIR.glob("*.yaml"))
         return files
+
+    def list_proposals(self) -> list[dict[str, Any]]:
+        out: list[dict[str, Any]] = []
+        for path in sorted(self.proposals_dir.glob("*.yaml")):
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+            except yaml.YAMLError as exc:
+                LOGGER.warning(f"提案 {path.name} 解析失败: {exc}")
+                continue
+            data["_path"] = str(path)
+            out.append(data)
+        return out
+
+    def get_proposal(self, skill_id: str) -> dict[str, Any] | None:
+        path = self.proposals_dir / f"{skill_id}.yaml"
+        if not path.is_file():
+            return None
+        try:
+            data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        except yaml.YAMLError:
+            return None
+        data["_path"] = str(path)
+        return data
 
     def list_skills(self) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
@@ -92,7 +120,15 @@ class RuntimeSkillCompiler:
         description: str = "",
         m_t: float | None = None,
     ) -> str:
-        """Compile a trace into ``<skills_dir>/<skill_id>.yaml`` and return the path."""
+        """把轨迹编译成**提案**,落到 ``<skills_dir>/proposals/<skill_id>.yaml``。
+
+        不再直接生成可执行技能。02 号文 §5.3 要求「技能编译改为提案制、
+        由 HM 参数化后签字固化」—— 自动固化的风险是:一次偶然跑通的轨迹
+        会被当成经验永久保留,之后每次重放都在复制那次偶然。
+
+        返回提案文件路径。它在 ``proposals/`` 下,``_skill_files()`` 扫不到,
+        因此在签字之前**无法被 replay**。
+        """
         steps = [
             {
                 "action": step.get("action", step.get("tool", "unknown")),
@@ -109,17 +145,66 @@ class RuntimeSkillCompiler:
         doc = {
             "id": skill_id,
             "kind": "compiled",
+            "status": "proposed",
             "description": description
-            or f"Auto-distilled from a high-performance trace ({len(steps)} steps)",
+            or f"由一段高绩效轨迹自动蒸馏({len(steps)} 步),待签字",
             "compiled_at": time.strftime("%Y-%m-%dT%H:%M:%S"),
             "source": {"m_t": m_t, "trace_len": len(trace_history)},
             "steps": steps,
             "stats": {"usage_count": 0},
         }
-        path = self.manager.skills_dir / f"{skill_id}.yaml"
+        path = self.manager.proposals_dir / f"{skill_id}.yaml"
         path.write_text(yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8")
-        LOGGER.info(f"Skill '{skill_id}' compiled to {path} ({len(steps)} static steps)")
+        LOGGER.info(
+            f"技能提案 '{skill_id}' 已生成({len(steps)} 步),待签字后才可重放: {path}"
+        )
         return str(path)
+
+    # -- 签字 --------------------------------------------------------------
+    def approve_proposal(
+        self,
+        skill_id: str,
+        *,
+        approved_by: str,
+        description: str = "",
+        overrides: dict[str, dict[str, Any]] | None = None,
+    ) -> str:
+        """签字固化:提案 → 可执行技能。
+
+        ``overrides`` 就是方案里说的「参数化」:把轨迹里写死的实参(某个具体
+        站点、某个具体日期)换成这次要固定下来的值。不给的话原样固化。
+        """
+        doc = self.manager.get_proposal(skill_id)
+        if doc is None:
+            raise KeyError(f"没有这个提案: {skill_id}")
+        if overrides:
+            for step in doc.get("steps", []):
+                tool = step.get("tool", "")
+                if tool in overrides:
+                    step["arguments"] = {**(step.get("arguments") or {}), **overrides[tool]}
+        doc["status"] = "active"
+        doc["approved_by"] = approved_by
+        doc["approved_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+        if description:
+            doc["description"] = description
+        if overrides:
+            doc["parameterized"] = overrides
+        doc.pop("_path", None)
+
+        target = self.manager.skills_dir / f"{skill_id}.yaml"
+        target.write_text(
+            yaml.safe_dump(doc, allow_unicode=True, sort_keys=False), encoding="utf-8"
+        )
+        (self.manager.proposals_dir / f"{skill_id}.yaml").unlink(missing_ok=True)
+        LOGGER.info(f"技能 '{skill_id}' 已由 {approved_by} 签字固化 → {target}")
+        return str(target)
+
+    def reject_proposal(self, skill_id: str, *, rejected_by: str, reason: str = "") -> None:
+        path = self.manager.proposals_dir / f"{skill_id}.yaml"
+        if not path.is_file():
+            raise KeyError(f"没有这个提案: {skill_id}")
+        path.unlink()
+        LOGGER.info(f"技能提案 '{skill_id}' 被 {rejected_by} 否决: {reason or '(未写理由)'}")
 
     # -- replay ------------------------------------------------------------
     async def execute_skill(

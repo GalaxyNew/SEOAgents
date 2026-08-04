@@ -12,6 +12,7 @@ from seoagents.dashboard.routers import (
     kanban_api,
     keywords_api,
     metrics,
+    skills_api,
     storage_api,
     workflow_api,
     workflow_kanban_bridge,
@@ -33,6 +34,7 @@ all_routers = [
     storage_api.router,
     conversations.router,
     keywords_api.router,
+    skills_api.router,
     timeline_router,
 ]
 
