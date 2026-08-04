@@ -226,3 +226,95 @@ telemetry   默认是**开**的,已在 memos.env 关掉                   ✅
    要指向 18901 之前先解决鉴权 —— viewer 本地 curl 直接 200,没有门;
    现在是靠 ufw 只开 22/80/443 挡着(viewer 监听的是 `0.0.0.0:18901`,
    **不是** 127.0.0.1,防火墙是唯一防线)
+
+---
+
+# 再追记 · provider 已切换、summarizer 已接线、技能沉淀已验证
+
+## 十二、config.yaml 切到 memtensor
+
+`memory.provider: holographic → memtensor`,备份 `config.yaml.bak.20260805-memtensor`。
+重启 gateway 前**先把手工起的 daemon 停掉**,好验真正要验的那条路:
+
+```
+load_memory_provider('memtensor') → is_available()=True → initialize()
+INFO daemon_manager Starting daemon: node .../dist-bridge/bridge.js --daemon --port 18992 --viewer-port 18901
+INFO plugins.memory.memtensor MemTensor bridge connected
+```
+
+adapter 自己把 daemon 拉起来了,落点仍是 `/data/hermes-seo/memos-state`,
+`/root/.openharness` 没有复活。gateway 进程 env 里 `MEMOS_*` 七个变量全部来自
+共用的 `memos.env`。
+
+## 十三、summarizer 接线在 openclaw.json,不在环境变量
+
+代码里**没有任何 `SUMMARIZER_*` 环境变量**。唯一入口是
+`bridge.cts::readPluginConfigFromFile()`,它按序找
+`OPENCLAW_CONFIG_PATH` → `$OPENCLAW_STATE_DIR/openclaw.json` →
+`$stateDir/openclaw.json` → `$HOME/.openclaw/openclaw.json`,
+取 `plugins.entries.*<含 memos>*.config`。
+
+接线文件:`/data/hermes-seo/memos-state/openclaw.json`(daemon_manager 把
+`OPENCLAW_STATE_DIR` 设成 stateDir,所以第 2、3 条候选指向同一个文件)。
+
+**密钥没有落进 JSON**:`src/config.ts::resolveEnvVars` 支持 `${VAR}` 插值
+(`/\$\{([A-Z_][A-Z0-9_]*)\}/g`),所以写 `"apiKey": "${MEMOS_SUMMARIZER_API_KEY}"`,
+值留在 `memos.env`。接线前先 curl 验过凭证可用 —— 别接一个死凭证。
+
+> 注意 `mergeRuntimeConfig` 是**浅合并**且文件侧优先。文件里只写 summarizer,
+> 所以 `MEMOS_EMBEDDING_PROVIDER=local` 仍然生效(日志确认 `Embedding: local`)。
+
+## 十四、三项能力实测
+
+| 能力 | 结果 |
+|---|---|
+| chunk 摘要 | ✅ summary 与原文不同(如「GSC searchAnalytics延迟导致HTTP 200空rows排查」),LLM 真被调用 |
+| 任务切分与总结 | ✅ 换会话触发收尾,标题「L3 资产备份与回滚门禁设计」由 LLM 生成 |
+| **技能沉淀** | ✅ 生成 `l3-asset-backup-restore-gating` v1,194 行 SKILL.md + 4 条 eval(4/4 命中),落在 `memos-state/skills-store/` |
+
+技能是 `installed=0` —— **提案态,没有自动安装**,这正是 02 号文 §5.3 要求的提案制。
+`skillEvolution.autoInstall: false` 是显式配的,别改成 true。
+
+> 任务收尾靠 `extractAgentPrefix()`:session key 按 `:` 切,取前三段作 agent 前缀。
+> 同前缀换会话会 finalize 上一个任务。所以 session key 建议用
+> `agent:场景:实例:会话` 这种四段式,否则整串当前缀,任务永远不收尾。
+
+## 十五、🔴 技能沉淀没有接进实时链路
+
+**这是本轮最重要的发现,不修的话 `skills` 表在日常运行中仍然会是 0 行。**
+
+`SkillEvolver` 只在 `src/viewer/server.ts` 两处被接起来:
+
+1. `server.ts:4912` —— viewer 的**批量 postprocess** 任务里
+2. `server.ts:1361` —— `POST /api/task/{id}/retry-skill` **手动重试**
+
+而实时链路是 `index.ts → IngestWorker → TaskProcessor`,
+`worker.ts:57` 建了 TaskProcessor 却**从来没调用 `onTaskCompleted()` 注册回调**。
+任务照常 finalize、照常出标题和总结,但没有任何东西监听完成事件。
+
+本次是走 `retry-skill` 手动触发才生成出技能的。也就是说:
+**14 号文记的「技能沉淀能力丢失」,即使装好 MemOS 也不会自动恢复**,
+还需要显式接线。三个可选路线,得先拍板:
+
+- 在 `IngestWorker` 里注册回调(改第三方代码,升级会丢)
+- 让 Hermes adapter 在 `on_session_end` 后主动调 `retry-skill`(不改插件,但要经 viewer HTTP)
+- 定时跑 viewer 的 postprocess(批量,延迟大但最不侵入)
+
+## 十六、viewer 鉴权 —— 修正前一节的说法
+
+上一节写「viewer 本地 curl 直接 200,没有门」**不准确**,更正:
+
+- `GET /` 返回 200,但那只是页面外壳
+- **所有 `/api/*` 未带会话 cookie 一律 401**,门是有的
+- 但 `/api/auth/status` 当时返回 `{"needsSetup":true}` —— **口令从未设置**,
+  任何能到 18901 的人都可以 `POST /api/auth/setup` 抢注。已设 24 位随机口令,
+  写在 `/root/memos-viewer-password.txt`(600)
+
+仍然不建议把 `memory.775767.xyz` 指过去:
+
+- `hashPassword` 是 `sha256(pw + "memos-lite-salt-2026")` —— **全局固定盐、无 KDF**,
+  与 dashboard 的 PBKDF2 十万轮 + 独立盐不是一个量级
+- 口令最短只要 4 位
+- viewer 监听 `0.0.0.0:18901`(不是 127.0.0.1),现在纯靠 ufw 只放行 22/80/443 挡着
+
+要暴露的话,前面得再套一层(nginx basic auth 或复用 dashboard 的会话)。
