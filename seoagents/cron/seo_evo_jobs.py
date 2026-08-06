@@ -413,6 +413,28 @@ def register_jobs(runtime: Runtime) -> None:
     from seoagents.cron.timeline_runner import register_timeline_runner
     register_timeline_runner(runtime)
 
+    # ── Collab Deliverer: poll outbox every 15s and deliver to recipient inbox ──
+    try:
+        from apscheduler.triggers.interval import IntervalTrigger as _IT
+        from dojocore.collab.deliverer import run_delivery_once
+
+        def _deliverer_tick():
+            try:
+                run_delivery_once()
+            except Exception as exc:
+                LOGGER.warning(f"deliverer tick error: {exc}")
+
+        scheduler.add_job(
+            _deliverer_tick,
+            _IT(seconds=15),
+            id="collab-deliverer",
+            replace_existing=True,
+            misfire_grace_time=30,
+        )
+        LOGGER.info("Collab deliverer registered: 15s interval")
+    except ImportError:
+        LOGGER.warning("Collab deliverer not registered (deliverer.py or APScheduler missing)")
+
     scheduler.add_job(
         run_seo_self_evolution_pipeline,
         CronTrigger(hour=sched_cfg.evolution_hour, minute=sched_cfg.evolution_minute),
