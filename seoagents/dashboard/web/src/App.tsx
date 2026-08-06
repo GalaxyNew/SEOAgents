@@ -452,12 +452,6 @@ export default function App() {
         {activeTab === 'gsc_overview' && (
           <GscOverviewPanel
             monitoredSites={configData?.resolved?.monitored_sites || []}
-            onSelectSite={site => {
-              setConfigData((prev: any) => ({
-                ...prev,
-                resolved: { ...(prev?.resolved || {}), monitored_sites: [site] },
-              }))
-            }}
           />
         )}
 
