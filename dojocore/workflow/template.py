@@ -15,6 +15,7 @@ from __future__ import annotations
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
 from typing import Any
+import re
 
 from dojocore.workflow.nodes import NodeType, NodeValidationError, WorkflowNode
 
@@ -23,6 +24,9 @@ __all__ = ["TemplateError", "WorkflowTemplate"]
 
 class TemplateError(ValueError):
     """The pipeline as a whole is invalid (cycle, dangling edge, ...)."""
+
+
+_TEMPLATE_ID_RE = re.compile(r"^[a-z][a-z0-9_]{1,63}$")
 
 
 @dataclass(frozen=True)
@@ -38,6 +42,10 @@ class WorkflowTemplate:
 
     # -- validation --------------------------------------------------------
     def validate(self) -> None:
+        if not _TEMPLATE_ID_RE.match(self.id):
+            raise TemplateError("模板 ID 必须是小写字母开头的 2-64 位标识")
+        if not self.name.strip():
+            raise TemplateError(f"模板 {self.id} 缺少名称")
         if not self.nodes:
             raise TemplateError(f"模板 {self.id} 没有节点")
         ids = [n.id for n in self.nodes]
@@ -54,6 +62,33 @@ class WorkflowTemplate:
             if node.id in node.depends_on:
                 raise TemplateError(f"节点 {node.id} 依赖了自己")
         self._detect_cycle()
+
+        input_nodes = [n for n in self.nodes if n.type is NodeType.INPUT]
+        output_nodes = [n for n in self.nodes if n.type is NodeType.OUTPUT]
+        # New visual workflows have explicit boundaries.  Legacy templates are
+        # still loadable until edited; once either boundary type is introduced,
+        # both become mandatory and structurally constrained.
+        if input_nodes or output_nodes:
+            if len(input_nodes) != 1:
+                raise TemplateError("可视化工作流必须且只能有 1 个输入节点")
+            if not output_nodes:
+                raise TemplateError("可视化工作流必须至少有 1 个输出节点")
+            entry = input_nodes[0]
+            if entry.depends_on:
+                raise TemplateError(f"输入节点 {entry.id} 不允许有上游依赖")
+            reachable = {entry.id}
+            changed = True
+            while changed:
+                changed = False
+                for node in self.nodes:
+                    if node.id not in reachable and any(d in reachable for d in node.depends_on):
+                        reachable.add(node.id); changed = True
+            orphaned = sorted(set(ids) - reachable)
+            if orphaned:
+                raise TemplateError(f"以下节点没有从输入节点连通: {orphaned}")
+            for out in output_nodes:
+                if self.dependents(out.id):
+                    raise TemplateError(f"输出节点 {out.id} 不允许连接下游节点")
 
     def _detect_cycle(self) -> None:
         by_id = {n.id: n for n in self.nodes}

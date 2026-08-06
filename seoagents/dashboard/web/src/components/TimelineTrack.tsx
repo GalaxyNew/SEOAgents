@@ -23,6 +23,7 @@ type Node = {
   outcome?: string
   subject_ref?: string
   context?: Record<string, unknown>
+  created_by?: string
 }
 
 const KIND_COLOR: Record<string, string> = {
@@ -37,6 +38,22 @@ const STATE_LABEL: Record<string, string> = {
   SCHEDULED: '待执行', FIRED: '已投递', ACKED: '已完成',
   CATCHUP: '补办', DROPPED: '已放弃', CANCELLED: '已取消',
   MISSED: '未触发', UNACKED: '无人处理',
+}
+
+// 来源标识:Ag=Agent自主创建, Yh=用户手动创建, Ya=用户让Agent创建
+const SOURCE_TAG: Record<string, { label: string; color: string }> = {
+  ag: { label: 'Ag', color: '#22d3ee' },
+  yh: { label: 'Yh', color: '#fbbf24' },
+  ya: { label: 'Ya', color: '#a78bfa' },
+}
+const sourceTagOf = (createdBy?: string) => {
+  if (!createdBy || createdBy === 'unknown') return null
+  // 用户手动创建: timeline-ui, manual, 用户名等
+  if (['timeline-ui', 'manual', 'user', 'yh', 'you'].includes(createdBy)) return SOURCE_TAG.yh
+  // 用户让Agent创建: 含 user-ask / ya 前缀
+  if (createdBy.startsWith('user-ask') || createdBy.startsWith('ya-')) return SOURCE_TAG.ya
+  // 其余都是 Agent 自主创建
+  return SOURCE_TAG.ag
 }
 
 const CARD_W = 186
@@ -58,10 +75,12 @@ const fmtTime = (t: number | string) =>
 export const TimelineTrack: React.FC<{
   nodes: Node[]
   onPick?: (n: Node) => void
-}> = ({ nodes, onPick }) => {
+  defaultHours?: number
+}> = ({ nodes, onPick, defaultHours = 15 }) => {
   const boxRef = useRef<HTMLDivElement | null>(null)
-  const [width, setWidth] = useState(900)
-  const [msPerPx, setMsPerPx] = useState(96_000)   // 默认约一天一屏
+  const [width, setWidth] = useState(0)
+  // 根据传入的视野小时数算出初始 ms/px,让一屏正好展示该时长
+  const [msPerPx, setMsPerPx] = useState((defaultHours * 3600e3) / 900)
   const [offsetMs, setOffsetMs] = useState(0)
   const [drag, setDrag] = useState<{ x: number; base: number } | null>(null)
   const [hover, setHover] = useState<string | null>(null)
@@ -80,6 +99,13 @@ export const TimelineTrack: React.FC<{
     setWidth(el.clientWidth)
     return () => ro.disconnect()
   }, [])
+
+  // 容器宽度已知后,按 defaultHours 重新校准缩放,确保一屏正好展示选定的视野
+  // 用 defaultHours 做依赖:视野切换(key 变了→组件重建)时重新校准
+  useEffect(() => {
+    if (width <= 0) return
+    setMsPerPx((defaultHours * 3600e3) / width)
+  }, [width, defaultHours])
 
   const centerMs = now + offsetMs
   const toX = (iso: string) => (new Date(iso).getTime() - centerMs) / msPerPx + width / 2
@@ -277,6 +303,11 @@ export const TimelineTrack: React.FC<{
                   <span style={{ fontSize: 9, color: done ? '#22c55e' : '#64748b' }}>
                     {STATE_LABEL[n.state] || n.state}
                   </span>
+                  {(() => { const st = sourceTagOf(n.created_by); return st ? (
+                    <span style={{ fontSize: 8, color: st.color, fontWeight: 700, background: '#0b1220', borderRadius: 3, padding: '1px 4px', marginLeft: 'auto' }} title={st.label === 'Ag' ? 'Agent自主创建' : st.label === 'Yh' ? '用户手动创建' : '用户让Agent创建'}>
+                      {st.label}
+                    </span>
+                  ) : null })()}
                 </div>
                 <div style={{
                   fontSize: 11, color: '#e2e8f0',

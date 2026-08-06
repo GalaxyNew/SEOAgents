@@ -12,7 +12,9 @@ from seoagents.dashboard.routers import (
     kanban_api,
     keywords_api,
     metrics,
+    public_seo_control_tower,
     skills_api,
+    timeline_cron_api,
     storage_api,
     workflow_api,
     workflow_kanban_bridge,
@@ -25,6 +27,7 @@ all_routers = [
     agent_jobs.router,
     config_api.router,
     gsc_api.router,
+    public_seo_control_tower.router,
     catalog_api.router,
     collab_api.router,
     workflow_api.router,
@@ -35,6 +38,8 @@ all_routers = [
     conversations.router,
     keywords_api.router,
     skills_api.router,
+    # Must precede the legacy /api/timeline/{...} routes where paths overlap.
+    timeline_cron_api.router,
     timeline_router,
 ]
 

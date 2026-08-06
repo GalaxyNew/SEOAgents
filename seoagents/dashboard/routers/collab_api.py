@@ -42,6 +42,52 @@ async def receive_request(payload: dict[str, Any]) -> dict[str, Any]:
         req, created = _svc().receive(payload)
     except ProtocolError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    # ── B3: Auto-create Kanban card from incoming collab request ────────
+    if created:
+        try:
+            from seoagents.dashboard.routers.kanban_api import KANBAN_DB, _connect
+            import sqlite3, uuid, time as _time, json as _json
+            _conn = _connect(readonly=False)
+            try:
+                _task_id = f"T-{uuid.uuid4().hex[:10]}"
+                _now = int(_time.time())
+                _conn.execute(
+                    "INSERT INTO tasks (id,title,body,assignee,status,priority,created_by,"
+                    "created_at,workflow_template_id,current_step_key) "
+                    "VALUES (?,?,?,?,?,?,?,?,?,?)",
+                    (_task_id,
+                     f"[collab] {req.title}",
+                     _json.dumps({
+                         "request_id": req.request_id,
+                         "capability": req.capability,
+                         "from_dept": req.sender.dept,
+                         "spec_asset_id": req.spec_asset_id,
+                         "deadline": req.deadline,
+                         "acceptance": list(req.expected.acceptance),
+                     }),
+                     "", "pending", 2,
+                     f"collab:{req.sender.dept}",
+                     _now,
+                     req.request_id,
+                     req.capability))
+                _conn.execute(
+                    "INSERT INTO task_events (task_id,kind,payload,created_at) "
+                    "VALUES (?,?,?,?)",
+                    (_task_id, "collab_received",
+                     _json.dumps({"request_id": req.request_id, "from": req.sender.dept}),
+                     _now))
+                _conn.commit()
+                LOGGER.info(f"B3: Kanban card {_task_id} created for collab {req.request_id}")
+            except Exception as _e:
+                _conn.rollback()
+                LOGGER.warning(f"B3: Kanban card creation failed: {_e}")
+            finally:
+                _conn.close()
+        except Exception as _e2:
+            LOGGER.warning(f"B3: kanban bridge unavailable: {_e2}")
+    # ── end B3 ───────────────────────────────────────────────────────────
+
     return {"created": created, "request": req.to_dict()}
 
 

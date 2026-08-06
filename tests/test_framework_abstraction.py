@@ -162,6 +162,8 @@ def test_workflow_engine_runs_a_search_pipeline(clean_registries, tmp_path):
 
     engine = WorkflowEngine(tpl)
     inst = WorkflowInstance.start(tpl)
+    inst.context["start_authorized"] = True
+    engine.refresh(inst)
     engine.begin(inst, "scout")
     engine.complete(inst, "scout", acceptance_met=[True])
     assert [n.id for n in engine.ready_nodes(inst)] == ["verify"]

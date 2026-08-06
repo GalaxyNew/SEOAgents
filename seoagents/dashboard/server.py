@@ -11,8 +11,7 @@ from fastapi.staticfiles import StaticFiles
 from dojocore.logging import LOGGER
 from seoagents import __version__
 from seoagents.agent.runtime import get_runtime
-from seoagents.cron import shutdown_scheduler, start_scheduler
-from seoagents.cron.seo_evo_jobs import register_jobs
+from seoagents.cron import shutdown_scheduler
 from seoagents.dashboard.routers import all_routers
 
 _STATIC_DIR = Path(__file__).parent / "static"
@@ -25,8 +24,9 @@ async def _lifespan(app: FastAPI):
     if mounted:
         LOGGER.info(f"MCP bridge mounted {mounted} external tools")
     if runtime.config.scheduler.enabled:
-        register_jobs(runtime)
-        start_scheduler()
+        # Scheduling is owned by Hermes Cron. SEOAgents keeps Timeline/Workflow
+        # state and UI only; a second APScheduler would create two clocks.
+        LOGGER.info("SEOAgents internal scheduler disabled: Hermes Cron is authoritative")
     LOGGER.info("SEOAgents dashboard ready")
     try:
         yield

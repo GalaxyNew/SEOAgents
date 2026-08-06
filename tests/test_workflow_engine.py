@@ -38,6 +38,14 @@ def template(*nodes, tid="t_demo"):
     return WorkflowTemplate.from_dict({"id": tid, "name": "demo", "nodes": list(nodes)})
 
 
+def started_instance(tpl: WorkflowTemplate) -> WorkflowInstance:
+    """Build an engine-unit instance after the explicit-start authorization gate."""
+    inst = WorkflowInstance.start(tpl)
+    inst.context["start_authorized"] = True
+    WorkflowEngine(tpl).refresh(inst)
+    return inst
+
+
 # ── composition ──────────────────────────────────────────────────────────
 def test_node_without_acceptance_is_refused():
     """A node with no criteria can only ever be completed by assertion."""
@@ -94,10 +102,28 @@ def test_layers_expose_what_may_run_together():
 
 def test_engine_will_not_let_a_step_be_skipped():
     tpl = template(node("first"), node("second", deps=["first"]))
-    engine, inst = WorkflowEngine(tpl), None
-    inst = WorkflowInstance.start(tpl)
+    engine = WorkflowEngine(tpl)
+    inst = started_instance(tpl)
     with pytest.raises(EngineError, match="前置未完成"):
         engine.begin(inst, "second")
+
+
+def test_engine_requires_explicit_start_authorization():
+    tpl = template(node("first"))
+    engine = WorkflowEngine(tpl)
+    inst = WorkflowInstance.start(tpl)
+
+    engine.refresh(inst)
+    assert inst.status.value == "PENDING"
+    assert inst.runs["first"].state is NodeState.PENDING
+    with pytest.raises(EngineError, match="尚未显式启动"):
+        engine.begin(inst, "first")
+
+    inst.context["start_authorized"] = True
+    engine.refresh(inst)
+    assert inst.runs["first"].state is NodeState.READY
+    engine.begin(inst, "first")
+    assert inst.runs["first"].state is NodeState.RUNNING
 
 
 def test_ready_set_advances_layer_by_layer():
@@ -105,8 +131,7 @@ def test_ready_set_advances_layer_by_layer():
         node("a1"), node("a2"), node("b1", deps=["a1", "a2"]),
     )
     engine = WorkflowEngine(tpl)
-    inst = WorkflowInstance.start(tpl)
-    engine.refresh(inst)
+    inst = started_instance(tpl)
     assert {n.id for n in engine.ready_nodes(inst)} == {"a1", "a2"}
     for nid in ("a1", "a2"):
         engine.begin(inst, nid)
@@ -117,7 +142,7 @@ def test_ready_set_advances_layer_by_layer():
 # ── completion ───────────────────────────────────────────────────────────
 def test_unmet_acceptance_blocks_completion():
     tpl = template(node("step", acceptance=("有数据来源", "已复现")))
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     engine.begin(inst, "step")
     with pytest.raises(EngineError, match="未满足的验收标准"):
         engine.complete(inst, "step", acceptance_met=[True, False])
@@ -126,7 +151,7 @@ def test_unmet_acceptance_blocks_completion():
 def test_acceptance_must_be_answered_item_by_item():
     """A single "done" cannot stand in for several criteria."""
     tpl = template(node("step", acceptance=("a", "b", "c")))
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     engine.begin(inst, "step")
     with pytest.raises(EngineError, match="逐条"):
         engine.complete(inst, "step", acceptance_met=[True])
@@ -136,7 +161,7 @@ def test_agent_cannot_self_approve_a_human_gate():
     tpl = template(
         node("gate", "human_gate", acceptance=(), prompt="确认发布?"),
     )
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     engine.begin(inst, "gate")
     assert inst.runs["gate"].state is NodeState.WAITING_HUMAN
     with pytest.raises(EngineError, match="不得自行通过"):
@@ -149,7 +174,7 @@ def test_verify_node_demands_evidence_not_assertion():
     tpl = template(
         node("chk", "verify", command="curl -sS -o /dev/null -w '%{http_code}' $URL | grep 200"),
     )
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     engine.begin(inst, "chk")
     with pytest.raises(EngineError, match="证据"):
         engine.complete(inst, "chk", acceptance_met=[True])
@@ -159,7 +184,7 @@ def test_verify_node_demands_evidence_not_assertion():
 
 def test_failure_with_stop_policy_skips_the_rest():
     tpl = template(node("first"), node("second", deps=["first"]))
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     engine.begin(inst, "first")
     engine.fail(inst, "first", error="数据源不可用")
     assert inst.runs["second"].state is NodeState.SKIPPED
@@ -168,7 +193,7 @@ def test_failure_with_stop_policy_skips_the_rest():
 
 def test_failure_needs_a_reason():
     tpl = template(node("only"))
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     with pytest.raises(EngineError, match="原因"):
         engine.fail(inst, "only", error="")
 
@@ -180,7 +205,7 @@ def test_dept_request_waits_and_explains_why():
         node("ask", "dept_request", deps=["spec"], dept="intel",
              capability="image_sourcing", spec_asset_id="AST-DOC-1"),
     )
-    engine, inst = WorkflowEngine(tpl), WorkflowInstance.start(tpl)
+    engine, inst = WorkflowEngine(tpl), started_instance(tpl)
     engine.begin(inst, "spec")
     engine.complete(inst, "spec", acceptance_met=[True])
     engine.begin(inst, "ask")
@@ -194,6 +219,7 @@ def test_dept_request_waits_and_explains_why():
 # ── the shipped template ─────────────────────────────────────────────────
 def test_builtin_blog_chain_is_valid_and_mostly_serial():
     """The content chain is serial by design — that is the whole point."""
+    import seoagents.department  # noqa: F401 - explicitly activate shipped SEO templates
     store = WorkflowStore(tempfile.mkdtemp())
     tpl = store.template("blog_content_chain")
     assert tpl is not None
@@ -254,7 +280,7 @@ async def client(runtime):
 async def test_node_palette_is_a_closed_set(client: httpx.AsyncClient):
     body = (await client.get("/api/workflows/node-types")).json()
     assert {t["id"] for t in body["types"]} == {
-        "agent_task", "tool_call", "dept_request", "human_gate", "verify"
+        "input", "agent_task", "tool_call", "dept_request", "human_gate", "verify", "output"
     }
     assert all(t["hint"] for t in body["types"])
 
@@ -281,13 +307,15 @@ async def test_instance_lifecycle_over_http(client: httpx.AsyncClient):
     assert res.status_code == 201
     inst = res.json()
     assert inst["template_version"] == "1.1"
+    assert inst["status"] == "PENDING"
+    assert not inst["context"].get("start_authorized")
 
     detail = (await client.get(f"/api/workflows/instances/{inst['instance_id']}")).json()
-    assert set(detail["ready"]) == {"strategy", "intel"}
+    assert {run["state"] for run in detail["runs"].values()} == {"PENDING"}
 
-    # cannot jump straight to publishing
+    # Create-only is not authorization to begin any node, let alone publishing.
     res = await client.post(
         f"/api/workflows/instances/{inst['instance_id']}/nodes/publish/begin"
     )
     assert res.status_code == 409
-    assert "前置未完成" in res.json()["detail"]
+    assert "尚未显式启动" in res.json()["detail"]

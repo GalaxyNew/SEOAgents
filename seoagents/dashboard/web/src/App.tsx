@@ -3,7 +3,7 @@ import { SeoAuditPanel } from './components/SeoAuditPanel'
 import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
 import { ConfigPanel } from './components/ConfigPanel'
 import { AgentCopilotDrawer } from './components/AgentCopilotDrawer'
-import { GscOverviewPanel } from './components/GscOverviewPanel'
+import { SeoControlTowerPanel } from './components/SeoControlTowerPanel'
 import { KanbanPanel } from './components/KanbanPanel'
 import { TimelinePanel } from './components/TimelinePanel'
 import { WorkflowPanel } from './components/WorkflowPanel'
@@ -35,10 +35,10 @@ export default function App() {
     return () => window.removeEventListener('hashchange', onHash)
   }, [activeTab])
   const isMobile = useIsMobile()
+
   const [summary, setSummary] = useState<MetricsSummary | null>(null)
   const [configData, setConfigData] = useState<any>(null)
   const [seonautEndpoint, setSeonautEndpoint] = useState<string>('')
-  const [providerName, setProviderName] = useState<string>('mock')
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(true)
   const [copilotWidth, setCopilotWidth] = useState<number>(460)
   const [isDesktop, setIsDesktop] = useState<boolean>(window.innerWidth >= 1024)
@@ -54,7 +54,6 @@ export default function App() {
       const cfg = await fetch('/api/config').then(r => r.json())
       setConfigData(cfg)
       setSeonautEndpoint(cfg?.resolved?.seonaut_endpoint ?? '')
-      setProviderName(cfg?.resolved?.provider ?? 'mock')
     } catch (e) {
       console.warn('refresh failed', e)
     }
@@ -164,6 +163,8 @@ export default function App() {
             </button>
           ))}
 
+          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: '#a5b4fc', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '5px 9px' : '6px 12px', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
+
           {activeTab === 'config' && (
             <span
               style={{
@@ -195,17 +196,6 @@ export default function App() {
             }}
           >
             ● Active Monitor
-          </span>
-          <span
-            style={{
-              background: '#1e1b4b',
-              color: '#a5b4fc',
-              padding: '4px 10px',
-              borderRadius: '12px',
-              border: '1px solid #4338ca',
-            }}
-          >
-            Provider: {providerName}
           </span>
 
 
@@ -258,8 +248,8 @@ export default function App() {
                     setIsSettingsOpen(false)
                   }}
                   style={{
-                    background: activeTab === 'gsc_overview' ? '#1f2937' : 'transparent',
-                    color: activeTab === 'gsc_overview' ? '#60a5fa' : '#e5e7eb',
+                    background: 'transparent',
+                    color: '#e5e7eb',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -275,12 +265,12 @@ export default function App() {
                     transition: 'background 0.15s',
                   }}
                   onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
-                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'gsc_overview' ? '#1f2937' : 'transparent')}
+                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     📈 GSC 数据大屏
                   </span>
-                  {activeTab === 'gsc_overview' && <span style={{ fontSize: '12px', color: '#60a5fa' }}>✓</span>}
+
                 </button>
 
                 <button
@@ -437,7 +427,7 @@ export default function App() {
           flex: 1,
           height: 'calc(100vh - 65px)',
           maxHeight: 'calc(100vh - 65px)',
-          overflowY: activeTab === 'gsc_overview' ? 'hidden' : 'auto',
+          overflowY: 'auto',
           overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
@@ -459,22 +449,7 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'gsc_overview' && (
-          <GscOverviewPanel
-            monitoredSites={configData?.resolved?.monitored_sites || []}
-            onSelectSite={site => {
-              setConfigData((prev: any) => ({
-                ...prev,
-                resolved: {
-                  ...prev?.resolved,
-                  site: site.site_url,
-                  gsc_property: site.gsc_property,
-                  tracked_keywords: site.tracked_keywords,
-                },
-              }))
-            }}
-          />
-        )}
+        {activeTab === 'gsc_overview' && <SeoControlTowerPanel />}
 
         {activeTab === 'kanban' && <KanbanPanel />}
 

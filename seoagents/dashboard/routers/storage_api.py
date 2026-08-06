@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from seoagents.storage import asset_hub, asset_registry, quota
@@ -219,6 +220,34 @@ def get_asset_content(asset_id: str) -> dict[str, Any]:
 
 class VerifyIn(BaseModel):
     verified_by: str
+
+
+@router.get("/assets/{asset_id}/raw")
+def get_asset_raw(asset_id: str) -> Response:
+    """按台账位置取回**原始字节**。
+
+    `/content` 走的是 ``raw.decode("utf-8", errors="replace")`` —— 对文本没问题,
+    但二进制(图片、压缩包)在那一步就已经被毁了,前端拿到的是一串替换字符。
+    所以图片没法预览、下载下来也是坏的。这个端点把字节原样送出去。
+
+    不做 checksum 比对:那是 `/content` 的职责,这里只负责把东西完整交出来。
+    """
+    row = asset_registry.get(asset_id)
+    if not row:
+        raise HTTPException(404, f"资产不存在: {asset_id}")
+    try:
+        raw = asset_hub.get(row["location"], node_id=row.get("storage_node") or "")
+    except asset_hub.AssetHubError as exc:
+        raise HTTPException(502, f"取回失败: {exc}") from exc
+    return Response(
+        content=raw,
+        media_type=row.get("content_type") or "application/octet-stream",
+        headers={
+            # inline:让浏览器能直接渲染图片/PDF,而不是一律弹下载框
+            "Content-Disposition": f'inline; filename="{asset_id}"',
+            "Cache-Control": "private, max-age=60",
+        },
+    )
 
 
 @router.post("/assets/{asset_id}/verify")

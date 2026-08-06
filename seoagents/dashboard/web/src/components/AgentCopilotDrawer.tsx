@@ -1,6 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { useIsMobile } from '../hooks'
-import { useQuickCommands } from '../ui'
+import {
+  Modal,
+  formatApiError,
+  parseApiResponse,
+  useDialogs,
+  useQuickCommands,
+  useToast,
+} from '../ui'
 import type { MetricsSummary } from './MetricsPanel'
 import type { TabId } from '../App'
 
@@ -53,6 +60,9 @@ interface Conversation {
   updated_at: string
   message_count: number
   last_text: string
+  provider?: string
+  model?: string
+  reasoning_effort?: string
 }
 
 interface ContextItem {
@@ -60,6 +70,24 @@ interface ContextItem {
   label: string
   preview: string          // 列表里给人看的一行摘要
   payload: unknown         // 真正带给 hm 的原始数据结构
+}
+
+interface ModelProvider {
+  slug: string
+  label: string
+  is_current: boolean
+  models: string[]
+  capabilities?: Record<string, {
+    reasoning?: boolean
+    fast?: boolean
+    reasoning_efforts?: string[]
+    reasoning_source?: string
+  }>
+}
+
+interface ModelOptions {
+  providers: ModelProvider[]
+  current: { provider: string; model: string }
 }
 
 const TAB_LABEL: Record<string, string> = {
@@ -138,6 +166,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
 }) => {
   const isMobile = useIsMobile()
   const qc = useQuickCommands()
+  const dialogs = useDialogs()
+  const toast = useToast()
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -148,8 +178,12 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
   ])
   const [input, setInput] = useState('')
   const [busy, setBusy] = useState(false)
+  const [queuedCount, setQueuedCount] = useState(0)
+  const [busyInputMode, setBusyInputMode] = useState<'steer' | 'queue'>('steer')
+  const [reasoningOpen, setReasoningOpen] = useState(true)
   const [elapsed, setElapsed] = useState(0)
   const [progress, setProgress] = useState<{kind:string;text:string}[]>([])
+  const progressScrollRef = useRef<HTMLDivElement | null>(null)
   const [openTrace, setOpenTrace] = useState<string | null>(null)
   const [tools, setTools] = useState<string[]>([])
   const [showCtx, setShowCtx] = useState(false)
@@ -161,6 +195,17 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
   const [showHistory, setShowHistory] = useState(false)
   const [histTab, setHistTab] = useState<'active' | 'archived'>('active')
   const [convTitle, setConvTitle] = useState('新对话')
+  const [modelOptions, setModelOptions] = useState<ModelOptions | null>(null)
+  const [modelsLoading, setModelsLoading] = useState(true)
+  const [modelOptionsError, setModelOptionsError] = useState('')
+  const [selectedProvider, setSelectedProvider] = useState('')
+  const [selectedModel, setSelectedModel] = useState('')
+  const [reasoningEffort, setReasoningEffort] = useState('auto')
+  const reasoningEffortRef = useRef('auto')
+  const reasoningCursorRef = useRef(0)
+  const activeJobRef = useRef<string | null>(null)
+  const reasoningSeenRef = useRef<Set<number>>(new Set())
+  const turnGenerationRef = useRef(0)
   // 移动端浏览器的地址栏会伸缩,100vh 是「地址栏收起后」的高度 —— 用它布局
   // 底部会被顶到可视区外。visualViewport 给的是真实可视高度,键盘弹出时也准。
   const [vh, setVh] = useState<number | null>(null)
@@ -175,8 +220,62 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
   }, [])
 
   useEffect(() => {
+    fetch('/api/agent/model-options')
+      .then((r) => r.json())
+      .then((d: ModelOptions) => {
+        setModelOptions(d)
+        setModelOptionsError('')
+        setModelsLoading(false)
+        const currentProvider = d?.current?.provider || d?.providers?.[0]?.slug || ''
+        const row = (d?.providers || []).find((p) => p.slug === currentProvider)
+        setSelectedProvider(currentProvider)
+        setSelectedModel(d?.current?.model || row?.models?.[0] || '')
+        setReasoningEffort('auto')
+        if (!(d?.providers || []).some((p) => p.slug === currentProvider && p.models?.includes(d?.current?.model))) {
+          setSelectedProvider(row?.slug || d?.providers?.[0]?.slug || '')
+          setSelectedModel(row?.models?.[0] || d?.providers?.[0]?.models?.[0] || '')
+        }
+      })
+      .catch(() => {
+        setModelsLoading(false)
+        setModelOptionsError('Hermes 官方模型能力目录不可用，已停止发送')
+        setModelOptions(null)
+      })
+  }, [])
+
+  const selectedCapability = modelOptions?.providers
+    .find((p) => p.slug === selectedProvider)
+    ?.capabilities?.[selectedModel]
+  const selectedReasoningEfforts = ['auto', ...(selectedCapability?.reasoning_efforts || [])]
+
+  const modelOptionsSignature = JSON.stringify(
+    modelOptions?.providers.find((p) => p.slug === selectedProvider)?.capabilities?.[selectedModel]?.reasoning_efforts || [],
+  )
+
+  useEffect(() => {
+    if (selectedReasoningEfforts.length > 1 && !selectedReasoningEfforts.includes(reasoningEffort)) {
+      setReasoningEffort('auto')
+    }
+  }, [selectedProvider, selectedModel, modelOptionsSignature])
+
+  useEffect(() => {
+    reasoningEffortRef.current = reasoningEffort
+  }, [reasoningEffort])
+
+  useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (!busy) return
+    const timer = window.setInterval(() => setElapsed((e) => e + 1), 1000)
+    return () => window.clearInterval(timer)
+  }, [busy])
+
+  useEffect(() => {
+    const el = progressScrollRef.current
+    if (reasoningOpen && el) el.scrollTop = el.scrollHeight
+  }, [progress, reasoningOpen])
 
   // 真实可视高度。visualViewport 会随地址栏伸缩和键盘弹出而变,
   // 拿它当抽屉高度,输入框就不会被挤到屏幕外面去。
@@ -218,20 +317,6 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
     })()
   }, [isOpen])
 
-  const persist = async (cid: string | null, msg: Partial<ChatMessage> & { sender: 'user' | 'agent'; text: string }) => {
-    if (!cid) return
-    try {
-      await fetch(`/api/conversations/${cid}/messages`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sender: msg.sender, text: msg.text,
-          turns: msg.turns ?? null, elapsed: msg.elapsed ?? null,
-          trace: msg.trace ?? [],
-        }),
-      })
-    } catch { /* 存不下不该影响正在进行的对话 */ }
-  }
-
   const WELCOME: ChatMessage = {
     id: 'welcome', sender: 'agent',
     text: '我是 hm,SEO 这摊归我管。技术审计、内容、内链这些我会自己派给专员,你直接说要什么就行。\n\n下面的快捷指令按当前真实可用的工具生成;点「📎 页面上下文」可以挑要带上的数据。',
@@ -247,14 +332,26 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
       setConvTitle(d.title || '新对话')
     } catch { setConvId(null) }
     setMessages([WELCOME])
+    setProgress([])
+    reasoningCursorRef.current = 0
+    reasoningSeenRef.current = new Set()
+    turnGenerationRef.current += 1
     setShowHistory(false)
   }
 
-  const openConv = async (cid: string) => {
+  const openConv = async (conversationKey: string) => {
     try {
+      const cid = conversationKey
       const d = await fetch(`/api/conversations/${cid}`).then((r) => r.json())
       setConvId(d.id)
       setConvTitle(d.title || '对话')
+      setSelectedProvider(d.provider)
+      if (d.model) setSelectedModel(d.model)
+      if (d.reasoning_effort) setReasoningEffort(d.reasoning_effort)
+      setProgress([])
+      turnGenerationRef.current += 1
+      reasoningCursorRef.current = 0
+      reasoningSeenRef.current = new Set()
       const loaded: ChatMessage[] = (d.messages || []).map((m: any, i: number) => ({
         id: m.id || `m_${i}`, sender: m.sender, text: m.text,
         turns: m.turns ?? undefined, elapsed: m.elapsed ?? undefined,
@@ -262,25 +359,43 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         ts: new Date(m.ts).toLocaleTimeString(),
       }))
       setMessages(loaded.length ? loaded : [WELCOME])
+      void reconnectActiveJob(cid)
     } catch { /* 打不开就保持当前 */ }
     setShowHistory(false)
   }
 
   const archiveConv = async (cid: string, archived: boolean) => {
-    await fetch(`/api/conversations/${cid}`, {
-      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ archived }),
-    })
-    await loadConvs(histTab === 'archived')
-    if (archived && cid === convId) await newConv()
+    try {
+      await parseApiResponse(await fetch(`/api/conversations/${cid}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ archived }),
+      }), archived ? '归档对话失败' : '取回对话失败')
+      await loadConvs(histTab === 'archived')
+      if (archived && cid === convId) await newConv()
+      toast.success(archived ? '对话已归档' : '对话已取回')
+    } catch (error) {
+      toast.error(`${archived ? '归档' : '取回'}对话失败：${formatApiError(error)}`)
+    }
   }
 
   const deleteConv = async (cid: string) => {
-    // 归档是可逆的,删除不是 —— 所以只有这一个动作要确认
-    if (!window.confirm('删除后无法恢复。只是想收起来的话用归档。确定删除?')) return
-    await fetch(`/api/conversations/${cid}`, { method: 'DELETE' })
-    await loadConvs(histTab === 'archived')
-    if (cid === convId) await newConv()
+    const conversation = convs.find((item) => item.id === cid)
+    const approved = await dialogs.confirm({
+      title: `永久删除对话「${conversation?.title || cid}」`,
+      message: '确定永久删除这条对话及其消息记录吗？如果只是暂时收起，请改用归档。',
+      consequence: '删除后无法恢复。',
+      confirmLabel: '永久删除',
+      tone: 'danger',
+    })
+    if (!approved) return
+    try {
+      await parseApiResponse(await fetch(`/api/conversations/${cid}`, { method: 'DELETE' }), '删除对话失败')
+      await loadConvs(histTab === 'archived')
+      if (cid === convId) await newConv()
+      toast.success(`对话「${conversation?.title || cid}」已删除`)
+    } catch (error) {
+      toast.error(`删除对话失败：${formatApiError(error)}`)
+    }
   }
 
   // 宽度拖拽
@@ -418,33 +533,222 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
     setTimeout(() => textareaRef.current?.focus(), 50)
   }
 
+  const pollJob = async (
+    jobId: string,
+    conversationId: string,
+    initialProgress: {kind:string;text:string}[] = [],
+    initialBaseline = 0,
+    generation = turnGenerationRef.current,
+  ) => {
+    activeJobRef.current = jobId
+    setBusy(true)
+    setProgress(initialProgress)
+    let lastElapsed = elapsed
+    const started = Date.now()
+    const deadline = started + 15 * 60 * 1000
+    let baseline = Math.max(reasoningCursorRef.current, initialBaseline)
+    let lastBaseline = initialBaseline
+    let lastProgressSignature = ''
+    let lastPersistAt = 0
+    if (baseline > reasoningCursorRef.current) reasoningCursorRef.current = baseline
+    while (Date.now() < deadline) {
+      await new Promise((r) => setTimeout(r, 2500))
+      const pr = await fetch(`/api/agent/jobs/${jobId}`)
+      const pct = pr.headers.get('content-type') || ''
+      if (!pr.ok) {
+        if (pr.status === 404) break
+        continue
+      }
+      if (!pct.includes('application/json')) continue
+      const job = await pr.json()
+      if (generation !== turnGenerationRef.current) return
+      lastElapsed = Number(job.elapsed_seconds || lastElapsed)
+      setElapsed(Math.max(0, Math.floor(lastElapsed)))
+      setQueuedCount(Number(job.queued_count || 0))
+      const currentBaseline = Number(job.reasoning_baseline || 0)
+      if (currentBaseline > 0 && lastBaseline > 0 && currentBaseline !== lastBaseline) {
+        turnGenerationRef.current += 1
+        reasoningCursorRef.current = currentBaseline
+        baseline = currentBaseline
+        setProgress(Array.isArray(job.progress) ? job.progress : [])
+      }
+      lastBaseline = currentBaseline || lastBaseline
+      if (Array.isArray(job.progress) && job.progress.length > 0) {
+        setProgress(job.progress)
+        const signature = JSON.stringify(job.progress)
+        if (signature !== lastProgressSignature && Date.now() - lastPersistAt >= 5000) {
+          lastProgressSignature = signature
+          lastPersistAt = Date.now()
+          try {
+            await fetch(`/api/agent/jobs/${jobId}/checkpoint`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({}),
+            })
+          } catch { /* live in-memory stream remains available */ }
+        }
+      }
+      if (conversationId && reasoningEffortRef.current !== 'none' && !job.progress?.some((p: any) => p.kind === 'thinking')) {
+        try {
+          baseline = Math.max(baseline, Number(job.reasoning_baseline || 0))
+          if (baseline > reasoningCursorRef.current) reasoningCursorRef.current = baseline
+          const rr = await fetch(
+            `/api/agent/sessions/${conversationId}/reasoning?after_id=${reasoningCursorRef.current}`,
+          ).then((r) => r.json())
+          reasoningCursorRef.current = Math.max(reasoningCursorRef.current, Number(rr?.last_id || 0))
+          const fresh = (rr?.items || []).filter((x: any) => {
+            const id = Number(x.id || 0)
+            const key = (turnGenerationRef.current * 1_000_000_000) + id
+            if (!id || reasoningSeenRef.current.has(key)) return false
+            reasoningSeenRef.current.add(key)
+            return true
+          })
+          if (fresh.length > 0) {
+            setProgress((prev) => [
+              ...prev,
+              ...fresh.map((x: any) => ({ kind: 'thinking', text: String(x.text || '') })),
+            ].slice(-60))
+          }
+        } catch { /* provider reasoning unavailable; task status remains authoritative */ }
+      }
+      if (busy) {
+        const loaded = await fetch(`/api/conversations/${conversationId}`).then((r) => r.json()).catch(() => null)
+        if (loaded?.messages) {
+          setMessages((loaded.messages || []).map((m: any, i: number) => ({
+            id: m.id || `m_${i}`, sender: m.sender, text: m.text,
+            turns: m.turns ?? undefined, elapsed: m.elapsed ?? undefined,
+            trace: m.trace || [], ts: new Date(m.ts).toLocaleTimeString(),
+          })))
+        }
+      }
+      if (job.status !== 'done') continue
+      setProgress((prev) => prev.slice(-60))
+      if (!job.result_ok) {
+        setMessages((m) => [...m, {
+          id: `e_${Date.now()}`, sender: 'agent', text: `⚠️ 执行失败: ${job.error || '未知错误'}`,
+          ts: new Date().toLocaleTimeString(),
+        }])
+      }
+      if (job.result_ok) {
+        const loaded = await fetch(`/api/conversations/${conversationId}`).then((r) => r.json()).catch(() => null)
+        if (loaded?.messages) {
+          setMessages((loaded.messages || []).map((m: any, i: number) => ({
+            id: m.id || `m_${i}`, sender: m.sender, text: m.text,
+            turns: m.turns ?? undefined, elapsed: m.elapsed ?? undefined,
+            trace: m.trace || [], ts: new Date(m.ts).toLocaleTimeString(),
+          })))
+        }
+      } else {
+        // Failure is already rendered above; no duplicate bubble.
+      }
+      activeJobRef.current = null
+      setBusy(false)
+      setElapsed(0)
+      return
+    }
+    activeJobRef.current = null
+    setBusy(false)
+    setElapsed(0)
+  }
+
+  const reconnectActiveJob = async (cid: string) => {
+    try {
+      const d = await fetch(`/api/agent/conversations/${cid}/active-job`).then((r) => r.json())
+      if (!d.active && d.status === 'unknown' && d.error) {
+        setMessages((m) => [...m, {
+          id: `e_${Date.now()}`, sender: 'agent', text: `⚠️ ${d.error}`,
+          ts: new Date().toLocaleTimeString(),
+        }])
+      }
+      if (!d.active) return
+      setElapsed(Math.max(0, Math.floor((Date.now() - Number(d.created_at) * 1000) / 1000)))
+      setQueuedCount(Number(d.queued_count || 0))
+      void pollJob(d.job_id, cid, d.progress || [], Number(d.reasoning_baseline || 0), turnGenerationRef.current)
+    } catch { /* no active job */ }
+  }
+
   // ── 发送:提交异步任务后轮询 ──
   const send = async (override?: string) => {
     const text = (override ?? input).trim()
-    if (!text || busy) return
+    if (!text) return
+    if (!convId) {
+      setMessages((m) => [...m, {
+        id: `e_${Date.now()}`, sender: 'agent', text: '⚠️ 对话会话尚未建立，请稍后重试。',
+        ts: new Date().toLocaleTimeString(),
+      }])
+      return
+    }
+    if (!selectedProvider || !selectedModel) {
+      setMessages((m) => [...m, {
+        id: `e_${Date.now()}`, sender: 'agent',
+        text: modelsLoading ? '⚠️ 正在从 Hermes 官方能力目录加载模型，请稍后再发送。' : `⚠️ ${modelOptionsError || '模型目录不可用，拒绝发送。'}`,
+        ts: new Date().toLocaleTimeString(),
+      }])
+      return
+    }
     const now = new Date().toLocaleTimeString()
-    setMessages((m) => [...m, { id: `u_${Date.now()}`, sender: 'user', text, ts: now }])
-    void persist(convId, { sender: 'user', text })
+    const optimisticId = `u_${Date.now()}`
+    setMessages((m) => [...m, { id: optimisticId, sender: 'user', text, ts: now }])
     setInput('')
+    const sendGeneration = turnGenerationRef.current
+    if (busy) {
+      let accepted = false
+      try {
+        const endpoint = busyInputMode === 'steer' ? 'steer' : 'queue'
+        const res = await fetch(`/api/agent/conversations/${convId}/${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            task: text,
+            role: 'hm',
+            conversation_id: convId,
+            provider: selectedProvider,
+            model: selectedModel,
+            reasoning_effort: reasoningEffort,
+          }),
+        })
+        const d = await res.json()
+        if (!res.ok) throw new Error(d.detail || `${busyInputMode === 'steer' ? '插入' : '追加'}失败`)
+        accepted = true
+        if (busyInputMode === 'queue') setQueuedCount(Number(d.queued_count || 1))
+      } catch (err) {
+        setMessages((m) => [
+          ...m.filter((msg) => msg.id !== optimisticId),
+          {
+            id: `e_${Date.now()}`, sender: 'agent',
+            text: `⚠️ ${busyInputMode === 'steer' ? '执行中插入' : '追加队列'}失败: ${err}`,
+            ts: new Date().toLocaleTimeString(),
+          },
+        ])
+        setInput(text)
+      }
+      if (!accepted) return
+      return
+    }
     setBusy(true)
     setElapsed(0)
     setProgress([])
-
-    const timer = window.setInterval(() => setElapsed((e) => e + 1), 1000)
+    reasoningCursorRef.current = 0
+    reasoningSeenRef.current = new Set()
+    turnGenerationRef.current += 1
     const fail = (msg: string) => {
       setMessages((m) => [...m, {
         id: `e_${Date.now()}`, sender: 'agent', text: `⚠️ ${msg}`,
         ts: new Date().toLocaleTimeString(),
       }])
-      // 失败也要留痕。翻旧对话时看到「这里断了」比看到一段空白有用得多。
-      void persist(convId, { sender: 'agent', text: `⚠️ ${msg}` })
     }
 
     try {
       const res = await fetch('/api/agent/jobs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: text, role: 'hm' }),
+        body: JSON.stringify({
+          task: text,
+          role: 'hm',
+          conversation_id: convId,
+          provider: selectedProvider,
+          model: selectedModel,
+          reasoning_effort: reasoningEffort,
+        }),
       })
       // 网关异常时返回的是 HTML,不能直接 .json() —— 那正是 "Unexpected token '<'" 的来源
       const ct = res.headers.get('content-type') || ''
@@ -454,45 +758,15 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
       }
       const sub = await res.json()
       if (!sub.job_id) { fail(`任务提交失败: ${sub.detail || sub.error || '未知'}`); return }
-
-      // 轮询,单次请求都很短,不会撞网关超时
-      const deadline = Date.now() + 15 * 60 * 1000
-      while (Date.now() < deadline) {
-        await new Promise((r) => setTimeout(r, 2500))
-        const pr = await fetch(`/api/agent/jobs/${sub.job_id}`)
-        const pct = pr.headers.get('content-type') || ''
-        if (!pct.includes('application/json')) continue
-        const job = await pr.json()
-        // running 时也带进度 —— 这正是不用干等的原因
-        if (Array.isArray(job.progress)) setProgress(job.progress)
-        if (job.status !== 'done') continue
-
-        if (job.result_ok) {
-          setMessages((m) => [...m, {
-            id: `a_${Date.now()}`, sender: 'agent',
-            text: job.final_text || '任务处理完毕。',
-            turns: job.turns, trace: job.trace || [],
-            elapsed: job.elapsed_seconds,
-            ts: new Date().toLocaleTimeString(),
-          }])
-          // trace 一起存 —— 回看旧对话时「当时调了哪些工具、拿到什么」
-          // 比最后那段话更有价值
-          void persist(convId, {
-            sender: 'agent', text: job.final_text || '任务处理完毕。',
-            turns: job.turns, elapsed: job.elapsed_seconds, trace: job.trace || [],
-          })
-        } else {
-          fail(`执行失败: ${job.error || '未知错误'}`)
-        }
-        return
-      }
-      fail('任务超过 15 分钟仍未完成,已停止等待(后端可能仍在跑)。')
+      activeJobRef.current = sub.job_id
+      await pollJob(sub.job_id, convId as string, [], Number(sub.reasoning_baseline || 0), turnGenerationRef.current)
     } catch (err) {
       fail(`请求异常: ${err}`)
     } finally {
-      window.clearInterval(timer)
-      setBusy(false)
-      setElapsed(0)
+      if (!activeJobRef.current) {
+        setBusy(false)
+        setElapsed(0)
+      }
     }
   }
 
@@ -509,113 +783,75 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         <div style={{ position: 'fixed', inset: 0, zIndex: 999999, cursor: 'col-resize', userSelect: 'none' }} />
       )}
 
-      {showHistory && (
-        <div
-          onClick={() => setShowHistory(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,.7)', zIndex: 100001,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-          }}
-        >
+      <Modal
+        open={showHistory}
+        title="历史对话"
+        width={500}
+        closeOnBackdrop={false}
+        onClose={() => setShowHistory(false)}
+        zIndex={100001}
+        footer={(
+          <button onClick={() => void newConv()} style={{ ...smallBtn, background: '#2563eb', color: '#fff' }}>✚ 新建对话</button>
+        )}
+      >
+        <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+          {(['active', 'archived'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => { setHistTab(tab); void loadConvs(tab === 'archived') }}
+              style={{
+                ...smallBtn,
+                background: histTab === tab ? '#1e293b' : 'transparent',
+                color: histTab === tab ? '#60a5fa' : '#94a3b8',
+                border: `1px solid ${histTab === tab ? '#3b82f6' : '#334155'}`,
+              }}
+            >{tab === 'active' ? '进行中' : '已归档'}</button>
+          ))}
+        </div>
+        {convs.length === 0 && (
+          <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+            {histTab === 'archived' ? '没有已归档的对话' : '还没有历史对话'}
+          </div>
+        )}
+        {convs.map((conversation) => (
           <div
-            onClick={(e) => e.stopPropagation()}
+            key={conversation.id}
+            onClick={() => void openConv(conversation.id)}
             style={{
-              width: 460, maxWidth: '100%', maxHeight: '78vh', background: '#0f172a',
-              border: '1px solid #1e293b', borderRadius: 12, overflow: 'hidden',
-              display: 'flex', flexDirection: 'column',
+              padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
+              background: conversation.id === convId ? '#1e293b' : 'transparent',
+              border: `1px solid ${conversation.id === convId ? '#334155' : 'transparent'}`,
+              marginBottom: 4,
             }}
           >
-            <div style={{
-              padding: '12px 14px', borderBottom: '1px solid #1e293b',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
-              <strong style={{ fontSize: 14, color: '#f8fafc', marginRight: 'auto' }}>历史对话</strong>
-              {(['active', 'archived'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => { setHistTab(t); void loadConvs(t === 'archived') }}
-                  style={{
-                    background: histTab === t ? '#1e293b' : 'transparent',
-                    color: histTab === t ? '#60a5fa' : '#94a3b8',
-                    border: `1px solid ${histTab === t ? '#3b82f6' : 'transparent'}`,
-                    borderRadius: 6, padding: '4px 10px', fontSize: 12, cursor: 'pointer',
-                  }}
-                >{t === 'active' ? '进行中' : '已归档'}</button>
-              ))}
-              <button onClick={() => setShowHistory(false)} style={{
-                background: 'transparent', border: 0, color: '#94a3b8',
-                fontSize: 16, cursor: 'pointer', padding: '2px 6px',
-              }}>✕</button>
-            </div>
-
-            <div style={{ flex: 1, overflowY: 'auto', padding: 8 }}>
-              {convs.length === 0 && (
-                <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
-                  {histTab === 'archived' ? '没有已归档的对话' : '还没有历史对话'}
-                </div>
-              )}
-              {convs.map((c) => (
-                <div
-                  key={c.id}
-                  onClick={() => void openConv(c.id)}
-                  style={{
-                    padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
-                    background: c.id === convId ? '#1e293b' : 'transparent',
-                    border: `1px solid ${c.id === convId ? '#334155' : 'transparent'}`,
-                    marginBottom: 4,
-                  }}
-                  onMouseEnter={(e) => { if (c.id !== convId) e.currentTarget.style.background = '#131c2e' }}
-                  onMouseLeave={(e) => { if (c.id !== convId) e.currentTarget.style.background = 'transparent' }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{
-                      fontSize: 13, color: '#e2e8f0', fontWeight: 500, flex: 1,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{c.title}</span>
-                    <span style={{ fontSize: 10, color: '#475569' }}>{c.message_count} 条</span>
-                    <button
-                      title={histTab === 'archived' ? '取回' : '归档'}
-                      onClick={(e) => { e.stopPropagation(); void archiveConv(c.id, histTab !== 'archived') }}
-                      style={{
-                        background: 'transparent', border: 0, color: '#64748b',
-                        cursor: 'pointer', fontSize: 12, padding: '2px 4px',
-                      }}
-                    >{histTab === 'archived' ? '↩' : '📥'}</button>
-                    <button
-                      title="删除"
-                      onClick={(e) => { e.stopPropagation(); void deleteConv(c.id) }}
-                      style={{
-                        background: 'transparent', border: 0, color: '#64748b',
-                        cursor: 'pointer', fontSize: 12, padding: '2px 4px',
-                      }}
-                    >🗑</button>
-                  </div>
-                  {c.last_text && (
-                    <div style={{
-                      fontSize: 11, color: '#64748b', marginTop: 3,
-                      overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                    }}>{c.last_text}</div>
-                  )}
-                  <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
-                    {new Date(c.updated_at).toLocaleString('zh-CN', { hour12: false })}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div style={{ padding: 10, borderTop: '1px solid #1e293b' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{
+                fontSize: 13, color: '#e2e8f0', fontWeight: 500, flex: 1,
+                overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+              }}>{conversation.title}</span>
+              <span style={{ fontSize: 10, color: '#475569' }}>{conversation.message_count} 条</span>
               <button
-                onClick={() => void newConv()}
-                style={{
-                  width: '100%', padding: '8px 0', borderRadius: 8, border: 0,
-                  background: '#2563eb', color: '#fff', fontSize: 13,
-                  fontWeight: 600, cursor: 'pointer',
-                }}
-              >✚ 新建对话</button>
+                title={histTab === 'archived' ? '取回' : '归档'}
+                onClick={(event) => { event.stopPropagation(); void archiveConv(conversation.id, histTab !== 'archived') }}
+                style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 4px' }}
+              >{histTab === 'archived' ? '↩' : '📥'}</button>
+              <button
+                title="删除"
+                onClick={(event) => { event.stopPropagation(); void deleteConv(conversation.id) }}
+                style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 4px' }}
+              >🗑</button>
+            </div>
+            {conversation.last_text && (
+              <div style={{ fontSize: 11, color: '#64748b', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {conversation.last_text}
+              </div>
+            )}
+            <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+              {new Date(conversation.updated_at).toLocaleString('zh-CN', { hour12: false })}
             </div>
           </div>
-        </div>
-      )}
+        ))}
+      </Modal>
       <div
         className="copilot-drawer"
         style={{
@@ -746,40 +982,66 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               <span style={{ color: '#475569' }}>(带工具的任务通常 1-3 分钟)</span>
             </div>
           )}
-          {busy && (
+          {(busy || progress.length > 0) && (
             <div style={{
               alignSelf: 'flex-start', maxWidth: '92%', background: '#0b1220',
               border: '1px solid #1e293b', borderLeft: '3px solid #3b82f6',
               borderRadius: 8, padding: '8px 10px', fontSize: 12,
             }}>
-              <div style={{ color: '#60a5fa', fontWeight: 600, marginBottom: 4 }}>
-                执行中 · {elapsed}s
+              <div style={{ color: '#60a5fa', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span>{busy ? `执行中 · ${elapsed}s` : '本次执行过程'}{queuedCount > 0 ? ` · 待处理 ${queuedCount}` : ''}</span>
+                <button
+                  onClick={() => setReasoningOpen((v) => !v)}
+                  aria-expanded={reasoningOpen}
+                  style={{
+                    marginLeft: 'auto', background: 'transparent', border: 0,
+                    color: '#93c5fd', fontSize: 11, cursor: 'pointer', padding: '1px 4px',
+                  }}
+                >
+                  {reasoningOpen ? '▲ 收起' : '▼ 展开'}
+                </button>
               </div>
-              {progress.length === 0 && (
-                <div style={{ color: '#64748b' }}>正在连接模型…</div>
-              )}
-              {progress.map((p, i) => (
-                <div key={i} style={{ marginBottom: 3, lineHeight: 1.5 }}>
-                  {p.kind === 'thinking' ? (
-                    // 模型决定调工具之前那段话就是它的思路,原样显示
-                    <div style={{ color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                      <span style={{ color: '#818cf8', marginRight: 5 }}>思考</span>
-                      {p.text}
-                    </div>
-                  ) : (
-                    <div style={{ color: p.kind === 'tool' ? '#94a3b8' : '#64748b' }}>
-                      <span style={{
-                        color: p.kind === 'turn' ? '#f59e0b'
-                             : p.kind === 'tool_start' ? '#22d3ee' : '#22c55e',
-                        marginRight: 5,
-                      }}>
-                        {p.kind === 'turn' ? '轮次' : p.kind === 'tool_start' ? '调用' : '完成'}
-                      </span>
-                      {p.text}
-                    </div>
+              {reasoningOpen && (
+                <div
+                  ref={progressScrollRef}
+                  style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4, scrollBehavior: 'smooth' }}
+                >
+                  {progress.length === 0 && (
+                    <div style={{ color: '#64748b' }}>正在连接模型…</div>
                   )}
+                  {progress.map((p, i) => (
+                    <div key={i} style={{ marginBottom: 3, lineHeight: 1.5 }}>
+                      {p.kind === 'thinking' ? (
+                        <div style={{ color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: '#818cf8', marginRight: 5 }}>思考</span>
+                          {p.text}
+                        </div>
+                      ) : p.kind === 'assistant' ? (
+                        <div style={{ color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: '#38bdf8', marginRight: 5 }}>输出</span>
+                          {p.text}
+                        </div>
+                      ) : p.kind === 'compacting' ? (
+                        <div style={{ color: '#fbbf24', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: '#f59e0b', marginRight: 5 }}>压缩</span>
+                          {p.text}
+                        </div>
+                      ) : (
+                        <div style={{ color: p.kind === 'tool' ? '#94a3b8' : '#64748b' }}>
+                          <span style={{
+                            color: p.kind === 'turn' ? '#f59e0b'
+                                 : p.kind === 'tool_start' ? '#22d3ee' : '#22c55e',
+                            marginRight: 5,
+                          }}>
+                            {p.kind === 'turn' ? '轮次' : p.kind === 'tool_start' ? '调用' : p.kind === 'status' ? '状态' : '完成'}
+                          </span>
+                          {p.text}
+                        </div>
+                      )}
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
           )}
 
@@ -827,13 +1089,70 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
 
         {/* 输入区 */}
         <div style={{ padding: '12px 16px', background: '#1e293b', borderTop: '1px solid #334155' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
             <button onClick={openContextPicker} style={{
               background: '#334155', border: 0, borderRadius: 4, color: '#38bdf8',
               fontSize: 11, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
             }}>
               📎 页面上下文 ({TAB_LABEL[activeTab] || activeTab})
             </button>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+              {busy && (
+                <select
+                  aria-label="执行中指令方式"
+                  value={busyInputMode}
+                  onChange={(e) => setBusyInputMode(e.target.value as 'steer' | 'queue')}
+                  style={{ ...modelSelect, maxWidth: 118, borderColor: '#7c3aed' }}
+                  title="插入当前轮：下一次工具返回后生效；排队下一轮：当前回答结束后继续"
+                >
+                  <option value="steer">插入当前轮</option>
+                  <option value="queue">排队下一轮</option>
+                </select>
+              )}
+              <select
+                aria-label="模型服务商"
+                value={selectedProvider}
+                disabled={busy || !modelOptions}
+                onChange={(e) => {
+                  const provider = e.target.value
+                  const row = modelOptions?.providers.find((p) => p.slug === provider)
+                  setSelectedProvider(provider)
+                  setSelectedModel(row?.models?.[0] || '')
+                }}
+                style={modelSelect}
+              >
+                {(modelOptions?.providers || []).map((p) => (
+                  <option key={p.slug} value={p.slug}>{p.label}</option>
+                ))}
+              </select>
+              <select
+                aria-label="模型"
+                value={selectedModel}
+                disabled={busy || !selectedProvider}
+                onChange={(e) => setSelectedModel(e.target.value)}
+                style={{ ...modelSelect, maxWidth: 180 }}
+              >
+                {(modelOptions?.providers.find((p) => p.slug === selectedProvider)?.models || []).map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+              <select
+                aria-label="推理强度"
+                value={reasoningEffort}
+                disabled={busy || modelsLoading || !modelOptions || selectedReasoningEfforts.length <= 1}
+                onChange={(e) => setReasoningEffort(e.target.value)}
+                style={modelSelect}
+                title={
+                  selectedReasoningEfforts.length > 1
+                    ? `推理强度 · 来源 ${selectedCapability?.reasoning_source || 'unavailable'}`
+                    : '该模型未从官方能力目录声明可选推理强度，使用模型默认值'
+                }
+              >
+                {selectedReasoningEfforts.map((x) => (
+                  <option key={x} value={x}>{x === 'auto' ? '推理 默认' : `推理 ${x}`}</option>
+                ))}
+              </select>
+            </div>
             <span style={{ fontSize: 11, color: '#64748b' }}>Enter 发送 · Shift+Enter 换行</span>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
@@ -854,95 +1173,80 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
             />
             <button
               onClick={() => send()}
-              disabled={busy || !input.trim()}
+              disabled={!input.trim()}
               style={{
-                height: 42, background: busy || !input.trim() ? '#334155' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                height: 42, background: !input.trim() ? '#334155' : busy ? 'linear-gradient(135deg, #7c3aed, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
                 color: '#fff', border: 0, borderRadius: 8, padding: '0 16px',
                 fontWeight: 600, fontSize: 13,
-                cursor: busy || !input.trim() ? 'not-allowed' : 'pointer',
+                cursor: !input.trim() ? 'not-allowed' : 'pointer',
               }}
+              title={busy ? (busyInputMode === 'steer' ? '插入当前轮，下一次工具返回后生效' : '追加到当前会话，当前轮结束后自动执行') : '发送'}
             >
-              {busy ? '…' : '发送'}
+              {busy ? (busyInputMode === 'steer' ? '插入' : '追加') : '发送'}
             </button>
           </div>
         </div>
       </div>
 
       {/* 上下文勾选弹窗 */}
-      {showCtx && (
-        <div
-          onClick={() => setShowCtx(false)}
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 100000,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-          }}
-        >
-          <div onClick={(e) => e.stopPropagation()} style={{
-            background: '#111827', border: '1px solid #334155', borderRadius: 12,
-            width: '100%', maxWidth: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column',
-          }}>
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid #1f2937' }}>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#f3f4f6' }}>
-                📎 选择要带上的上下文
-              </div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>
-                来自「{TAB_LABEL[activeTab] || activeTab}」的实时数据 · 勾选后会拼进输入框,不会直接发送
-              </div>
-            </div>
-            <div style={{ flex: 1, overflowY: 'auto', padding: '10px 16px' }}>
-              {ctxItems.length === 0 && (
-                <div style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>
-                  当前页面没有可提取的数据(可能还没加载完,或该页无结构化数据)
-                </div>
-              )}
-              {ctxItems.map((it) => (
-                <label key={it.key} style={{
-                  display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 0',
-                  borderBottom: '1px solid #1f2937', cursor: 'pointer',
-                }}>
-                  <input
-                    type="checkbox"
-                    checked={!!ctxPicked[it.key]}
-                    onChange={(e) => setCtxPicked((p) => ({ ...p, [it.key]: e.target.checked }))}
-                    style={{ marginTop: 3, accentColor: '#3b82f6', flexShrink: 0 }}
-                  />
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>{it.label}</div>
-                    <div style={{
-                      fontSize: 11, color: '#64748b', wordBreak: 'break-word',
-                      maxHeight: 44, overflow: 'hidden',
-                    }}>{it.preview}</div>
-                  </div>
-                </label>
-              ))}
-            </div>
-            <div style={{
-              padding: '10px 16px', borderTop: '1px solid #1f2937',
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            }}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setCtxPicked(Object.fromEntries(ctxItems.map((i) => [i.key, true])))}
-                  style={smallBtn}>全选</button>
-                <button onClick={() => setCtxPicked({})} style={smallBtn}>全不选</button>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={() => setShowCtx(false)} style={smallBtn}>取消</button>
-                <button onClick={applyContext} style={{ ...smallBtn, background: '#2563eb', color: '#fff' }}>
-                  加入输入框 ({ctxItems.filter((i) => ctxPicked[i.key]).length} 项 ·{' '}
-                  {(() => {
-                    const p: Record<string, unknown> = {}
-                    ctxItems.filter((i) => ctxPicked[i.key]).forEach((i) => { p[i.key] = i.payload })
-                    const n = JSON.stringify(p).length
-                    return n > 1024 ? `${(n / 1024).toFixed(1)}KB` : `${n}B`
-                  })()})
-                </button>
-              </div>
-            </div>
+      <Modal
+        open={showCtx}
+        title="📎 选择要带上的上下文"
+        subtitle={`来自「${TAB_LABEL[activeTab] || activeTab}」的实时数据 · 勾选后会拼进输入框，不会直接发送`}
+        width={560}
+        closeOnBackdrop={false}
+        onClose={() => setShowCtx(false)}
+        zIndex={100000}
+        footer={(
+          <>
+            <button onClick={() => setCtxPicked(Object.fromEntries(ctxItems.map((item) => [item.key, true])))} style={smallBtn}>全选</button>
+            <button onClick={() => setCtxPicked({})} style={smallBtn}>全不选</button>
+            <span style={{ flex: 1 }} />
+            <button onClick={() => setShowCtx(false)} style={smallBtn}>取消</button>
+            <button onClick={applyContext} style={{ ...smallBtn, background: '#2563eb', color: '#fff' }}>
+              加入输入框 ({ctxItems.filter((item) => ctxPicked[item.key]).length} 项 ·{' '}
+              {(() => {
+                const payload: Record<string, unknown> = {}
+                ctxItems.filter((item) => ctxPicked[item.key]).forEach((item) => { payload[item.key] = item.payload })
+                const length = JSON.stringify(payload).length
+                return length > 1024 ? `${(length / 1024).toFixed(1)}KB` : `${length}B`
+              })()})
+            </button>
+          </>
+        )}
+      >
+        {ctxItems.length === 0 && (
+          <div style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>
+            当前页面没有可提取的数据（可能还没加载完，或该页无结构化数据）
           </div>
-        </div>
-      )}
+        )}
+        {ctxItems.map((item) => (
+          <label key={item.key} style={{
+            display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 0',
+            borderBottom: '1px solid #1f2937', cursor: 'pointer',
+          }}>
+            <input
+              type="checkbox"
+              checked={!!ctxPicked[item.key]}
+              onChange={(event) => setCtxPicked((current) => ({ ...current, [item.key]: event.target.checked }))}
+              style={{ marginTop: 3, accentColor: '#3b82f6', flexShrink: 0 }}
+            />
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>{item.label}</div>
+              <div style={{ fontSize: 11, color: '#64748b', wordBreak: 'break-word', maxHeight: 44, overflow: 'hidden' }}>
+                {item.preview}
+              </div>
+            </div>
+          </label>
+        ))}
+      </Modal>
     </>
   )
+}
+
+const modelSelect: React.CSSProperties = {
+  background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155',
+  borderRadius: 5, padding: '4px 7px', fontSize: 10, maxWidth: 130,
 }
 
 const smallBtn: React.CSSProperties = {

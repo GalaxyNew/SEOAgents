@@ -14,7 +14,7 @@ from dojocore.workflow.nodes import (
     WorkflowNode,
 )
 from dojocore.workflow.registry import Department, DepartmentRegistry
-from dojocore.workflow.store import WorkflowStore
+from dojocore.workflow.store import WorkflowConflict, WorkflowStore
 from dojocore.workflow.template import TemplateError, WorkflowTemplate
 
 _lock = threading.Lock()
@@ -65,6 +65,7 @@ __all__ = [
     "NodeValidationError",
     "TemplateError",
     "WorkflowEngine",
+    "WorkflowConflict",
     "WorkflowInstance",
     "WorkflowNode",
     "WorkflowStore",

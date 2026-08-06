@@ -14,6 +14,19 @@ type Node = {
   scheduled_at: string
   expected_minutes: number
   state: string
+  runtime_state?: string
+  created_by?: string
+  cron?: {
+    job_id: string
+    schedule_display?: string
+    next_run_at?: string
+    last_run_at?: string
+    last_status?: string
+    last_error?: string
+    enabled?: boolean
+    execution?: Record<string, unknown>
+  }
+  context?: Record<string, any>
   subject_ref?: string
   chain_depth?: number
   outcome?: string
@@ -28,6 +41,7 @@ type Agenda = {
   committed_minutes: number
   load_ratio: number
   next_free_slot: string
+  cron_jobs?: any[]
 }
 
 const card: React.CSSProperties = {
@@ -48,12 +62,25 @@ const fmt = (iso: string) => {
   } catch { return iso }
 }
 
+// 来源标识
+const SOURCE_META: Record<string, { label: string; color: string; tip: string }> = {
+  ag: { label: 'Ag', color: '#22d3ee', tip: 'Agent自主创建' },
+  yh: { label: 'Yh', color: '#fbbf24', tip: '用户手动创建' },
+  ya: { label: 'Ya', color: '#a78bfa', tip: '用户让Agent创建' },
+}
+const sourceOf = (cb?: string) => {
+  if (!cb || cb === 'unknown') return null
+  if (['timeline-ui', 'manual', 'user', 'yh', 'you'].includes(cb)) return SOURCE_META.yh
+  if (cb.startsWith('user-ask') || cb.startsWith('ya-')) return SOURCE_META.ya
+  return SOURCE_META.ag
+}
+
 export const TimelinePanel: React.FC = () => {
   const isMobile = useIsMobile()
   const [agenda, setAgenda] = useState<Agenda | null>(null)
   const [due, setDue] = useState<Node[]>([])
   const [unread, setUnread] = useState<Node[]>([])
-  const [hours, setHours] = useState(24)
+  const [hours, setHours] = useState(15)
   const [loading, setLoading] = useState(true)
   const [msg, setMsg] = useState('')
   const [err, setErr] = useState('')
@@ -66,26 +93,26 @@ export const TimelinePanel: React.FC = () => {
   const [picked, setPicked] = useState<any | null>(null)
   // 两种执行方式:交给 agent 跑一条指令,或到点启动一个工作流。
   // 不选就是纯提醒 —— 投递了但不自动执行。
-  const [nMode, setNMode] = useState<'none' | 'agent' | 'workflow'>('none')
+  const [nMode, setNMode] = useState<'agent' | 'workflow'>('agent')
   const [nTask, setNTask] = useState('')
-  const [nRole, setNRole] = useState('hm')
+  const [nSchedule, setNSchedule] = useState('')
+  const [nDeliver, setNDeliver] = useState('local')
   const [nWf, setNWf] = useState('')
   const [wfList, setWfList] = useState<any[]>([])
 
   const load = async (h = hours) => {
     setLoading(true); setErr('')
     try {
-      const [a, d, u] = await Promise.all([
-        (await fetch(`/api/timeline/agenda?hours_ahead=${h}`)).json(),
-        (await fetch('/api/timeline/due')).json(),
+      const [a, u] = await Promise.all([
+        (await fetch(`/api/timeline/agenda-v2?hours_ahead=${h}`)).json(),
         (await fetch('/api/timeline/unread')).json(),
       ])
       setAgenda(a)
       try {
-        const rg = await (await fetch('/api/timeline/range?hours_back=72&hours_ahead=72')).json()
+        const rg = await (await fetch(`/api/timeline/range-v2?hours_back=${Math.max(h, 24)}&hours_ahead=${h}`)).json()
         setRangeNodes(rg.nodes || [])
       } catch { setRangeNodes([]) }
-      setDue(Array.isArray(d) ? d : (d.items || d.nodes || []))
+      setDue([])
       setUnread(Array.isArray(u) ? u : (u.items || u.nodes || []))
     } catch (e) {
       setErr(`时间线不可用: ${e}`)
@@ -96,7 +123,7 @@ export const TimelinePanel: React.FC = () => {
 
   useEffect(() => { load() }, [])
   useEffect(() => {
-    fetch('/api/workflow/templates').then(r => r.json())
+    fetch('/api/workflows/templates').then(r => r.json())
       .then(d => setWfList(d.templates || d.items || []))
       .catch(() => setWfList([]))
   }, [])
@@ -115,22 +142,34 @@ export const TimelinePanel: React.FC = () => {
 
   const schedule = async () => {
     if (!nIntent.trim() || !nAt) return
-    // datetime-local 是本地时间,转成带时区的 ISO 再提交
+    if (nMode === 'agent' && !nTask.trim()) { setMsg('请填写 Agent 任务要求'); return }
+    if (nMode === 'workflow' && !nWf) { setMsg('请选择工作流'); return }
+    // datetime-local 是本地时间,转成带时区的 ISO；schedule 可填 cron/interval。
     const iso = new Date(nAt).toISOString()
-    const r = await fetch('/api/timeline/nodes', {
+    const selectedWf = wfList.find((w: any) => (w.template_id || w.id) === nWf)
+    // 一次性节点写入 Timeline，由固定 Hermes Timeline Pulse 每分钟唤醒；
+    // 周期排期直接创建 Hermes Cron，避免 Pulse 自行繁殖 Cron。
+    const endpoint = nSchedule.trim() ? '/api/timeline/schedules' : '/api/timeline/plans'
+    const r = await fetch(endpoint, {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        scheduled_at: iso, kind: nKind, intent: nIntent, expected_minutes: nMin,
-        // context 决定到点怎么执行。runner 每分钟扫一次 due 节点,
-        // 按这里声明的方式分派;都不填就只投递提醒、不自动执行。
-        context: nMode === 'agent' ? { agent_task: nTask, role: nRole }
-               : nMode === 'workflow' ? { workflow_id: nWf }
-               : {},
+        scheduled_at: iso,
+        schedule: nSchedule.trim(),
+        kind: nKind,
+        intent: nIntent,
+        expected_minutes: nMin,
+        task_type: nMode === 'agent' ? 'agent_prompt' : 'workflow',
+        prompt: nMode === 'agent' ? nTask : '',
+        workflow_id: nMode === 'workflow' ? nWf : '',
+        workflow_version: nMode === 'workflow' ? (selectedWf?.version || '') : '',
+        deliver: nDeliver,
+        created_by: 'timeline-ui',
       }),
     })
     const j = await r.json().catch(() => ({}))
     if (!r.ok) { setMsg(`排期被拒: ${j.detail || JSON.stringify(j)}`); return }
-    setMsg('已排入时间线'); setNIntent(''); setShowNew(false); load()
+    setMsg(j.cron?.job_id ? `已创建 Hermes Cron · ${j.cron.job_id}` : `已排入 Timeline · ${j.node_id || ''}`)
+    setNIntent(''); setNTask(''); setNSchedule(''); setShowNew(false); load()
   }
 
   if (loading && !agenda) {
@@ -155,15 +194,27 @@ export const TimelinePanel: React.FC = () => {
           flexShrink: 0, background: '#1e293b', color: meta.color, borderRadius: 3,
           padding: '1px 6px', fontSize: 9, fontWeight: 700, width: 40, textAlign: 'center',
         }}>{meta.label}</span>
+        {(() => { const st = sourceOf(n.created_by); return st ? (
+          <span style={{ flexShrink: 0, fontSize: 8, fontWeight: 700, color: st.color, background: '#0b1220', borderRadius: 3, padding: '1px 5px', textAlign: 'center' }} title={st.tip}>{st.label}</span>
+        ) : null })()}
         <span style={{ flexShrink: 0, color: '#94a3b8', fontSize: 10, width: 88 }}>{fmt(n.scheduled_at)}</span>
         <span style={{ flex: 1, minWidth: isMobile ? '100%' : 0, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: isMobile ? 'normal' : 'nowrap', order: isMobile ? 3 : 0 }}>
           {n.intent}
         </span>
         <span style={{ flexShrink: 0, color: '#475569', fontSize: 10, width: 40, textAlign: 'right' }}>{n.expected_minutes}分</span>
-        {actions && (
+        <span style={{ flexShrink: 0, color: '#475569', fontSize: 9, minWidth: 62 }}>
+          {n.runtime_state || n.state}
+        </span>
+        {actions && (n.cron?.job_id || n.context?.scheduler === 'hermes-pulse') && (
           <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-            <button onClick={() => act(`/api/timeline/nodes/${n.node_id}/fire`, undefined, '触发')} style={miniBtn('#1e3a8a', '#93c5fd')}>触发</button>
-            <button onClick={() => act(`/api/timeline/nodes/${n.node_id}/ack`, { outcome: '已完成(面板确认)' }, '确认')} style={miniBtn('#064e3b', '#6ee7b7')}>确认</button>
+            {n.runtime_state === 'BLOCKED_APPROVAL' ? (
+              <button onClick={() => act(`/api/timeline/schedules/${n.node_id}/approve`, undefined, '批准执行')} style={miniBtn('#78350f', '#fde68a')}>批准</button>
+            ) : (
+              <button onClick={() => act(`/api/timeline/schedules/${n.node_id}/run`, undefined, '立即运行')} style={miniBtn('#1e3a8a', '#93c5fd')}>运行</button>
+            )}
+            <button onClick={() => act(`/api/timeline/schedules/${n.node_id}/${n.runtime_state === 'PAUSED' ? 'resume' : 'pause'}`, undefined, n.runtime_state === 'PAUSED' ? '恢复' : '暂停')} style={miniBtn('#374151', '#d1d5db')}>
+              {n.runtime_state === 'PAUSED' ? '恢复' : '暂停'}
+            </button>
           </div>
         )}
       </div>
@@ -172,7 +223,7 @@ export const TimelinePanel: React.FC = () => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <TimelineTrack nodes={rangeNodes} onPick={setPicked} />
+      <TimelineTrack nodes={rangeNodes} onPick={setPicked} defaultHours={hours} key={`track-${hours}`} />
 
       {/* 概览 */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
@@ -189,12 +240,12 @@ export const TimelinePanel: React.FC = () => {
         <div style={card}>
           <div style={{ fontSize: 10, color: '#64748b' }}>📅 已排节点</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0' }}>{agenda?.upcoming.length ?? 0}</div>
-          <div style={{ fontSize: 9, color: '#475569', marginTop: 3 }}>执行中 {agenda?.in_flight.length ?? 0}</div>
+          <div style={{ fontSize: 9, color: '#475569', marginTop: 3 }}>Hermes Cron 执行中 {agenda?.in_flight.length ?? 0}</div>
         </div>
         <div style={card}>
-          <div style={{ fontSize: 10, color: '#64748b' }}>🔔 待办到点</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: due.length ? '#f59e0b' : '#e2e8f0' }}>{due.length}</div>
-          <div style={{ fontSize: 9, color: '#475569', marginTop: 3 }}>未读 {agenda?.unread_count ?? 0}</div>
+          <div style={{ fontSize: 10, color: '#64748b' }}>⏰ Cron 固定节律</div>
+          <div style={{ fontSize: 22, fontWeight: 700, color: '#e2e8f0' }}>{agenda?.cron_jobs?.length ?? 0}</div>
+          <div style={{ fontSize: 9, color: '#475569', marginTop: 3 }}>全部任务最终由 Hermes Cron 执行</div>
         </div>
         <div style={card}>
           <div style={{ fontSize: 10, color: '#64748b' }}>🕳️ 下一个空档</div>
@@ -207,9 +258,9 @@ export const TimelinePanel: React.FC = () => {
       {/* 操作条 */}
       <div style={{ ...card, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
         <span style={{ fontSize: 11, color: '#64748b' }}>视野</span>
-        {[24, 72, 168].map((h) => (
+        {[15, 24, 72, 168].map((h) => (
           <button key={h} onClick={() => { setHours(h); load(h) }}
-            style={btn(hours === h ? '#3b82f6' : '#334155')}>{h === 24 ? '1天' : h === 72 ? '3天' : '7天'}</button>
+            style={btn(hours === h ? '#3b82f6' : '#334155')}>{h === 15 ? '15小时' : h === 24 ? '1天' : h === 72 ? '3天' : '7天'}</button>
         ))}
         <div style={{ flex: 1 }} />
         <button onClick={() => setShowNew(!showNew)} style={btn('#2563eb')}>＋ 排期</button>
@@ -227,18 +278,23 @@ export const TimelinePanel: React.FC = () => {
           </select>
           <input placeholder="要做什么(intent)" value={nIntent} onChange={(e) => setNIntent(e.target.value)} style={{ ...input, flex: 1, minWidth: 180 }} />
           <input type="datetime-local" value={nAt} onChange={(e) => setNAt(e.target.value)} style={{ ...input, width: 190, colorScheme: 'dark' }} />
+          <input placeholder="可选：cron或 every 2h" value={nSchedule} onChange={(e) => setNSchedule(e.target.value)} style={{ ...input, width: 150 }} title="留空则按左侧时间执行一次" />
+          <select value={nDeliver} onChange={(e) => setNDeliver(e.target.value)} style={{ ...input, width: 100 }}>
+            <option value="local">仅 Timeline</option>
+            <option value="origin">同步飞书</option>
+          </select>
           <input type="number" min={5} step={5} value={nMin} onChange={(e) => setNMin(Number(e.target.value))} style={{ ...input, width: 80 }} title="预计耗时(分钟)" />
           <button onClick={schedule} disabled={!nIntent.trim() || !nAt} style={btn(nIntent.trim() && nAt ? '#2563eb' : '#334155')}>排入</button>
 
           <div style={{ width: '100%', borderTop: '1px solid #1f2937', paddingTop: 8, marginTop: 2 }}>
             <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6 }}>
-              到点怎么执行
+              执行方式（一次性任务由 Hermes Timeline Pulse 到点执行；周期任务直连 Hermes Cron）
               <span style={{ color: '#64748b', marginLeft: 6 }}>
-                执行器每分钟扫一次;不选就只提醒、不自动跑
+                可直接输入 Agent 任务，或选择已保存工作流
               </span>
             </div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-              {([['none', '仅提醒'], ['agent', '交给 agent'], ['workflow', '启动工作流']] as const).map(([m, label]) => (
+              {([['agent', '新建 Agent 任务'], ['workflow', '执行已有工作流']] as const).map(([m, label]) => (
                 <button key={m} onClick={() => setNMode(m)} style={{
                   background: nMode === m ? '#1e293b' : 'transparent',
                   color: nMode === m ? '#60a5fa' : '#94a3b8',
@@ -247,18 +303,13 @@ export const TimelinePanel: React.FC = () => {
                 }}>{label}</button>
               ))}
               {nMode === 'agent' && (
-                <>
-                  <input placeholder="要 agent 做什么(自然语言)" value={nTask}
-                    onChange={(e) => setNTask(e.target.value)}
-                    style={{ ...input, flex: 1, minWidth: 220 }} />
-                  <select value={nRole} onChange={(e) => setNRole(e.target.value)} style={{ ...input, width: 110 }}>
-                    {['hm', 'auditor', 'writer', 'linker'].map((r) => <option key={r} value={r}>{r}</option>)}
-                  </select>
-                </>
+                <input placeholder="输入完整要求，当前 Hermes 按要求执行" value={nTask}
+                  onChange={(e) => setNTask(e.target.value)}
+                  style={{ ...input, flex: 1, minWidth: 300 }} />
               )}
               {nMode === 'workflow' && (
                 <select value={nWf} onChange={(e) => setNWf(e.target.value)} style={{ ...input, flex: 1, minWidth: 220 }}>
-                  <option value="">选一个工作流模板…</option>
+                  <option value="">选一个已保存工作流…</option>
                   {wfList.map((w: any) => (
                     <option key={w.template_id || w.id} value={w.template_id || w.id}>
                       {w.name || w.template_id || w.id}

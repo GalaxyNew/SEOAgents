@@ -60,6 +60,20 @@ export const CapabilityPanel: React.FC = () => {
   const [msg, setMsg] = useState('')
   const [sel, setSel] = useState<Selected>(null)
   const [detail, setDetail] = useState<{ title: string; body: React.ReactNode } | null>(null)
+  /**
+   * 左侧手风琴。默认只开「插件」——三个列表同时平铺会占满整屏,
+   * 右边的详情反而被挤到看不见,而右边才是这个页面的主体。
+   * 记住选择:同一个人通常反复看同一组。
+   */
+  const [open, setOpen] = useState<Record<string, boolean>>(() => {
+    try { return JSON.parse(sessionStorage.getItem('capOpen') || '') || { plugin: true } }
+    catch { return { plugin: true } }
+  })
+  const toggle = (k: string) => setOpen(o => {
+    const next = { ...o, [k]: !o[k] }
+    sessionStorage.setItem('capOpen', JSON.stringify(next))
+    return next
+  })
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -132,12 +146,31 @@ export const CapabilityPanel: React.FC = () => {
     </div>
   )
 
+  /** 手风琴分组头。计数放头上 —— 收起时也得知道里面有多少 */
+  const section = (key: string, icon: string, title: string,
+                   badge: React.ReactNode, body: React.ReactNode) => (
+    <div style={card}>
+      <div onClick={() => toggle(key)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+          fontSize: 11, fontWeight: 700, color: '#94a3b8',
+          marginBottom: open[key] ? 7 : 0, userSelect: 'none',
+        }}>
+        <span style={{
+          display: 'inline-block', width: 10, transition: 'transform .15s',
+          transform: open[key] ? 'rotate(90deg)' : 'none', color: '#64748b',
+        }}>▶</span>
+        <span>{icon} {title}</span>
+        <span style={{ flex: 1 }} />
+        {badge}
+      </div>
+      {open[key] && body}
+    </div>
+  )
+
   const left = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={card}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 7 }}>
-          🔌 插件 ({catalog.length},已装 {installedCount})
-        </div>
+      {section('plugin', '🔌', `插件 (${catalog.length},已装 ${installedCount})`, null, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {catalog.map((e) => {
             const n = tools.filter((t) => t.startsWith(toolPrefix(e.id))).length
@@ -151,14 +184,14 @@ export const CapabilityPanel: React.FC = () => {
             )
           })}
         </div>
-      </div>
+      ))}
 
-      <div style={card}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 7 }}>
-          🧭 能力 ({capList.length})
-          <span style={{ fontWeight: 400, color: '#ef4444', marginLeft: 6 }}>{uncovered.length} 未覆盖</span>
-          <span style={{ fontWeight: 400, color: '#f59e0b', marginLeft: 6 }}>{risky.length} 单源</span>
-        </div>
+      {section('capability', '🧭', `能力 (${capList.length})`, (
+        <span style={{ fontWeight: 400, fontSize: 10 }}>
+          {uncovered.length > 0 && <span style={{ color: '#ef4444' }}>{uncovered.length} 未覆盖</span>}
+          {risky.length > 0 && <span style={{ color: '#f59e0b', marginLeft: 6 }}>{risky.length} 单源</span>}
+        </span>
+      ), (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {capList.map(([k, v]) => listItem(
             k, sel?.type === 'capability' && sel.id === k,
@@ -168,12 +201,9 @@ export const CapabilityPanel: React.FC = () => {
             v.uncovered ? '#ef4444' : v.single_source_risk ? '#f59e0b' : '#10b981',
           ))}
         </div>
-      </div>
+      ))}
 
-      <div style={card}>
-        <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 7 }}>
-          🎓 技能 ({skills.length})
-        </div>
+      {section('skill', '🎓', `技能 (${skills.length})`, null, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {skills.map((s) => listItem(
             s.id, sel?.type === 'skill' && sel.id === s.id,
@@ -186,7 +216,7 @@ export const CapabilityPanel: React.FC = () => {
             </div>
           )}
         </div>
-      </div>
+      ))}
     </div>
   )
 
@@ -239,10 +269,26 @@ export const CapabilityPanel: React.FC = () => {
               <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6' }}>
                 提供的 API / MCP 工具({mine.length})
               </div>
+              {/* 每个分组一张小卡片。之前是 89 个 chip 平铺成一片,
+                  分组标题淹在里面,眼睛没有落点 —— 卡片给了边界。 */}
+              <div style={{
+                display: 'grid', gap: 10,
+                gridTemplateColumns: 'repeat(auto-fill,minmax(260px,1fr))',
+              }}>
               {Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([g, list]) => (
-                <div key={g}>
-                  <div style={{ fontSize: 10, color: '#a855f7', fontWeight: 700, marginBottom: 4 }}>
-                    {g} · {list.length}
+                <div key={g} style={{
+                  border: '1px solid #1e293b', borderRadius: 8, padding: 10,
+                  background: '#0b1220',
+                }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
+                    fontSize: 11, color: '#a855f7', fontWeight: 700,
+                  }}>
+                    <span>{g}</span>
+                    <span style={{
+                      fontSize: 10, padding: '0 6px', borderRadius: 9,
+                      background: 'rgba(168,85,247,.18)', color: '#c4b5fd',
+                    }}>{list.length}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                     {list.map((short) => {
@@ -281,6 +327,7 @@ export const CapabilityPanel: React.FC = () => {
                   </div>
                 </div>
               ))}
+              </div>
             </>
           )}
 

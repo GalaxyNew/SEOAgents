@@ -31,14 +31,16 @@ __all__ = ["PROPOSE_ONLY_ACTIONS", "READ_ACTIONS", "PlatformOpsSpec"]
 READ_ACTIONS = (
     "catalog_list", "catalog_detail", "capability_map", "resource_estimate",
     "workflow_templates", "workflow_detail", "workflow_instances", "workflow_status",
-    "timeline_agenda", "timeline_unread",
+    "timeline_agenda", "timeline_unread", "timeline_cron_jobs",
+    "timeline_node_detail", "timeline_run_status",
     "collab_inbox", "collab_outbox", "collab_capabilities",
     "config_get", "system_status",
 )
 
 ACT_ACTIONS = (
     "workflow_start", "workflow_begin_node", "workflow_complete_node",
-    "timeline_plan", "timeline_triage", "collab_send", "collab_deliver",
+    "timeline_plan", "timeline_schedule", "timeline_pause", "timeline_resume",
+    "timeline_run", "timeline_cancel", "timeline_triage", "collab_send", "collab_deliver",
 )
 
 # Doing these without a person present would spend money, run third-party code,
@@ -189,23 +191,42 @@ class PlatformOpsSpec(BaseToolSpec):
         return real({"items": [i.to_dict() for i in items]}, source="platform_ops.workflow")
 
     def _do_workflow_start(self, p: dict[str, Any]) -> dict[str, Any]:
-        from dojocore.workflow import WorkflowEngine, WorkflowInstance, get_workflow_store
+        """Use Dashboard as the single writer/dispatcher for real workflow start."""
+        import json as _json
+        import os as _os
+        import urllib.request as _urlrequest
 
-        store = get_workflow_store()
-        tpl = store.template(str(p.get("template_id", "")))
-        if tpl is None:
-            return unavailable(source="platform_ops.workflow", reason="未知模板")
-        inst = WorkflowInstance.start(
-            tpl, title=str(p.get("title", "")), context=p.get("context") or {},
-            parent_task=str(p.get("parent_task", "")),
+        template_id = str(p.get("template_id", ""))
+        if not template_id:
+            return unavailable(source="platform_ops.workflow", reason="template_id 必填")
+        base = _os.environ.get(
+            "SEOAGENTS_DASHBOARD_URL", "http://seoagents-dashboard:8765"
+        ).rstrip("/")
+        token = _os.environ.get("SEOAGENTS_SERVICE_TOKEN", "").strip()
+        payload = _json.dumps({
+            "template_id": template_id,
+            "title": str(p.get("title", "")),
+            "context": dict(p.get("context") or {}),
+            "input_params": dict(p.get("input_params") or p.get("parameters") or {}),
+            "parent_task": str(p.get("parent_task", "")),
+            "auto_start": True,
+        }, ensure_ascii=False).encode()
+        headers = {"Content-Type": "application/json"}
+        if token:
+            headers["X-Service-Token"] = token
+        req = _urlrequest.Request(
+            f"{base}/api/workflows/instances",
+            data=payload, method="POST", headers=headers,
         )
-        engine = WorkflowEngine(tpl)
-        engine.refresh(inst)
-        store.save_instance(inst)
-        return real(
-            {**inst.to_dict(), "ready": [n.id for n in engine.ready_nodes(inst)]},
-            source="platform_ops.workflow",
-        )
+        try:
+            with _urlrequest.urlopen(req, timeout=60) as resp:
+                result = _json.loads(resp.read() or b"{}")
+        except Exception as exc:
+            return unavailable(
+                source="platform_ops.workflow",
+                reason=f"Dashboard workflow start failed: {exc}",
+            )
+        return real(result, source="platform_ops.workflow")
 
     def _do_workflow_status(self, p: dict[str, Any]) -> dict[str, Any]:
         from dojocore.workflow import WorkflowEngine, get_workflow_store
@@ -214,7 +235,9 @@ class PlatformOpsSpec(BaseToolSpec):
         inst = store.instance(str(p.get("instance_id", "")))
         if inst is None:
             return unavailable(source="platform_ops.workflow", reason="未知实例")
-        tpl = store.template(inst.template_id)
+        tpl = store.template_for_instance(inst)
+        if tpl is None:
+            return unavailable(source="platform_ops.workflow", reason="实例模板快照不可用")
         engine = WorkflowEngine(tpl)
         return real(
             {**inst.to_dict(),
@@ -227,7 +250,28 @@ class PlatformOpsSpec(BaseToolSpec):
         return self._node_action(p, "begin")
 
     def _do_workflow_complete_node(self, p: dict[str, Any]) -> dict[str, Any]:
-        return self._node_action(p, "complete")
+        result = self._node_action(p, "complete")
+        # If this node belongs to a dashboard-dispatched Hermes run, immediately
+        # project the accepted completion and fan out newly-ready DAG nodes.
+        try:
+            if result.get("data_status") == "REAL":
+                import json as _json
+                import os as _os
+                import urllib.request as _urlrequest
+                iid, nid = str(p.get("instance_id", "")), str(p.get("node_id", ""))
+                base = _os.environ.get("SEOAGENTS_DASHBOARD_URL", "http://127.0.0.1:8765").rstrip("/")
+                token = _os.environ.get("SEOAGENTS_SERVICE_TOKEN", "").strip()
+                payload = _json.dumps({"status": "ACCEPTED", "evidence": str(p.get("evidence", "")),
+                                       "output_asset_ids": list(p.get("output_asset_ids") or [])}, ensure_ascii=False).encode()
+                headers = {"Content-Type": "application/json"}
+                if token: headers["X-Service-Token"] = token
+                req = _urlrequest.Request(f"{base}/api/workflows/internal/instances/{iid}/nodes/{nid}/runtime",
+                                          data=payload, method="POST", headers=headers)
+                with _urlrequest.urlopen(req, timeout=30) as resp:
+                    result["runtime_projection"] = _json.loads(resp.read() or b"{}")
+        except Exception as exc:
+            result["runtime_projection_error"] = str(exc)
+        return result
 
     def _node_action(self, p: dict[str, Any], op: str) -> dict[str, Any]:
         from dojocore.workflow import EngineError, WorkflowEngine, get_workflow_store
@@ -236,7 +280,10 @@ class PlatformOpsSpec(BaseToolSpec):
         inst = store.instance(str(p.get("instance_id", "")))
         if inst is None:
             return unavailable(source="platform_ops.workflow", reason="未知实例")
-        engine = WorkflowEngine(store.template(inst.template_id))
+        tpl = store.template_for_instance(inst)
+        if tpl is None:
+            return unavailable(source="platform_ops.workflow", reason="实例模板快照不可用")
+        engine = WorkflowEngine(tpl)
         try:
             if op == "begin":
                 engine.begin(inst, str(p["node_id"]))
@@ -263,8 +310,33 @@ class PlatformOpsSpec(BaseToolSpec):
         )
 
     def _do_timeline_plan(self, p: dict[str, Any]) -> dict[str, Any]:
+        """Commit Agent-planned work; a fixed Hermes Cron pulse executes it.
+
+        This path deliberately does NOT create another Cron job. It is safe to
+        call from the Daily Planner Cron: the already-existing Timeline Pulse
+        is the sole wake-up clock and dispatches due nodes to current Hermes.
+        """
         from dojocore.timeline import TimelineError, get_timeline
 
+        task_type = str(p.get("task_type") or "agent_prompt")
+        if task_type not in {"agent_prompt", "workflow"}:
+            return unavailable(source="platform_ops.timeline", reason="task_type 仅支持 agent_prompt/workflow")
+        if task_type == "agent_prompt" and not str(p.get("prompt") or "").strip():
+            return unavailable(source="platform_ops.timeline", reason="Agent 任务必须提供 prompt")
+        if task_type == "workflow" and not str(p.get("workflow_id") or "").strip():
+            return unavailable(source="platform_ops.timeline", reason="工作流任务必须提供 workflow_id")
+        context = {
+            "task_type": task_type,
+            "agent_prompt": str(p.get("prompt") or ""),
+            "workflow_id": str(p.get("workflow_id") or ""),
+            "workflow_version": str(p.get("workflow_version") or ""),
+            "parameters": dict(p.get("parameters") or {}),
+            "priority": str(p.get("priority") or "P1"),
+            "approval_required": bool(p.get("approval_required", False)),
+            "scheduler": "hermes-pulse",
+            "runtime_state": "SCHEDULED",
+            "planning_reason": str(p.get("reason") or ""),
+        }
         try:
             nodes = get_timeline().plan_task(
                 intent=str(p["intent"]),
@@ -272,12 +344,81 @@ class PlatformOpsSpec(BaseToolSpec):
                 start_at=_dt.datetime.now(_dt.timezone.utc)
                 + _dt.timedelta(minutes=int(p.get("start_in_minutes", 30))),
                 expected_minutes=int(p.get("expected_minutes", 15)),
-                checkpoint_after_minutes=p.get("checkpoint_after_minutes", 15),
+                checkpoint_after_minutes=p.get("checkpoint_after_minutes"),
                 on_miss=str(p.get("on_miss", "catchup")),
+                context=context,
             )
         except (TimelineError, KeyError) as exc:
             return unavailable(source="platform_ops.timeline", reason=str(exc))
         return real({"nodes": [n.to_dict() for n in nodes]}, source="platform_ops.timeline")
+
+    def _do_timeline_node_detail(self, p: dict[str, Any]) -> dict[str, Any]:
+        from dojocore.timeline import get_timeline
+        node = get_timeline().store.get(str(p.get("node_id") or ""))
+        if node is None:
+            return unavailable(source="platform_ops.timeline", reason="节点不存在")
+        return real(node.to_dict(), source="platform_ops.timeline")
+
+    def _do_timeline_run_status(self, p: dict[str, Any]) -> dict[str, Any]:
+        import sqlite3
+        from dojocore.context import get_config
+        db = __import__('pathlib').Path(get_config().storage.data_dir) / "timeline_runs.db"
+        if not db.exists():
+            return real({"items": []}, source="platform_ops.timeline")
+        c = sqlite3.connect(db); c.row_factory = sqlite3.Row
+        try:
+            if p.get("node_id"):
+                rows = c.execute("SELECT * FROM timeline_runs WHERE node_id=?", (str(p["node_id"]),)).fetchall()
+            else:
+                rows = c.execute("SELECT * FROM timeline_runs ORDER BY claimed_at DESC LIMIT ?", (int(p.get("limit", 50)),)).fetchall()
+        finally:
+            c.close()
+        return real({"items": [dict(r) for r in rows]}, source="platform_ops.timeline")
+
+    def _do_timeline_cron_jobs(self, p: dict[str, Any]) -> dict[str, Any]:
+        from seoagents.dashboard.routers.timeline_cron_api import _all_jobs
+        return real({"jobs": list(_all_jobs().values())}, source="platform_ops.timeline")
+
+    def _do_timeline_schedule(self, p: dict[str, Any]) -> dict[str, Any]:
+        from seoagents.dashboard.routers.timeline_cron_api import CreateScheduleBody, create_schedule_sync
+        try:
+            return real(create_schedule_sync(CreateScheduleBody.model_validate(p)),
+                        source="platform_ops.timeline")
+        except Exception as exc:
+            return unavailable(source="platform_ops.timeline", reason=str(exc))
+
+    def _timeline_lifecycle(self, p: dict[str, Any], action: str) -> dict[str, Any]:
+        from seoagents.dashboard.routers.timeline_cron_api import _hermes, _job_id
+        from dojocore.timeline import get_timeline
+        node = get_timeline().store.get(str(p.get("node_id") or ""))
+        if node is None:
+            return unavailable(source="platform_ops.timeline", reason="节点不存在")
+        jid = _job_id(node)
+        if not jid:
+            return unavailable(source="platform_ops.timeline", reason="旧节点未绑定 Hermes Cron")
+        try:
+            if action == "cancel":
+                result = _hermes("DELETE", f"/api/jobs/{jid}")
+                if node.state.value == "SCHEDULED":
+                    get_timeline().cancel(node.node_id, reason="Agent 取消;Hermes Cron 已删除")
+            else:
+                result = _hermes("POST", f"/api/jobs/{jid}/{action}")
+            return real({"node_id": node.node_id, "job_id": jid, "result": result},
+                        source="platform_ops.timeline")
+        except Exception as exc:
+            return unavailable(source="platform_ops.timeline", reason=str(exc))
+
+    def _do_timeline_pause(self, p: dict[str, Any]) -> dict[str, Any]:
+        return self._timeline_lifecycle(p, "pause")
+
+    def _do_timeline_resume(self, p: dict[str, Any]) -> dict[str, Any]:
+        return self._timeline_lifecycle(p, "resume")
+
+    def _do_timeline_run(self, p: dict[str, Any]) -> dict[str, Any]:
+        return self._timeline_lifecycle(p, "run")
+
+    def _do_timeline_cancel(self, p: dict[str, Any]) -> dict[str, Any]:
+        return self._timeline_lifecycle(p, "cancel")
 
     def _do_timeline_unread(self, p: dict[str, Any]) -> dict[str, Any]:
         from dojocore.timeline import get_timeline

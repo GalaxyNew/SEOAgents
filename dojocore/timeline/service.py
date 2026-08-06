@@ -181,6 +181,16 @@ class TimelineService:
         nodes = [start]
         if checkpoint_after_minutes:
             check_at = start.ends_at() + _dt.timedelta(minutes=checkpoint_after_minutes)
+            # The fixed Hermes Timeline Pulse can execute checkpoints only when
+            # they retain the parent's runtime contract.  A bare CHECKPOINT has
+            # neither a prompt/workflow nor parent-run semantics and would stay
+            # SCHEDULED forever.
+            checkpoint_context = {
+                **dict(context or {}),
+                "checkpoint_parent_node": start.node_id,
+                "checkpoint_mode": "parent_runtime_status",
+                "scheduler": dict(context or {}).get("scheduler", ""),
+            }
             nodes.append(
                 self.schedule(
                     {
@@ -192,6 +202,7 @@ class TimelineService:
                         "on_miss": OnMiss.RESCHEDULE.value,
                         "parent_node": start.node_id,
                         "chain_depth": start.chain_depth + 1,
+                        "context": checkpoint_context,
                     },
                     allow_conflict=True,   # a 5-minute check may sit inside other work
                 )
@@ -254,6 +265,36 @@ class TimelineService:
             raise TimelineError(f"只能撤销未触发的节点,{node_id} 当前为 {node.state.value}")
         node.state = NodeState.CANCELLED
         node.triage_reason = reason
+        self.store.put(node)
+        return node
+
+    def sync_from_cron(
+        self, node_id: str, *, runtime_state: str, outcome: str = "",
+        error: str = "", now: _dt.datetime | None = None,
+    ) -> TimelineNode:
+        """Project Hermes Cron state into Timeline without making Timeline a clock.
+
+        Cron/execution ledger is authoritative. This method only mirrors a
+        terminal or in-flight state for history/visualisation; it never fires work.
+        """
+        node = self._get(node_id)
+        ts = (now or _now()).isoformat()
+        state = runtime_state.upper()
+        if state in {"RUNNING", "CLAIMED"}:
+            node.state = NodeState.FIRED
+            node.fired_at = node.fired_at or ts
+        elif state == "COMPLETED":
+            node.state = NodeState.ACKED
+            node.fired_at = node.fired_at or ts
+            node.acked_at = ts
+            node.outcome = outcome or "Hermes Cron 执行完成"
+        elif state in {"FAILED", "UNKNOWN"}:
+            node.state = NodeState.UNACKED
+            node.fired_at = node.fired_at or ts
+            node.outcome = error or outcome or f"Hermes Cron {state}"
+        elif state == "CANCELLED":
+            node.state = NodeState.CANCELLED
+            node.triage_reason = error or "Hermes Cron 任务已取消"
         self.store.put(node)
         return node
 

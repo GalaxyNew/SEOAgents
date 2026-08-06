@@ -1,0 +1,4019 @@
+{
+  "schema_version": "seo-control-tower-sites.v2",
+  "generated_at": "2026-08-06T17:15:00+00:00",
+  "package_scope": "SEO Control Tower V1 Enhanced",
+  "status_policy": "Only REAL data enters values. DEGRADED shows reason. UNAVAILABLE stays null. DISPUTED shows both.",
+  "default_site": "mejorsiptv.shop",
+  "sites": {
+    "igoriptv2.com": {
+      "site": {
+        "hostname": "igoriptv2.com",
+        "display_name": "igoriptv2.com",
+        "site_url": "https://igoriptv2.com",
+        "market": "Global IPTV",
+        "timezone": "UTC"
+      },
+      "gsc": {
+        "data_status": "REAL",
+        "source": "Google Search Console Search Analytics API",
+        "data_window": "2026-07-06/2026-08-04",
+        "d0": "2026-08-04",
+        "d1": "2026-08-03",
+        "known_limitations": [
+          "GSC 通常延迟 2–3 日",
+          "查询与页面维度可能受隐私阈值影响",
+          "平均排名为展现加权均值，不是实测 SERP 排名",
+          "缺失日期不补零"
+        ],
+        "cross_validation": "单源，未经外部 SERP 交叉验证",
+        "single_source_risk": true,
+        "periods": {
+          "d0": {
+            "clicks": 6,
+            "impressions": 17,
+            "ctr": 0.352941,
+            "position": 2.705882
+          },
+          "d1": {
+            "clicks": 5,
+            "impressions": 15,
+            "ctr": 0.333333,
+            "position": 9.866667
+          },
+          "cur7": {
+            "clicks": 20,
+            "impressions": 69,
+            "ctr": 0.289855,
+            "position": 4.231884
+          },
+          "prev7": {
+            "clicks": 24,
+            "impressions": 116,
+            "ctr": 0.206897,
+            "position": 1.405172
+          },
+          "cur30": {
+            "clicks": 91,
+            "impressions": 334,
+            "ctr": 0.272455,
+            "position": 2.979042
+          },
+          "prev30": {
+            "clicks": 19,
+            "impressions": 100,
+            "ctr": 0.19,
+            "position": 4.02
+          }
+        },
+        "kpis": {
+          "d0": {
+            "clicks": 6,
+            "impressions": 17,
+            "ctr": 0.352941,
+            "position": 2.705882
+          },
+          "d1": {
+            "clicks": 5,
+            "impressions": 15,
+            "ctr": 0.333333,
+            "position": 9.866667
+          },
+          "cur7": {
+            "clicks": 20,
+            "impressions": 69,
+            "ctr": 0.289855,
+            "position": 4.231884
+          },
+          "prev7": {
+            "clicks": 24,
+            "impressions": 116,
+            "ctr": 0.206897,
+            "position": 1.405172
+          },
+          "cur30": {
+            "clicks": 91,
+            "impressions": 334,
+            "ctr": 0.272455,
+            "position": 2.979042
+          },
+          "prev30": {
+            "clicks": 19,
+            "impressions": 100,
+            "ctr": 0.19,
+            "position": 4.02
+          }
+        },
+        "trend": [
+          {
+            "date": "2026-07-06",
+            "clicks": 5,
+            "impressions": 10,
+            "ctr": 0.5,
+            "position": 1.2
+          },
+          {
+            "date": "2026-07-07",
+            "clicks": 4,
+            "impressions": 9,
+            "ctr": 0.444444,
+            "position": 6.333333
+          },
+          {
+            "date": "2026-07-08",
+            "clicks": 1,
+            "impressions": 9,
+            "ctr": 0.111111,
+            "position": 28.444444
+          },
+          {
+            "date": "2026-07-09",
+            "clicks": 2,
+            "impressions": 2,
+            "ctr": 1.0,
+            "position": 2.0
+          },
+          {
+            "date": "2026-07-10",
+            "clicks": 4,
+            "impressions": 7,
+            "ctr": 0.571429,
+            "position": 1.428571
+          },
+          {
+            "date": "2026-07-11",
+            "clicks": 8,
+            "impressions": 15,
+            "ctr": 0.533333,
+            "position": 2.8
+          },
+          {
+            "date": "2026-07-12",
+            "clicks": 4,
+            "impressions": 11,
+            "ctr": 0.363636,
+            "position": 3.0
+          },
+          {
+            "date": "2026-07-13",
+            "clicks": 4,
+            "impressions": 5,
+            "ctr": 0.8,
+            "position": 2.6
+          },
+          {
+            "date": "2026-07-14",
+            "clicks": 1,
+            "impressions": 10,
+            "ctr": 0.1,
+            "position": 1.8
+          },
+          {
+            "date": "2026-07-15",
+            "clicks": 2,
+            "impressions": 4,
+            "ctr": 0.5,
+            "position": 1.25
+          },
+          {
+            "date": "2026-07-16",
+            "clicks": 4,
+            "impressions": 39,
+            "ctr": 0.102564,
+            "position": 1.230769
+          },
+          {
+            "date": "2026-07-17",
+            "clicks": 2,
+            "impressions": 5,
+            "ctr": 0.4,
+            "position": 2.4
+          },
+          {
+            "date": "2026-07-18",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-19",
+            "clicks": 1,
+            "impressions": 11,
+            "ctr": 0.090909,
+            "position": 1.363636
+          },
+          {
+            "date": "2026-07-20",
+            "clicks": 4,
+            "impressions": 8,
+            "ctr": 0.5,
+            "position": 1.375
+          },
+          {
+            "date": "2026-07-21",
+            "clicks": 1,
+            "impressions": 4,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-22",
+            "clicks": 10,
+            "impressions": 29,
+            "ctr": 0.344828,
+            "position": 1.482759
+          },
+          {
+            "date": "2026-07-23",
+            "clicks": 0,
+            "impressions": 16,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-24",
+            "clicks": 2,
+            "impressions": 16,
+            "ctr": 0.125,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-25",
+            "clicks": 1,
+            "impressions": 16,
+            "ctr": 0.0625,
+            "position": 1.1875
+          },
+          {
+            "date": "2026-07-26",
+            "clicks": 3,
+            "impressions": 15,
+            "ctr": 0.2,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-27",
+            "clicks": 6,
+            "impressions": 10,
+            "ctr": 0.6,
+            "position": 4.0
+          },
+          {
+            "date": "2026-07-28",
+            "clicks": 2,
+            "impressions": 14,
+            "ctr": 0.142857,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-29",
+            "clicks": 2,
+            "impressions": 5,
+            "ctr": 0.4,
+            "position": 3.4
+          },
+          {
+            "date": "2026-07-30",
+            "clicks": 1,
+            "impressions": 4,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-31",
+            "clicks": 1,
+            "impressions": 7,
+            "ctr": 0.142857,
+            "position": 1.428571
+          },
+          {
+            "date": "2026-08-01",
+            "clicks": 3,
+            "impressions": 8,
+            "ctr": 0.375,
+            "position": 4.375
+          },
+          {
+            "date": "2026-08-02",
+            "clicks": 2,
+            "impressions": 13,
+            "ctr": 0.153846,
+            "position": 2.461538
+          },
+          {
+            "date": "2026-08-03",
+            "clicks": 5,
+            "impressions": 15,
+            "ctr": 0.333333,
+            "position": 9.866667
+          },
+          {
+            "date": "2026-08-04",
+            "clicks": 6,
+            "impressions": 17,
+            "ctr": 0.352941,
+            "position": 2.705882
+          }
+        ],
+        "daily": [
+          {
+            "date": "2026-07-06",
+            "clicks": 5,
+            "impressions": 10,
+            "ctr": 0.5,
+            "position": 1.2
+          },
+          {
+            "date": "2026-07-07",
+            "clicks": 4,
+            "impressions": 9,
+            "ctr": 0.444444,
+            "position": 6.333333
+          },
+          {
+            "date": "2026-07-08",
+            "clicks": 1,
+            "impressions": 9,
+            "ctr": 0.111111,
+            "position": 28.444444
+          },
+          {
+            "date": "2026-07-09",
+            "clicks": 2,
+            "impressions": 2,
+            "ctr": 1.0,
+            "position": 2.0
+          },
+          {
+            "date": "2026-07-10",
+            "clicks": 4,
+            "impressions": 7,
+            "ctr": 0.571429,
+            "position": 1.428571
+          },
+          {
+            "date": "2026-07-11",
+            "clicks": 8,
+            "impressions": 15,
+            "ctr": 0.533333,
+            "position": 2.8
+          },
+          {
+            "date": "2026-07-12",
+            "clicks": 4,
+            "impressions": 11,
+            "ctr": 0.363636,
+            "position": 3.0
+          },
+          {
+            "date": "2026-07-13",
+            "clicks": 4,
+            "impressions": 5,
+            "ctr": 0.8,
+            "position": 2.6
+          },
+          {
+            "date": "2026-07-14",
+            "clicks": 1,
+            "impressions": 10,
+            "ctr": 0.1,
+            "position": 1.8
+          },
+          {
+            "date": "2026-07-15",
+            "clicks": 2,
+            "impressions": 4,
+            "ctr": 0.5,
+            "position": 1.25
+          },
+          {
+            "date": "2026-07-16",
+            "clicks": 4,
+            "impressions": 39,
+            "ctr": 0.102564,
+            "position": 1.230769
+          },
+          {
+            "date": "2026-07-17",
+            "clicks": 2,
+            "impressions": 5,
+            "ctr": 0.4,
+            "position": 2.4
+          },
+          {
+            "date": "2026-07-18",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-19",
+            "clicks": 1,
+            "impressions": 11,
+            "ctr": 0.090909,
+            "position": 1.363636
+          },
+          {
+            "date": "2026-07-20",
+            "clicks": 4,
+            "impressions": 8,
+            "ctr": 0.5,
+            "position": 1.375
+          },
+          {
+            "date": "2026-07-21",
+            "clicks": 1,
+            "impressions": 4,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-22",
+            "clicks": 10,
+            "impressions": 29,
+            "ctr": 0.344828,
+            "position": 1.482759
+          },
+          {
+            "date": "2026-07-23",
+            "clicks": 0,
+            "impressions": 16,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-24",
+            "clicks": 2,
+            "impressions": 16,
+            "ctr": 0.125,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-25",
+            "clicks": 1,
+            "impressions": 16,
+            "ctr": 0.0625,
+            "position": 1.1875
+          },
+          {
+            "date": "2026-07-26",
+            "clicks": 3,
+            "impressions": 15,
+            "ctr": 0.2,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-27",
+            "clicks": 6,
+            "impressions": 10,
+            "ctr": 0.6,
+            "position": 4.0
+          },
+          {
+            "date": "2026-07-28",
+            "clicks": 2,
+            "impressions": 14,
+            "ctr": 0.142857,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-29",
+            "clicks": 2,
+            "impressions": 5,
+            "ctr": 0.4,
+            "position": 3.4
+          },
+          {
+            "date": "2026-07-30",
+            "clicks": 1,
+            "impressions": 4,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-31",
+            "clicks": 1,
+            "impressions": 7,
+            "ctr": 0.142857,
+            "position": 1.428571
+          },
+          {
+            "date": "2026-08-01",
+            "clicks": 3,
+            "impressions": 8,
+            "ctr": 0.375,
+            "position": 4.375
+          },
+          {
+            "date": "2026-08-02",
+            "clicks": 2,
+            "impressions": 13,
+            "ctr": 0.153846,
+            "position": 2.461538
+          },
+          {
+            "date": "2026-08-03",
+            "clicks": 5,
+            "impressions": 15,
+            "ctr": 0.333333,
+            "position": 9.866667
+          },
+          {
+            "date": "2026-08-04",
+            "clicks": 6,
+            "impressions": 17,
+            "ctr": 0.352941,
+            "position": 2.705882
+          }
+        ],
+        "daily_trend": [
+          {
+            "date": "2026-07-06",
+            "clicks": 5,
+            "impressions": 10,
+            "ctr": 0.5,
+            "position": 1.2
+          },
+          {
+            "date": "2026-07-07",
+            "clicks": 4,
+            "impressions": 9,
+            "ctr": 0.444444,
+            "position": 6.333333
+          },
+          {
+            "date": "2026-07-08",
+            "clicks": 1,
+            "impressions": 9,
+            "ctr": 0.111111,
+            "position": 28.444444
+          },
+          {
+            "date": "2026-07-09",
+            "clicks": 2,
+            "impressions": 2,
+            "ctr": 1.0,
+            "position": 2.0
+          },
+          {
+            "date": "2026-07-10",
+            "clicks": 4,
+            "impressions": 7,
+            "ctr": 0.571429,
+            "position": 1.428571
+          },
+          {
+            "date": "2026-07-11",
+            "clicks": 8,
+            "impressions": 15,
+            "ctr": 0.533333,
+            "position": 2.8
+          },
+          {
+            "date": "2026-07-12",
+            "clicks": 4,
+            "impressions": 11,
+            "ctr": 0.363636,
+            "position": 3.0
+          },
+          {
+            "date": "2026-07-13",
+            "clicks": 4,
+            "impressions": 5,
+            "ctr": 0.8,
+            "position": 2.6
+          },
+          {
+            "date": "2026-07-14",
+            "clicks": 1,
+            "impressions": 10,
+            "ctr": 0.1,
+            "position": 1.8
+          },
+          {
+            "date": "2026-07-15",
+            "clicks": 2,
+            "impressions": 4,
+            "ctr": 0.5,
+            "position": 1.25
+          },
+          {
+            "date": "2026-07-16",
+            "clicks": 4,
+            "impressions": 39,
+            "ctr": 0.102564,
+            "position": 1.230769
+          },
+          {
+            "date": "2026-07-17",
+            "clicks": 2,
+            "impressions": 5,
+            "ctr": 0.4,
+            "position": 2.4
+          },
+          {
+            "date": "2026-07-18",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-19",
+            "clicks": 1,
+            "impressions": 11,
+            "ctr": 0.090909,
+            "position": 1.363636
+          },
+          {
+            "date": "2026-07-20",
+            "clicks": 4,
+            "impressions": 8,
+            "ctr": 0.5,
+            "position": 1.375
+          },
+          {
+            "date": "2026-07-21",
+            "clicks": 1,
+            "impressions": 4,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-22",
+            "clicks": 10,
+            "impressions": 29,
+            "ctr": 0.344828,
+            "position": 1.482759
+          },
+          {
+            "date": "2026-07-23",
+            "clicks": 0,
+            "impressions": 16,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-24",
+            "clicks": 2,
+            "impressions": 16,
+            "ctr": 0.125,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-25",
+            "clicks": 1,
+            "impressions": 16,
+            "ctr": 0.0625,
+            "position": 1.1875
+          },
+          {
+            "date": "2026-07-26",
+            "clicks": 3,
+            "impressions": 15,
+            "ctr": 0.2,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-27",
+            "clicks": 6,
+            "impressions": 10,
+            "ctr": 0.6,
+            "position": 4.0
+          },
+          {
+            "date": "2026-07-28",
+            "clicks": 2,
+            "impressions": 14,
+            "ctr": 0.142857,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-29",
+            "clicks": 2,
+            "impressions": 5,
+            "ctr": 0.4,
+            "position": 3.4
+          },
+          {
+            "date": "2026-07-30",
+            "clicks": 1,
+            "impressions": 4,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-31",
+            "clicks": 1,
+            "impressions": 7,
+            "ctr": 0.142857,
+            "position": 1.428571
+          },
+          {
+            "date": "2026-08-01",
+            "clicks": 3,
+            "impressions": 8,
+            "ctr": 0.375,
+            "position": 4.375
+          },
+          {
+            "date": "2026-08-02",
+            "clicks": 2,
+            "impressions": 13,
+            "ctr": 0.153846,
+            "position": 2.461538
+          },
+          {
+            "date": "2026-08-03",
+            "clicks": 5,
+            "impressions": 15,
+            "ctr": 0.333333,
+            "position": 9.866667
+          },
+          {
+            "date": "2026-08-04",
+            "clicks": 6,
+            "impressions": 17,
+            "ctr": 0.352941,
+            "position": 2.705882
+          }
+        ],
+        "keywords": [
+          {
+            "query": "igor iptv",
+            "clicks": 25,
+            "impressions": 59,
+            "ctr": 0.423729,
+            "position": 3.050847
+          },
+          {
+            "query": "igor tv",
+            "clicks": 12,
+            "impressions": 25,
+            "ctr": 0.48,
+            "position": 5.56
+          }
+        ],
+        "queries": [
+          {
+            "query": "igor iptv",
+            "clicks": 25,
+            "impressions": 59,
+            "ctr": 0.423729,
+            "position": 3.050847
+          },
+          {
+            "query": "igor tv",
+            "clicks": 12,
+            "impressions": 25,
+            "ctr": 0.48,
+            "position": 5.56
+          }
+        ],
+        "pages": [
+          {
+            "page": "https://igoriptv2.com/",
+            "clicks": 84,
+            "impressions": 316,
+            "ctr": 0.265823,
+            "position": 3.088608
+          },
+          {
+            "page": "https://igoriptv2.com/blog",
+            "clicks": 4,
+            "impressions": 120,
+            "ctr": 0.033333,
+            "position": 3.616667
+          },
+          {
+            "page": "https://igoriptv2.com/blog/prueba-iptv-24-horas-que-comprobar",
+            "clicks": 2,
+            "impressions": 72,
+            "ctr": 0.027778,
+            "position": 3.902778
+          },
+          {
+            "page": "https://igoriptv2.com/blog/comprar-iptv-espana-antes-de-pagar",
+            "clicks": 1,
+            "impressions": 72,
+            "ctr": 0.013889,
+            "position": 4.555556
+          },
+          {
+            "page": "https://igoriptv2.com/blog/elegir-proveedor-iptv-espana",
+            "clicks": 1,
+            "impressions": 19,
+            "ctr": 0.052632,
+            "position": 3.263158
+          },
+          {
+            "page": "https://igoriptv2.com/blog/iptv-espana-premium-planes-3-6-12-meses",
+            "clicks": 1,
+            "impressions": 67,
+            "ctr": 0.014925,
+            "position": 4.761194
+          },
+          {
+            "page": "https://igoriptv2.com/blog/reducir-cortes-buffering-iptv-espana",
+            "clicks": 1,
+            "impressions": 11,
+            "ctr": 0.090909,
+            "position": 6.636364
+          },
+          {
+            "page": "https://www.igoriptv2.com/",
+            "clicks": 1,
+            "impressions": 2,
+            "ctr": 0.5,
+            "position": 2.5
+          },
+          {
+            "page": "https://igoriptv2.com/blog/iptv-varios-dispositivos-conexiones-simultaneas",
+            "clicks": 0,
+            "impressions": 14,
+            "ctr": 0.0,
+            "position": 5.0
+          },
+          {
+            "page": "https://igoriptv2.com/blog/iptv-wifi-o-ethernet-estabilidad",
+            "clicks": 0,
+            "impressions": 13,
+            "ctr": 0.0,
+            "position": 3.538462
+          },
+          {
+            "page": "https://igoriptv2.com/blog/mejor-iptv-espana-criterios-comparar",
+            "clicks": 0,
+            "impressions": 19,
+            "ctr": 0.0,
+            "position": 5.684211
+          },
+          {
+            "page": "https://igoriptv2.com/blog/velocidad-internet-iptv-hd-fhd-4k",
+            "clicks": 0,
+            "impressions": 12,
+            "ctr": 0.0,
+            "position": 9.75
+          }
+        ],
+        "countries": [
+          {
+            "country": "esp",
+            "clicks": 49,
+            "impressions": 101,
+            "ctr": 0.485149,
+            "position": 6.554455
+          },
+          {
+            "country": "hkg",
+            "clicks": 19,
+            "impressions": 54,
+            "ctr": 0.351852,
+            "position": 1.888889
+          },
+          {
+            "country": "usa",
+            "clicks": 12,
+            "impressions": 97,
+            "ctr": 0.123711,
+            "position": 1.103093
+          },
+          {
+            "country": "chn",
+            "clicks": 9,
+            "impressions": 19,
+            "ctr": 0.473684,
+            "position": 2.105263
+          },
+          {
+            "country": "sgp",
+            "clicks": 2,
+            "impressions": 24,
+            "ctr": 0.083333,
+            "position": 1.0
+          },
+          {
+            "country": "are",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 2.0
+          },
+          {
+            "country": "arm",
+            "clicks": 0,
+            "impressions": 8,
+            "ctr": 0.0,
+            "position": 1.375
+          },
+          {
+            "country": "aus",
+            "clicks": 0,
+            "impressions": 16,
+            "ctr": 0.0,
+            "position": 1.25
+          },
+          {
+            "country": "bol",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 5.0
+          },
+          {
+            "country": "jpn",
+            "clicks": 0,
+            "impressions": 3,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "country": "kor",
+            "clicks": 0,
+            "impressions": 8,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "country": "srb",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 9.0
+          }
+        ],
+        "devices": [
+          {
+            "device": "MOBILE",
+            "clicks": 55,
+            "impressions": 103,
+            "ctr": 0.533981,
+            "position": 4.0
+          },
+          {
+            "device": "DESKTOP",
+            "clicks": 34,
+            "impressions": 227,
+            "ctr": 0.14978,
+            "position": 2.515419
+          },
+          {
+            "device": "TABLET",
+            "clicks": 2,
+            "impressions": 4,
+            "ctr": 0.5,
+            "position": 3.0
+          }
+        ],
+        "query_page": []
+      },
+      "ga4": {
+        "data_status": "REAL",
+        "source": "GA4 Data API v1beta",
+        "data_window": "2026-07-30/2026-08-05",
+        "d0": "2026-08-05",
+        "d1": "2026-08-04",
+        "known_limitations": [
+          "按 hostName 精确过滤，不能与属性内其他 hostname 相加",
+          "小样本波动大",
+          "GA4 与 GSC 口径不同，不合并为总流量"
+        ],
+        "cross_validation": "hostName=igoriptv2.com 精确过滤",
+        "totals": {
+          "d0": {
+            "sessions": 9,
+            "users": 8,
+            "new_users": 4,
+            "engaged_sessions": 6,
+            "engagement_rate": 0.666667,
+            "page_views": 13,
+            "key_events": 0
+          },
+          "d1": {
+            "sessions": 17,
+            "users": 16,
+            "new_users": 13,
+            "engaged_sessions": 4,
+            "engagement_rate": 0.235294,
+            "page_views": 26,
+            "key_events": 0
+          },
+          "cur7": {
+            "sessions": 52,
+            "users": 37,
+            "new_users": 37,
+            "engaged_sessions": 19,
+            "engagement_rate": 0.365385,
+            "page_views": 71,
+            "key_events": 0
+          },
+          "prev7": null,
+          "cur30": {
+            "sessions": 52,
+            "users": 37,
+            "new_users": 37,
+            "engaged_sessions": 19,
+            "engagement_rate": 0.365385,
+            "page_views": 71,
+            "key_events": 0
+          },
+          "prev30": null
+        },
+        "kpis": {
+          "d0": {
+            "sessions": 9,
+            "users": 8,
+            "new_users": 4,
+            "engaged_sessions": 6,
+            "engagement_rate": 0.666667,
+            "page_views": 13,
+            "key_events": 0
+          },
+          "d1": {
+            "sessions": 17,
+            "users": 16,
+            "new_users": 13,
+            "engaged_sessions": 4,
+            "engagement_rate": 0.235294,
+            "page_views": 26,
+            "key_events": 0
+          },
+          "cur7": {
+            "sessions": 52,
+            "users": 37,
+            "new_users": 37,
+            "engaged_sessions": 19,
+            "engagement_rate": 0.365385,
+            "page_views": 71,
+            "key_events": 0
+          },
+          "prev7": null,
+          "cur30": {
+            "sessions": 52,
+            "users": 37,
+            "new_users": 37,
+            "engaged_sessions": 19,
+            "engagement_rate": 0.365385,
+            "page_views": 71,
+            "key_events": 0
+          },
+          "prev30": null
+        },
+        "countries": [
+          {
+            "country": "United States",
+            "sessions": 23,
+            "users": 23,
+            "new_users": 22,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 23,
+            "key_events": 0
+          },
+          {
+            "country": "Spain",
+            "sessions": 12,
+            "users": 8,
+            "new_users": 8,
+            "engaged_sessions": 9,
+            "engagement_rate": 0.75,
+            "page_views": 22,
+            "key_events": 0
+          },
+          {
+            "country": "Singapore",
+            "sessions": 8,
+            "users": 2,
+            "new_users": 2,
+            "engaged_sessions": 4,
+            "engagement_rate": 0.5,
+            "page_views": 14,
+            "key_events": 0
+          },
+          {
+            "country": "China",
+            "sessions": 7,
+            "users": 4,
+            "new_users": 4,
+            "engaged_sessions": 5,
+            "engagement_rate": 0.714286,
+            "page_views": 9,
+            "key_events": 0
+          },
+          {
+            "country": "(not set)",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "country": "Japan",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 2,
+            "key_events": 0
+          }
+        ],
+        "landing_pages": [
+          {
+            "landingPage": "/",
+            "sessions": 43,
+            "users": 34,
+            "new_users": 34,
+            "engaged_sessions": 12,
+            "engagement_rate": 0.27907,
+            "page_views": 54,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog",
+            "sessions": 2,
+            "users": 2,
+            "new_users": 0,
+            "engaged_sessions": 2,
+            "engagement_rate": 1.0,
+            "page_views": 8,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/comprar-iptv-espana-elegir-plan",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/comprar-iptv-espana-smart-tv",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/elegir-proveedor-iptv-espana",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-prueba-24-horas-checklist-dispositivos",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-varios-dispositivos-conexiones-simultaneas",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/prueba-iptv-estabilidad-horas-punta",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/velocidad-internet-iptv-hd-fhd-4k",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          }
+        ],
+        "pages": [
+          {
+            "landingPage": "/",
+            "sessions": 43,
+            "users": 34,
+            "new_users": 34,
+            "engaged_sessions": 12,
+            "engagement_rate": 0.27907,
+            "page_views": 54,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog",
+            "sessions": 2,
+            "users": 2,
+            "new_users": 0,
+            "engaged_sessions": 2,
+            "engagement_rate": 1.0,
+            "page_views": 8,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/comprar-iptv-espana-elegir-plan",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/comprar-iptv-espana-smart-tv",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/elegir-proveedor-iptv-espana",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-prueba-24-horas-checklist-dispositivos",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-varios-dispositivos-conexiones-simultaneas",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/prueba-iptv-estabilidad-horas-punta",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/velocidad-internet-iptv-hd-fhd-4k",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          }
+        ],
+        "devices": [
+          {
+            "deviceCategory": "mobile",
+            "sessions": 32,
+            "users": 29,
+            "new_users": 29,
+            "engaged_sessions": 5,
+            "engagement_rate": 0.15625,
+            "page_views": 35,
+            "key_events": 0
+          },
+          {
+            "deviceCategory": "desktop",
+            "sessions": 19,
+            "users": 7,
+            "new_users": 7,
+            "engaged_sessions": 13,
+            "engagement_rate": 0.684211,
+            "page_views": 34,
+            "key_events": 0
+          },
+          {
+            "deviceCategory": "tablet",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 2,
+            "key_events": 0
+          }
+        ],
+        "channels": [
+          {
+            "sessionDefaultChannelGroup": "Direct",
+            "sessions": 31,
+            "users": 27,
+            "new_users": 27,
+            "engaged_sessions": 6,
+            "engagement_rate": 0.193548,
+            "page_views": 32,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Organic Search",
+            "sessions": 21,
+            "users": 11,
+            "new_users": 10,
+            "engaged_sessions": 13,
+            "engagement_rate": 0.619048,
+            "page_views": 39,
+            "key_events": 0
+          }
+        ],
+        "sources": [
+          {
+            "sessionDefaultChannelGroup": "Direct",
+            "sessions": 31,
+            "users": 27,
+            "new_users": 27,
+            "engaged_sessions": 6,
+            "engagement_rate": 0.193548,
+            "page_views": 32,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Organic Search",
+            "sessions": 21,
+            "users": 11,
+            "new_users": 10,
+            "engaged_sessions": 13,
+            "engagement_rate": 0.619048,
+            "page_views": 39,
+            "key_events": 0
+          }
+        ],
+        "organic_7d": null
+      },
+      "psi": {
+        "data_status": "DEGRADED",
+        "source": "Google PageSpeed Insights API",
+        "data_window": "tested_at=DATA_UNAVAILABLE",
+        "known_limitations": [
+          "Lighthouse 实验室数据不是 CrUX 真实用户数据",
+          "TBT 不能替代真实用户 INP",
+          "存在重复 fetchTime，不视为完全独立实验"
+        ],
+        "cross_validation": "3 runs per strategy, median reported",
+        "mobile": {
+          "data_status": "DEGRADED",
+          "source": "Google PageSpeed Insights API",
+          "data_window": "tested_at=DATA_UNAVAILABLE",
+          "known_limitations": [
+            "Lighthouse 实验室数据不是 CrUX 真实用户数据",
+            "TBT 不能替代真实用户 INP",
+            "存在重复 fetchTime，不视为完全独立实验"
+          ],
+          "cross_validation": "3 runs · 2 unique fetchTime",
+          "performance": {
+            "score": 71.0
+          },
+          "score": 71.0,
+          "lcp_ms": 7407.1121,
+          "lcp": 7407.1121,
+          "fcp_ms": 2856.5969,
+          "fcp": 2856.5969,
+          "cls": 0.0147,
+          "tbt_ms": 91.0,
+          "tbt": 91.0,
+          "run_count": 3,
+          "unique_fetch_times": 2,
+          "payload_kb": 1267.47,
+          "runs": [
+            {
+              "ordinal": 1,
+              "fetch_time": "2026-08-06T16:43:27.337Z",
+              "performance": 71,
+              "lcp_ms": 7407.112103753405,
+              "fcp_ms": 2856.596918878961,
+              "cls": 0.01473748355673535,
+              "tbt_ms": 91.0
+            },
+            {
+              "ordinal": 2,
+              "fetch_time": "2026-08-06T16:43:27.337Z",
+              "performance": 71,
+              "lcp_ms": 7407.112103753405,
+              "fcp_ms": 2856.596918878961,
+              "cls": 0.01473748355673535,
+              "tbt_ms": 91.0
+            },
+            {
+              "ordinal": 3,
+              "fetch_time": "2026-08-06T16:43:43.189Z",
+              "performance": 71,
+              "lcp_ms": 7385.071819992736,
+              "fcp_ms": 2855.7053650419844,
+              "cls": 0.01473748355673535,
+              "tbt_ms": 63.0
+            }
+          ]
+        },
+        "desktop": {
+          "data_status": "DEGRADED",
+          "source": "Google PageSpeed Insights API",
+          "data_window": "tested_at=DATA_UNAVAILABLE",
+          "known_limitations": [
+            "Lighthouse 实验室数据不是 CrUX 真实用户数据",
+            "TBT 不能替代真实用户 INP",
+            "存在重复 fetchTime，不视为完全独立实验"
+          ],
+          "cross_validation": "3 runs · 2 unique fetchTime",
+          "performance": {
+            "score": 98.0
+          },
+          "score": 98.0,
+          "lcp_ms": 954.0226,
+          "lcp": 954.0226,
+          "fcp_ms": 726.2048,
+          "fcp": 726.2048,
+          "cls": 0.0001,
+          "tbt_ms": 8.5,
+          "tbt": 8.5,
+          "run_count": 3,
+          "unique_fetch_times": 2,
+          "payload_kb": 1267.35,
+          "runs": [
+            {
+              "ordinal": 1,
+              "fetch_time": "2026-08-06T16:43:43.582Z",
+              "performance": 95,
+              "lcp_ms": 1433.0862719331922,
+              "fcp_ms": 765.2089629903135,
+              "cls": 0.0001368272327532253,
+              "tbt_ms": 42.5
+            },
+            {
+              "ordinal": 2,
+              "fetch_time": "2026-08-06T16:43:55.995Z",
+              "performance": 98,
+              "lcp_ms": 954.0225901432378,
+              "fcp_ms": 726.2047632620483,
+              "cls": 0.0001368272327532253,
+              "tbt_ms": 8.5
+            },
+            {
+              "ordinal": 3,
+              "fetch_time": "2026-08-06T16:43:55.995Z",
+              "performance": 98,
+              "lcp_ms": 954.0225901432378,
+              "fcp_ms": 726.2047632620483,
+              "cls": 0.0001368272327532253,
+              "tbt_ms": 8.5
+            }
+          ]
+        }
+      },
+      "technical": {
+        "data_status": "UNAVAILABLE",
+        "source": "HTTPS crawl",
+        "data_window": "{}",
+        "known_limitations": [],
+        "cross_validation": "Direct crawl",
+        "sitemap_urls": 20,
+        "crawled_urls": 21,
+        "http_200": 21,
+        "canonical_conflicts": null,
+        "missing_titles": null,
+        "missing_descriptions": null,
+        "hreflang_issues": null,
+        "duplicate_title_groups": null,
+        "robots_status": null,
+        "sitemap_status": null,
+        "content": {
+          "total": 29,
+          "published": 18,
+          "scheduled": 11,
+          "draft": 0
+        },
+        "indexing": {
+          "source": "Google Search Console URL Inspection API first-party snapshot",
+          "data_status": "REAL",
+          "data_window": {
+            "snapshot_at": "2026-08-03T22:38:48+00:00"
+          },
+          "known_limitations": [
+            "Inspection covers the supplied sitemap/inventory URL set, not every possible URL.",
+            "Sitemap count is not used as indexed count."
+          ],
+          "cross_validation": "Each URL is hostname-validated before inclusion.",
+          "single_source_risk": true,
+          "inspected_urls": 20,
+          "verdict_counts": {
+            "PASS": 10,
+            "NEUTRAL": 10
+          },
+          "coverage_counts": {
+            "Enviada e indexada": 10,
+            "Descubierta: actualmente sin indexar": 9,
+            "Rastreada: actualmente sin indexar": 1
+          },
+          "rows": [
+            {
+              "url": "https://igoriptv2.com/",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-08-03T05:03:43Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-08-03T03:44:10Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/comprar-iptv-espana-smart-tv",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/reducir-cortes-buffering-iptv-espana",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-08-03T00:55:36Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/velocidad-internet-iptv-hd-fhd-4k",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-08-03T02:32:17Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/iptv-varios-dispositivos-conexiones-simultaneas",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-08-03T04:45:34Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/iptv-wifi-o-ethernet-estabilidad",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-08-01T07:41:21Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/mejor-iptv-espana-criterios-comparar",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-07-30T08:55:04Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/listas-iptv-espana-suscripcion-datos-acceso",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/iptv-smarters-pro-configuration-code",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/iptv-smarters-pro-firestick-instalar-usar",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/comprar-listas-iptv-que-recibes",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/elegir-proveedor-iptv-espana",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-07-31T11:12:30Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/iptv-espana-premium-planes-3-6-12-meses",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-07-31T07:25:09Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/prueba-iptv-24-horas-que-comprobar",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Rastreada: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-07-31T12:57:28Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/comprar-iptv-espana-antes-de-pagar",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-07-24T13:34:42Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/mejor-suscripci-n-listas-iptv-espa-a-2026",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/guia-completa-iptv-espana-2026",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/mejor-iptv-smart-tv-2025",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://igoriptv2.com/blog/que-es-iptv-guia-completa",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": null,
+              "page_fetch_state": null
+            }
+          ]
+        },
+        "suspected_broken_links": null
+      },
+      "inspection": {
+        "data_status": "UNAVAILABLE",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "report_date=2026-08-06",
+        "known_limitations": [
+          "今日未执行一号站巡检流程",
+          "大屏展示用 GSC/GA4/PSI 数据均为大屏自身采集，非巡检流程产物"
+        ],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "report_date": "2026-08-06",
+        "status": "UNAVAILABLE",
+        "summary": "今日未执行一号站完整巡检；GSC/GA4/PSI 数据可展示但未经巡检流程验证、归档和交付",
+        "progress_pct": 0,
+        "gates": [
+          {
+            "name": "GSC 采集",
+            "status": "UNAVAILABLE",
+            "reason": "巡检流程未执行；大屏自身采集的 GSC 数据存在但不等同于巡检交付"
+          },
+          {
+            "name": "GA4 采集",
+            "status": "UNAVAILABLE",
+            "reason": "巡检流程未执行"
+          },
+          {
+            "name": "PSI 采集",
+            "status": "UNAVAILABLE",
+            "reason": "巡检流程未执行"
+          },
+          {
+            "name": "技术 SEO crawl",
+            "status": "UNAVAILABLE",
+            "reason": "巡检流程未执行"
+          },
+          {
+            "name": "内容收录检查",
+            "status": "UNAVAILABLE",
+            "reason": "巡检流程未执行"
+          },
+          {
+            "name": "Asset Hub 归档",
+            "status": "UNAVAILABLE",
+            "reason": "今日无一号站巡检产物"
+          },
+          {
+            "name": "飞书文档交付",
+            "status": "UNAVAILABLE",
+            "reason": "今日无一号站巡检报告"
+          }
+        ],
+        "asset_id": null,
+        "asset_status": "UNAVAILABLE",
+        "feishu_url": null,
+        "feishu_status": "UNAVAILABLE"
+      },
+      "execution": {
+        "schedule": "Hermes Cron (external)",
+        "workflow": {
+          "data_status": "UNAVAILABLE",
+          "source": "DATA_UNAVAILABLE",
+          "data_window": "{}",
+          "known_limitations": [],
+          "cross_validation": "DATA_UNAVAILABLE",
+          "items": null,
+          "reason": null
+        },
+        "timeline": {
+          "data_status": "REAL",
+          "source": "DATA_UNAVAILABLE",
+          "data_window": "{}",
+          "known_limitations": [],
+          "cross_validation": "DATA_UNAVAILABLE",
+          "items": [],
+          "reason": null
+        }
+      },
+      "workflow": {
+        "data_status": "UNAVAILABLE",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "{}",
+        "known_limitations": [],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "items": null,
+        "reason": null
+      },
+      "timeline": {
+        "data_status": "REAL",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "{}",
+        "known_limitations": [],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "items": [],
+        "reason": null
+      },
+      "aeo": {
+        "data_status": "UNAVAILABLE",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "DATA_UNAVAILABLE",
+        "known_limitations": [
+          "aeo_visibility_monitor not configured with real probe"
+        ],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "reason": "AEO probe not yet deployed"
+      }
+    },
+    "mejorsiptv.shop": {
+      "site": {
+        "hostname": "mejorsiptv.shop",
+        "display_name": "mejorsiptv.shop",
+        "site_url": "https://mejorsiptv.shop",
+        "market": "Spain (ES)",
+        "timezone": "UTC"
+      },
+      "gsc": {
+        "data_status": "REAL",
+        "source": "Google Search Console Search Analytics API",
+        "data_window": "2026-07-06/2026-08-04",
+        "d0": "2026-08-04",
+        "d1": "2026-08-03",
+        "known_limitations": [
+          "GSC 通常延迟 2–3 日",
+          "查询与页面维度可能受隐私阈值影响",
+          "平均排名为展现加权均值，不是实测 SERP 排名",
+          "缺失日期不补零"
+        ],
+        "cross_validation": "单源，未经外部 SERP 交叉验证",
+        "single_source_risk": true,
+        "periods": {
+          "d0": {
+            "clicks": 1,
+            "impressions": 19,
+            "ctr": 0.052632,
+            "position": 37.947368
+          },
+          "d1": {
+            "clicks": 1,
+            "impressions": 14,
+            "ctr": 0.071429,
+            "position": 38.857143
+          },
+          "cur7": {
+            "clicks": 3,
+            "impressions": 61,
+            "ctr": 0.04918,
+            "position": 28.327869
+          },
+          "prev7": {
+            "clicks": 10,
+            "impressions": 161,
+            "ctr": 0.062112,
+            "position": 3.397516
+          },
+          "cur30": {
+            "clicks": 18,
+            "impressions": 258,
+            "ctr": 0.069767,
+            "position": 10.186047
+          },
+          "prev30": null
+        },
+        "kpis": {
+          "d0": {
+            "clicks": 1,
+            "impressions": 19,
+            "ctr": 0.052632,
+            "position": 37.947368
+          },
+          "d1": {
+            "clicks": 1,
+            "impressions": 14,
+            "ctr": 0.071429,
+            "position": 38.857143
+          },
+          "cur7": {
+            "clicks": 3,
+            "impressions": 61,
+            "ctr": 0.04918,
+            "position": 28.327869
+          },
+          "prev7": {
+            "clicks": 10,
+            "impressions": 161,
+            "ctr": 0.062112,
+            "position": 3.397516
+          },
+          "cur30": {
+            "clicks": 18,
+            "impressions": 258,
+            "ctr": 0.069767,
+            "position": 10.186047
+          },
+          "prev30": null
+        },
+        "trend": [
+          {
+            "date": "2026-07-10",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-11",
+            "clicks": 3,
+            "impressions": 3,
+            "ctr": 1.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-12",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-13",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-14",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-15",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-16",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-17",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-18",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-19",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 7.0
+          },
+          {
+            "date": "2026-07-20",
+            "clicks": 2,
+            "impressions": 24,
+            "ctr": 0.083333,
+            "position": 13.958333
+          },
+          {
+            "date": "2026-07-21",
+            "clicks": 0,
+            "impressions": 6,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-22",
+            "clicks": 3,
+            "impressions": 30,
+            "ctr": 0.1,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-23",
+            "clicks": 0,
+            "impressions": 21,
+            "ctr": 0.0,
+            "position": 8.714286
+          },
+          {
+            "date": "2026-07-24",
+            "clicks": 1,
+            "impressions": 18,
+            "ctr": 0.055556,
+            "position": 12.277778
+          },
+          {
+            "date": "2026-07-25",
+            "clicks": 0,
+            "impressions": 25,
+            "ctr": 0.0,
+            "position": 1.8
+          },
+          {
+            "date": "2026-07-26",
+            "clicks": 3,
+            "impressions": 41,
+            "ctr": 0.073171,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-27",
+            "clicks": 1,
+            "impressions": 6,
+            "ctr": 0.166667,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-28",
+            "clicks": 2,
+            "impressions": 20,
+            "ctr": 0.1,
+            "position": 1.05
+          },
+          {
+            "date": "2026-07-29",
+            "clicks": 1,
+            "impressions": 2,
+            "ctr": 0.5,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-30",
+            "clicks": 0,
+            "impressions": 6,
+            "ctr": 0.0,
+            "position": 23.833333
+          },
+          {
+            "date": "2026-07-31",
+            "clicks": 0,
+            "impressions": 3,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-08-01",
+            "clicks": 0,
+            "impressions": 10,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-08-02",
+            "clicks": 0,
+            "impressions": 7,
+            "ctr": 0.0,
+            "position": 43.571429
+          },
+          {
+            "date": "2026-08-03",
+            "clicks": 1,
+            "impressions": 14,
+            "ctr": 0.071429,
+            "position": 38.857143
+          },
+          {
+            "date": "2026-08-04",
+            "clicks": 1,
+            "impressions": 19,
+            "ctr": 0.052632,
+            "position": 37.947368
+          }
+        ],
+        "daily": [
+          {
+            "date": "2026-07-10",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-11",
+            "clicks": 3,
+            "impressions": 3,
+            "ctr": 1.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-12",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-13",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-14",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-15",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-16",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-17",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-18",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-19",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 7.0
+          },
+          {
+            "date": "2026-07-20",
+            "clicks": 2,
+            "impressions": 24,
+            "ctr": 0.083333,
+            "position": 13.958333
+          },
+          {
+            "date": "2026-07-21",
+            "clicks": 0,
+            "impressions": 6,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-22",
+            "clicks": 3,
+            "impressions": 30,
+            "ctr": 0.1,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-23",
+            "clicks": 0,
+            "impressions": 21,
+            "ctr": 0.0,
+            "position": 8.714286
+          },
+          {
+            "date": "2026-07-24",
+            "clicks": 1,
+            "impressions": 18,
+            "ctr": 0.055556,
+            "position": 12.277778
+          },
+          {
+            "date": "2026-07-25",
+            "clicks": 0,
+            "impressions": 25,
+            "ctr": 0.0,
+            "position": 1.8
+          },
+          {
+            "date": "2026-07-26",
+            "clicks": 3,
+            "impressions": 41,
+            "ctr": 0.073171,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-27",
+            "clicks": 1,
+            "impressions": 6,
+            "ctr": 0.166667,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-28",
+            "clicks": 2,
+            "impressions": 20,
+            "ctr": 0.1,
+            "position": 1.05
+          },
+          {
+            "date": "2026-07-29",
+            "clicks": 1,
+            "impressions": 2,
+            "ctr": 0.5,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-30",
+            "clicks": 0,
+            "impressions": 6,
+            "ctr": 0.0,
+            "position": 23.833333
+          },
+          {
+            "date": "2026-07-31",
+            "clicks": 0,
+            "impressions": 3,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-08-01",
+            "clicks": 0,
+            "impressions": 10,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-08-02",
+            "clicks": 0,
+            "impressions": 7,
+            "ctr": 0.0,
+            "position": 43.571429
+          },
+          {
+            "date": "2026-08-03",
+            "clicks": 1,
+            "impressions": 14,
+            "ctr": 0.071429,
+            "position": 38.857143
+          },
+          {
+            "date": "2026-08-04",
+            "clicks": 1,
+            "impressions": 19,
+            "ctr": 0.052632,
+            "position": 37.947368
+          }
+        ],
+        "daily_trend": [
+          {
+            "date": "2026-07-10",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-11",
+            "clicks": 3,
+            "impressions": 3,
+            "ctr": 1.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-12",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-13",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-14",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-15",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-16",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-17",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-18",
+            "clicks": 0,
+            "impressions": 0,
+            "ctr": 0.0,
+            "position": null
+          },
+          {
+            "date": "2026-07-19",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 7.0
+          },
+          {
+            "date": "2026-07-20",
+            "clicks": 2,
+            "impressions": 24,
+            "ctr": 0.083333,
+            "position": 13.958333
+          },
+          {
+            "date": "2026-07-21",
+            "clicks": 0,
+            "impressions": 6,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-22",
+            "clicks": 3,
+            "impressions": 30,
+            "ctr": 0.1,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-23",
+            "clicks": 0,
+            "impressions": 21,
+            "ctr": 0.0,
+            "position": 8.714286
+          },
+          {
+            "date": "2026-07-24",
+            "clicks": 1,
+            "impressions": 18,
+            "ctr": 0.055556,
+            "position": 12.277778
+          },
+          {
+            "date": "2026-07-25",
+            "clicks": 0,
+            "impressions": 25,
+            "ctr": 0.0,
+            "position": 1.8
+          },
+          {
+            "date": "2026-07-26",
+            "clicks": 3,
+            "impressions": 41,
+            "ctr": 0.073171,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-27",
+            "clicks": 1,
+            "impressions": 6,
+            "ctr": 0.166667,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-28",
+            "clicks": 2,
+            "impressions": 20,
+            "ctr": 0.1,
+            "position": 1.05
+          },
+          {
+            "date": "2026-07-29",
+            "clicks": 1,
+            "impressions": 2,
+            "ctr": 0.5,
+            "position": 1.0
+          },
+          {
+            "date": "2026-07-30",
+            "clicks": 0,
+            "impressions": 6,
+            "ctr": 0.0,
+            "position": 23.833333
+          },
+          {
+            "date": "2026-07-31",
+            "clicks": 0,
+            "impressions": 3,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-08-01",
+            "clicks": 0,
+            "impressions": 10,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "date": "2026-08-02",
+            "clicks": 0,
+            "impressions": 7,
+            "ctr": 0.0,
+            "position": 43.571429
+          },
+          {
+            "date": "2026-08-03",
+            "clicks": 1,
+            "impressions": 14,
+            "ctr": 0.071429,
+            "position": 38.857143
+          },
+          {
+            "date": "2026-08-04",
+            "clicks": 1,
+            "impressions": 19,
+            "ctr": 0.052632,
+            "position": 37.947368
+          }
+        ],
+        "keywords": [
+          {
+            "query": "iptv prueba",
+            "clicks": 2,
+            "impressions": 6,
+            "ctr": 0.333333,
+            "position": 23.666667
+          },
+          {
+            "query": "comprariptv",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 60.0
+          },
+          {
+            "query": "contratar iptv españa legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 11.0
+          },
+          {
+            "query": "el mejor iptv",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 81.0
+          },
+          {
+            "query": "hola iptv es legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 64.0
+          },
+          {
+            "query": "ip tv legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 74.0
+          },
+          {
+            "query": "iptv de pago españa legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 51.0
+          },
+          {
+            "query": "iptv de prueba",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 28.0
+          },
+          {
+            "query": "iptv españa mejor",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 69.0
+          },
+          {
+            "query": "iptv españa sin cortes",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 49.0
+          },
+          {
+            "query": "iptv legales españa",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 14.5
+          },
+          {
+            "query": "iptv listas m3u gratis",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 8.0
+          },
+          {
+            "query": "iptv mejor",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 73.5
+          },
+          {
+            "query": "iptv premium españa",
+            "clicks": 0,
+            "impressions": 3,
+            "ctr": 0.0,
+            "position": 55.333333
+          },
+          {
+            "query": "iptv prueba gratuita",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 30.0
+          },
+          {
+            "query": "iptvfiesta trial",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 9.0
+          },
+          {
+            "query": "iptvspain",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 59.0
+          },
+          {
+            "query": "la mejor suscripcion iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 67.0
+          },
+          {
+            "query": "listas m3u",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 85.0
+          },
+          {
+            "query": "mejor iptv",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 78.5
+          },
+          {
+            "query": "mejor iptv de pago",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 63.0
+          },
+          {
+            "query": "mejor iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 65.0
+          },
+          {
+            "query": "mejor proveedor iptv españa",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 69.0
+          },
+          {
+            "query": "mejor suscripcion iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 63.0
+          },
+          {
+            "query": "mejor suscripción iptv",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 68.0
+          },
+          {
+            "query": "premium iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 57.0
+          },
+          {
+            "query": "prueba de iptv",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 27.0
+          },
+          {
+            "query": "prueba gratis iptv",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 28.0
+          },
+          {
+            "query": "prueba iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 30.0
+          },
+          {
+            "query": "prueba iptv gratis",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 30.0
+          }
+        ],
+        "queries": [
+          {
+            "query": "iptv prueba",
+            "clicks": 2,
+            "impressions": 6,
+            "ctr": 0.333333,
+            "position": 23.666667
+          },
+          {
+            "query": "comprariptv",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 60.0
+          },
+          {
+            "query": "contratar iptv españa legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 11.0
+          },
+          {
+            "query": "el mejor iptv",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 81.0
+          },
+          {
+            "query": "hola iptv es legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 64.0
+          },
+          {
+            "query": "ip tv legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 74.0
+          },
+          {
+            "query": "iptv de pago españa legal",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 51.0
+          },
+          {
+            "query": "iptv de prueba",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 28.0
+          },
+          {
+            "query": "iptv españa mejor",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 69.0
+          },
+          {
+            "query": "iptv españa sin cortes",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 49.0
+          },
+          {
+            "query": "iptv legales españa",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 14.5
+          },
+          {
+            "query": "iptv listas m3u gratis",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 8.0
+          },
+          {
+            "query": "iptv mejor",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 73.5
+          },
+          {
+            "query": "iptv premium españa",
+            "clicks": 0,
+            "impressions": 3,
+            "ctr": 0.0,
+            "position": 55.333333
+          },
+          {
+            "query": "iptv prueba gratuita",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 30.0
+          },
+          {
+            "query": "iptvfiesta trial",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 9.0
+          },
+          {
+            "query": "iptvspain",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 59.0
+          },
+          {
+            "query": "la mejor suscripcion iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 67.0
+          },
+          {
+            "query": "listas m3u",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 85.0
+          },
+          {
+            "query": "mejor iptv",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 78.5
+          },
+          {
+            "query": "mejor iptv de pago",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 63.0
+          },
+          {
+            "query": "mejor iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 65.0
+          },
+          {
+            "query": "mejor proveedor iptv españa",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 69.0
+          },
+          {
+            "query": "mejor suscripcion iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 63.0
+          },
+          {
+            "query": "mejor suscripción iptv",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 68.0
+          },
+          {
+            "query": "premium iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 57.0
+          },
+          {
+            "query": "prueba de iptv",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 27.0
+          },
+          {
+            "query": "prueba gratis iptv",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 28.0
+          },
+          {
+            "query": "prueba iptv españa",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 30.0
+          },
+          {
+            "query": "prueba iptv gratis",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 30.0
+          }
+        ],
+        "pages": [
+          {
+            "page": "https://mejorsiptv.shop/",
+            "clicks": 13,
+            "impressions": 235,
+            "ctr": 0.055319,
+            "position": 8.148936
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/iptv-prueba",
+            "clicks": 4,
+            "impressions": 206,
+            "ctr": 0.019417,
+            "position": 4.019417
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/que-es-iptv-guia-completa",
+            "clicks": 2,
+            "impressions": 114,
+            "ctr": 0.017544,
+            "position": 6.675439
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/listas-iptv-espana-legales",
+            "clicks": 1,
+            "impressions": 130,
+            "ctr": 0.007692,
+            "position": 6.038462
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog",
+            "clicks": 0,
+            "impressions": 144,
+            "ctr": 0.0,
+            "position": 2.736111
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/guia-completa-iptv-espana-2026",
+            "clicks": 0,
+            "impressions": 91,
+            "ctr": 0.0,
+            "position": 5.131868
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/iptv-smart-tv-samsung",
+            "clicks": 0,
+            "impressions": 55,
+            "ctr": 0.0,
+            "position": 4.709091
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/mejor-app-iptv-comparativa",
+            "clicks": 0,
+            "impressions": 16,
+            "ctr": 0.0,
+            "position": 4.25
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/mejor-reproductor-iptv",
+            "clicks": 0,
+            "impressions": 4,
+            "ctr": 0.0,
+            "position": 4.0
+          },
+          {
+            "page": "https://mejorsiptv.shop/blog/mejores-iptv-espana",
+            "clicks": 0,
+            "impressions": 19,
+            "ctr": 0.0,
+            "position": 4.0
+          }
+        ],
+        "countries": [
+          {
+            "country": "usa",
+            "clicks": 6,
+            "impressions": 152,
+            "ctr": 0.039474,
+            "position": 1.868421
+          },
+          {
+            "country": "hkg",
+            "clicks": 4,
+            "impressions": 14,
+            "ctr": 0.285714,
+            "position": 1.0
+          },
+          {
+            "country": "sgp",
+            "clicks": 4,
+            "impressions": 33,
+            "ctr": 0.121212,
+            "position": 1.0
+          },
+          {
+            "country": "jpn",
+            "clicks": 3,
+            "impressions": 12,
+            "ctr": 0.25,
+            "position": 1.0
+          },
+          {
+            "country": "esp",
+            "clicks": 1,
+            "impressions": 41,
+            "ctr": 0.02439,
+            "position": 51.463415
+          },
+          {
+            "country": "and",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 9.0
+          },
+          {
+            "country": "arg",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 85.0
+          },
+          {
+            "country": "chl",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 7.0
+          },
+          {
+            "country": "chn",
+            "clicks": 0,
+            "impressions": 2,
+            "ctr": 0.0,
+            "position": 1.0
+          },
+          {
+            "country": "mex",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 72.0
+          }
+        ],
+        "devices": [
+          {
+            "device": "DESKTOP",
+            "clicks": 11,
+            "impressions": 230,
+            "ctr": 0.047826,
+            "position": 9.095652
+          },
+          {
+            "device": "MOBILE",
+            "clicks": 7,
+            "impressions": 27,
+            "ctr": 0.259259,
+            "position": 16.814815
+          },
+          {
+            "device": "TABLET",
+            "clicks": 0,
+            "impressions": 1,
+            "ctr": 0.0,
+            "position": 82.0
+          }
+        ],
+        "query_page": []
+      },
+      "ga4": {
+        "data_status": "REAL",
+        "source": "GA4 Data API v1beta",
+        "data_window": "2026-07-30/2026-08-05",
+        "d0": "2026-08-05",
+        "d1": "2026-08-04",
+        "known_limitations": [
+          "按 hostName 精确过滤，不能与属性内其他 hostname 相加",
+          "小样本波动大",
+          "GA4 与 GSC 口径不同，不合并为总流量"
+        ],
+        "cross_validation": "hostName=mejorsiptv.shop 精确过滤",
+        "totals": {
+          "d0": {
+            "sessions": 10,
+            "users": 6,
+            "new_users": 4,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 11,
+            "key_events": 0
+          },
+          "d1": {
+            "sessions": 4,
+            "users": 4,
+            "new_users": 3,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.25,
+            "page_views": 6,
+            "key_events": 0
+          },
+          "cur7": {
+            "sessions": 26,
+            "users": 18,
+            "new_users": 17,
+            "engaged_sessions": 3,
+            "engagement_rate": 0.115385,
+            "page_views": 48,
+            "key_events": 0
+          },
+          "prev7": null,
+          "cur30": {
+            "sessions": 26,
+            "users": 18,
+            "new_users": 17,
+            "engaged_sessions": 3,
+            "engagement_rate": 0.115385,
+            "page_views": 48,
+            "key_events": 0
+          },
+          "prev30": null
+        },
+        "kpis": {
+          "d0": {
+            "sessions": 10,
+            "users": 6,
+            "new_users": 4,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 11,
+            "key_events": 0
+          },
+          "d1": {
+            "sessions": 4,
+            "users": 4,
+            "new_users": 3,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.25,
+            "page_views": 6,
+            "key_events": 0
+          },
+          "cur7": {
+            "sessions": 26,
+            "users": 18,
+            "new_users": 17,
+            "engaged_sessions": 3,
+            "engagement_rate": 0.115385,
+            "page_views": 48,
+            "key_events": 0
+          },
+          "prev7": null,
+          "cur30": {
+            "sessions": 26,
+            "users": 18,
+            "new_users": 17,
+            "engaged_sessions": 3,
+            "engagement_rate": 0.115385,
+            "page_views": 48,
+            "key_events": 0
+          },
+          "prev30": null
+        },
+        "countries": [
+          {
+            "country": "United States",
+            "sessions": 12,
+            "users": 12,
+            "new_users": 10,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 11,
+            "key_events": 0
+          },
+          {
+            "country": "Singapore",
+            "sessions": 6,
+            "users": 2,
+            "new_users": 2,
+            "engaged_sessions": 2,
+            "engagement_rate": 0.333333,
+            "page_views": 27,
+            "key_events": 0
+          },
+          {
+            "country": "Japan",
+            "sessions": 3,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "country": "(not set)",
+            "sessions": 2,
+            "users": 2,
+            "new_users": 2,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "country": "Belarus",
+            "sessions": 2,
+            "users": 2,
+            "new_users": 2,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 2,
+            "key_events": 0
+          },
+          {
+            "country": "China",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 3,
+            "key_events": 0
+          },
+          {
+            "country": "Netherlands",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 1,
+            "key_events": 0
+          }
+        ],
+        "landing_pages": [
+          {
+            "landingPage": "/",
+            "sessions": 18,
+            "users": 12,
+            "new_users": 12,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 32,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/mejor-iptv-ranking-2026",
+            "sessions": 4,
+            "users": 4,
+            "new_users": 4,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.25,
+            "page_views": 4,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 3,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-espana-guia-completa",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 3,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-prueba",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 6,
+            "key_events": 0
+          }
+        ],
+        "pages": [
+          {
+            "landingPage": "/",
+            "sessions": 18,
+            "users": 12,
+            "new_users": 12,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 32,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/mejor-iptv-ranking-2026",
+            "sessions": 4,
+            "users": 4,
+            "new_users": 4,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.25,
+            "page_views": 4,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 3,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-espana-guia-completa",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 3,
+            "key_events": 0
+          },
+          {
+            "landingPage": "/blog/iptv-prueba",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 0,
+            "engaged_sessions": 1,
+            "engagement_rate": 1.0,
+            "page_views": 6,
+            "key_events": 0
+          }
+        ],
+        "devices": [
+          {
+            "deviceCategory": "desktop",
+            "sessions": 18,
+            "users": 10,
+            "new_users": 10,
+            "engaged_sessions": 2,
+            "engagement_rate": 0.111111,
+            "page_views": 39,
+            "key_events": 0
+          },
+          {
+            "deviceCategory": "mobile",
+            "sessions": 8,
+            "users": 8,
+            "new_users": 7,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.125,
+            "page_views": 9,
+            "key_events": 0
+          }
+        ],
+        "channels": [
+          {
+            "sessionDefaultChannelGroup": "Direct",
+            "sessions": 14,
+            "users": 14,
+            "new_users": 14,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.071429,
+            "page_views": 14,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Organic Search",
+            "sessions": 9,
+            "users": 3,
+            "new_users": 2,
+            "engaged_sessions": 2,
+            "engagement_rate": 0.222222,
+            "page_views": 16,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Unassigned",
+            "sessions": 5,
+            "users": 3,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 17,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Referral",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          }
+        ],
+        "sources": [
+          {
+            "sessionDefaultChannelGroup": "Direct",
+            "sessions": 14,
+            "users": 14,
+            "new_users": 14,
+            "engaged_sessions": 1,
+            "engagement_rate": 0.071429,
+            "page_views": 14,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Organic Search",
+            "sessions": 9,
+            "users": 3,
+            "new_users": 2,
+            "engaged_sessions": 2,
+            "engagement_rate": 0.222222,
+            "page_views": 16,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Unassigned",
+            "sessions": 5,
+            "users": 3,
+            "new_users": 0,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 17,
+            "key_events": 0
+          },
+          {
+            "sessionDefaultChannelGroup": "Referral",
+            "sessions": 1,
+            "users": 1,
+            "new_users": 1,
+            "engaged_sessions": 0,
+            "engagement_rate": 0.0,
+            "page_views": 1,
+            "key_events": 0
+          }
+        ],
+        "organic_7d": null
+      },
+      "psi": {
+        "data_status": "DEGRADED",
+        "source": "Google PageSpeed Insights API",
+        "data_window": "tested_at=2026-08-06T14:02:17.888890+00:00",
+        "known_limitations": [
+          "Desktop high variance (76 vs 95)",
+          "Repeated fetchTime on some runs"
+        ],
+        "cross_validation": "3 runs per strategy, median reported",
+        "mobile": {
+          "data_status": "REAL",
+          "source": "Google PageSpeed Insights API",
+          "data_window": "tested_at=2026-08-06T14:02:20.192Z",
+          "known_limitations": [],
+          "cross_validation": "3 runs · 1 unique fetchTime",
+          "performance": {
+            "score": 76
+          },
+          "score": 76,
+          "lcp_ms": 4996.027288228527,
+          "lcp": 4996.027288228527,
+          "fcp_ms": 2855.202624130851,
+          "fcp": 2855.202624130851,
+          "cls": 0.001449781293632713,
+          "tbt_ms": 91,
+          "tbt": 91,
+          "run_count": 3,
+          "unique_fetch_times": 1,
+          "payload_kb": 975.1943359375
+        },
+        "desktop": {
+          "data_status": "REAL",
+          "source": "Google PageSpeed Insights API",
+          "data_window": "tested_at=2026-08-06T14:02:39.639Z",
+          "known_limitations": [
+            "High variance across runs"
+          ],
+          "cross_validation": "3 runs · 2 unique fetchTime",
+          "performance": {
+            "score": 95
+          },
+          "score": 95,
+          "lcp_ms": 1055.0548020248648,
+          "lcp": 1055.0548020248648,
+          "fcp_ms": 727.7087835689176,
+          "fcp": 727.7087835689176,
+          "cls": 0.0001338259185821935,
+          "tbt_ms": 116.82695688208116,
+          "tbt": 116.82695688208116,
+          "run_count": 3,
+          "unique_fetch_times": 2,
+          "payload_kb": 975.30078125
+        }
+      },
+      "technical": {
+        "data_status": "UNAVAILABLE",
+        "source": "HTTPS crawl",
+        "data_window": "{}",
+        "known_limitations": [],
+        "cross_validation": "Direct crawl",
+        "sitemap_urls": 39,
+        "crawled_urls": 39,
+        "http_200": 39,
+        "canonical_conflicts": null,
+        "missing_titles": null,
+        "missing_descriptions": null,
+        "hreflang_issues": null,
+        "duplicate_title_groups": null,
+        "robots_status": 200,
+        "sitemap_status": 200,
+        "content": {
+          "source": "Two first-party read-only CMS snapshots",
+          "data_status": "DISPUTED",
+          "data_window": {
+            "snapshot_a": "2026-08-04T16:34:55.698317+00:00",
+            "snapshot_b": "2026-08-06T14:03:47.331137+00:00"
+          },
+          "known_limitations": [
+            "The later query returned only 13 rows while the earlier inventory returned 40 rows; query scope/completeness is unresolved."
+          ],
+          "cross_validation": "Snapshot disagreement is displayed without averaging or picking a winner.",
+          "single_source_risk": false,
+          "status_reason": "CMS row-count conflict: 40 versus 13.",
+          "claims": [
+            {
+              "source_label": "full CMS inventory snapshot",
+              "total": 40,
+              "published": 34,
+              "scheduled": 5,
+              "draft": 1
+            },
+            {
+              "source_label": "later limited CMS query",
+              "total": 13,
+              "published": 11,
+              "scheduled": 0,
+              "draft": 2
+            }
+          ],
+          "resolved_total": null,
+          "resolved_published": null,
+          "resolved_scheduled": null,
+          "resolved_draft": null
+        },
+        "indexing": {
+          "source": "Google Search Console URL Inspection API first-party snapshot",
+          "data_status": "REAL",
+          "data_window": {
+            "snapshot_at": "2026-08-04T16:34:55.698317+00:00"
+          },
+          "known_limitations": [
+            "Inspection covers the supplied sitemap/inventory URL set, not every possible URL.",
+            "Sitemap count is not used as indexed count."
+          ],
+          "cross_validation": "Each URL is hostname-validated before inclusion.",
+          "single_source_risk": true,
+          "inspected_urls": 37,
+          "verdict_counts": {
+            "PASS": 8,
+            "NEUTRAL": 29
+          },
+          "coverage_counts": {
+            "Enviada e indexada": 8,
+            "Descubierta: actualmente sin indexar": 23,
+            "Google no reconoce esta URL": 6
+          },
+          "rows": [
+            {
+              "url": "https://mejorsiptv.shop/",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-08-01T21:51:33Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-07-23T09:09:45Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/mejor-reproductor-iptv",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-07-29T21:48:52Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-legal-espana",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/ver-la-liga-iptv",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/mejor-app-iptv-comparativa",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": null,
+              "robots_txt_state": null,
+              "last_crawl_time": "2026-07-29T23:13:45Z",
+              "page_fetch_state": null
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/instalar-iptv-fire-tv-stick",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/mejor-iptv-espana-2026-ranking",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Google no reconoce esta URL",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/listas-iptv-espana-legales-actualizadas",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/prueba-iptv-gratis-comparativa",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Google no reconoce esta URL",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-de-pago-espana-2026",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-espana-guia-completa",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/mejor-iptv-ranking-2026",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/como-elegir-mejor-iptv-espana",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/listas-m3u-iptv-guia",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/ver-futbol-iptv-riesgos-gratis",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/mejor-app-iptv-samsung-smart-tv",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/como-cargar-lista-m3u",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/como-configurar-iptv-smart-tv-guia",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/prueba-iptv-comparativa-duracion",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Google no reconoce esta URL",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/como-conseguir-prueba-iptv-gratis",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-espana-top20",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/mejores-iptv-espana",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-07-27T17:56:01Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-futbol-espana",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-smart-tv-samsung",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-07-27T11:40:59Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/que-es-lista-m3u",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/prueba-iptv-48-horas",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-prueba-gratis-24-horas",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/sobre-mejors-iptv",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/guia-compra-iptv-espana",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-espana",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/comprar-iptv",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Descubierta: actualmente sin indexar",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/listas-iptv",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Google no reconoce esta URL",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/listas-iptv-espana-legales",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-07-23T06:39:42Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-smarters-pro-firestick-instalar-usar",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Google no reconoce esta URL",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-prueba",
+              "verdict": "PASS",
+              "coverage_state": "Enviada e indexada",
+              "indexing_state": "INDEXING_ALLOWED",
+              "robots_txt_state": "ALLOWED",
+              "last_crawl_time": "2026-07-19T04:08:29Z",
+              "page_fetch_state": "SUCCESSFUL"
+            },
+            {
+              "url": "https://mejorsiptv.shop/blog/iptv-smarters-pro-configuration-code",
+              "verdict": "NEUTRAL",
+              "coverage_state": "Google no reconoce esta URL",
+              "indexing_state": "INDEXING_STATE_UNSPECIFIED",
+              "robots_txt_state": "ROBOTS_TXT_STATE_UNSPECIFIED",
+              "last_crawl_time": null,
+              "page_fetch_state": "PAGE_FETCH_STATE_UNSPECIFIED"
+            }
+          ]
+        },
+        "suspected_broken_links": null
+      },
+      "inspection": {
+        "data_status": "COMPLETE_WITH_DEGRADED",
+        "source": "SEO 日巡检流程 + Asset Hub + 飞书文档回读",
+        "data_window": "report_date=2026-08-06",
+        "known_limitations": [
+          "PSI Desktop 存在方差(76-95)",
+          "技术 crawl 为单次轻量扫描"
+        ],
+        "cross_validation": "GSC API + GA4 API + PSI API 第一方直采；飞书文档已回读确认",
+        "report_date": "2026-08-06",
+        "status": "COMPLETE_WITH_DEGRADED",
+        "summary": "GSC/GA4/PSI/技术/内容全部采集完成；飞书巡检报告已创建并回读验证；Asset Hub 已归档",
+        "progress_pct": 86,
+        "gates": [
+          {
+            "name": "GSC 采集",
+            "status": "COMPLETE",
+            "reason": "D0=2026-08-04, clicks=1, impressions=19, 30日趋势完整"
+          },
+          {
+            "name": "GA4 采集",
+            "status": "COMPLETE",
+            "reason": "D0=2026-08-05, hostName=mejorsiptv.shop 精确过滤, 7个国家/5个落地页"
+          },
+          {
+            "name": "PSI 采集",
+            "status": "COMPLETE_WITH_DEGRADED",
+            "reason": "Mobile=76, Desktop=95(高方差76-95), 3次测试中位数, Desktop重复fetchTime"
+          },
+          {
+            "name": "技术 SEO crawl",
+            "status": "COMPLETE",
+            "reason": "robots=200, sitemap=200, canonical正常"
+          },
+          {
+            "name": "内容收录检查",
+            "status": "COMPLETE_WITH_DISPUTE",
+            "reason": "Published数量存在两个快照分歧(13 vs 40), 已标DISPUTED不裁决"
+          },
+          {
+            "name": "Asset Hub 归档",
+            "status": "COMPLETE",
+            "reason": "asset_id=seo/report/2026-08/daily-diagnosis-spain2-mejorsiptv.shop-2026-08-06, exists=true, data_status=REAL"
+          },
+          {
+            "name": "飞书文档交付",
+            "status": "COMPLETE",
+            "reason": "飞书文档已创建, 标题/10章节/GSC/GA4/PSI/技术/收录/工作流状态均已回读验证"
+          }
+        ],
+        "asset_id": "seo/report/2026-08/daily-diagnosis-spain2-mejorsiptv.shop-2026-08-06",
+        "asset_status": "COMPLETE",
+        "feishu_url": "https://icnxbkdjuzio.feishu.cn/docx/KVTUdCB60ov5THxMRzdcORr3n8f",
+        "feishu_status": "COMPLETE"
+      },
+      "execution": {
+        "schedule": "Hermes Cron (external)",
+        "workflow": {
+          "data_status": "UNAVAILABLE",
+          "source": "DATA_UNAVAILABLE",
+          "data_window": "{}",
+          "known_limitations": [],
+          "cross_validation": "DATA_UNAVAILABLE",
+          "items": null,
+          "reason": null
+        },
+        "timeline": {
+          "data_status": "REAL",
+          "source": "DATA_UNAVAILABLE",
+          "data_window": "{}",
+          "known_limitations": [],
+          "cross_validation": "DATA_UNAVAILABLE",
+          "items": [],
+          "reason": null
+        }
+      },
+      "workflow": {
+        "data_status": "UNAVAILABLE",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "{}",
+        "known_limitations": [],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "items": null,
+        "reason": null
+      },
+      "timeline": {
+        "data_status": "REAL",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "{}",
+        "known_limitations": [],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "items": [],
+        "reason": null
+      },
+      "aeo": {
+        "data_status": "UNAVAILABLE",
+        "source": "DATA_UNAVAILABLE",
+        "data_window": "DATA_UNAVAILABLE",
+        "known_limitations": [
+          "aeo_visibility_monitor not configured with real probe"
+        ],
+        "cross_validation": "DATA_UNAVAILABLE",
+        "reason": "AEO probe not yet deployed"
+      }
+    }
+  }
+}

@@ -18,6 +18,16 @@ seoagents/dashboard/static/app/
 *.tsbuildinfo
 Docs/*.json
 
+# Backups (local only)
+backups/
+*.bak
+*.bak-*
+
+# Runtime databases
+*.db
+*.db-wal
+*.db-shm
+
 # local dev virtualenvs
 .venv*/
 venv/

@@ -30,6 +30,7 @@ def _now() -> str:
 class NodeState(str, Enum):
     PENDING = "PENDING"                   # dependencies unmet
     READY = "READY"                       # dependencies met, not started
+    DISPATCHING = "DISPATCHING"           # durable claim held; submit outcome pending
     RUNNING = "RUNNING"
     WAITING_EXTERNAL = "WAITING_EXTERNAL"  # dept_request out, awaiting delivery
     WAITING_HUMAN = "WAITING_HUMAN"
@@ -45,6 +46,7 @@ class NodeState(str, Enum):
 class InstanceStatus(str, Enum):
     PENDING = "PENDING"
     RUNNING = "RUNNING"
+    PAUSED = "PAUSED"
     BLOCKED = "BLOCKED"
     DONE = "DONE"
     FAILED = "FAILED"
@@ -63,6 +65,12 @@ class NodeRun:
     error: str = ""
     external_request_id: str = ""     # links to the collab inbox/outbox record
     attempts: int = 0
+    # Runtime projection from current Hermes.  Workflow business state remains
+    # authoritative; these fields provide a verifiable execution handle.
+    runtime_run_id: str = ""
+    runtime_status: str = ""
+    runtime_output: str = ""
+    dispatch_token: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -74,6 +82,10 @@ class NodeRun:
             "error": self.error,
             "external_request_id": self.external_request_id,
             "attempts": self.attempts,
+            "runtime_run_id": self.runtime_run_id,
+            "runtime_status": self.runtime_status,
+            "runtime_output": self.runtime_output,
+            "dispatch_token": self.dispatch_token,
         }
 
     @classmethod
@@ -89,6 +101,10 @@ class NodeRun:
             error=str(d.get("error", "")),
             external_request_id=str(d.get("external_request_id", "")),
             attempts=int(d.get("attempts", 0)),
+            runtime_run_id=str(d.get("runtime_run_id", "")),
+            runtime_status=str(d.get("runtime_status", "")),
+            runtime_output=str(d.get("runtime_output", "")),
+            dispatch_token=str(d.get("dispatch_token", "")),
         )
 
 
@@ -102,7 +118,14 @@ class WorkflowInstance:
     status: InstanceStatus = InstanceStatus.PENDING
     runs: dict[str, NodeRun] = field(default_factory=dict)
     context: dict[str, Any] = field(default_factory=dict)
+    # Immutable template snapshot.  Merely pinning the version string is not
+    # enough when an editable template file is overwritten in place.
+    template_snapshot: dict[str, Any] = field(default_factory=dict)
     parent_task: str = ""
+    # Monotonic optimistic-lock revision.  The SQLite store increments this on
+    # every write so a stale Dashboard/MCP process cannot overwrite a dispatch
+    # claim or a newly persisted Hermes run id with an older whole-instance JSON.
+    revision: int = 0
     created_at: str = field(default_factory=_now)
     updated_at: str = field(default_factory=_now)
 
@@ -118,6 +141,7 @@ class WorkflowInstance:
             title=title or template.name,
             dept=template.dept,
             context=dict(context or {}),
+            template_snapshot=template.to_dict(),
             parent_task=parent_task,
         )
         inst.runs = {n.id: NodeRun(node_id=n.id) for n in template.nodes}
@@ -148,7 +172,9 @@ class WorkflowInstance:
             "progress": self.progress(),
             "runs": {k: v.to_dict() for k, v in self.runs.items()},
             "context": self.context,
+            "template_snapshot": self.template_snapshot,
             "parent_task": self.parent_task,
+            "revision": self.revision,
             "created_at": self.created_at, "updated_at": self.updated_at,
         }
 
@@ -162,7 +188,9 @@ class WorkflowInstance:
             dept=str(d.get("dept", "seo")),
             status=InstanceStatus(d.get("status", "PENDING")),
             context=dict(d.get("context") or {}),
+            template_snapshot=dict(d.get("template_snapshot") or {}),
             parent_task=str(d.get("parent_task", "")),
+            revision=int(d.get("revision", 0)),
             created_at=str(d.get("created_at", "")),
             updated_at=str(d.get("updated_at", "")),
         )

@@ -69,6 +69,22 @@ class WorkflowEngine:
 
     def refresh(self, inst: WorkflowInstance) -> WorkflowInstance:
         """Recompute derived state: READY marks, and overall status."""
+        if not inst.context.get("start_authorized"):
+            # Persistence alone does not authorize work. Keep dependency-free
+            # nodes PENDING until an explicit start contract is recorded.
+            if inst.status not in (
+                InstanceStatus.PAUSED, InstanceStatus.CANCELLED,
+                InstanceStatus.DONE, InstanceStatus.FAILED,
+            ):
+                inst.status = InstanceStatus.PENDING
+            inst.updated_at = _now()
+            return inst
+        # Pause freezes scheduling without rewriting node state.  In-flight
+        # Hermes runs are stopped by the API layer; READY/PENDING work remains
+        # exactly where it was so resume is lossless.
+        if inst.status is InstanceStatus.PAUSED:
+            inst.updated_at = _now()
+            return inst
         for node in self.ready_nodes(inst):
             inst.runs[node.id].state = NodeState.READY
 
@@ -86,17 +102,22 @@ class WorkflowEngine:
                 and not any(s is NodeState.READY for s in states):
             # Nothing left we can act on ourselves.
             inst.status = InstanceStatus.BLOCKED
-        elif any(s in (NodeState.RUNNING, NodeState.READY) for s in states):
+        elif any(s in (NodeState.DISPATCHING, NodeState.RUNNING, NodeState.READY) for s in states):
             inst.status = InstanceStatus.RUNNING
         inst.updated_at = _now()
         return inst
 
     # -- transitions -------------------------------------------------------
     def begin(self, inst: WorkflowInstance, node_id: str) -> NodeRun:
+        if inst.status in (InstanceStatus.PAUSED, InstanceStatus.CANCELLED):
+            raise EngineError(f"实例当前为 {inst.status.value},不可开始节点")
+        if not inst.context.get("start_authorized"):
+            raise EngineError("实例尚未显式启动,不可开始节点")
         node = self.template.node(node_id)
         run = inst.runs[node_id]
-        if run.state not in (NodeState.PENDING, NodeState.READY):
+        if run.state not in (NodeState.PENDING, NodeState.READY, NodeState.DISPATCHING):
             raise EngineError(f"节点 {node_id} 当前为 {run.state.value},不可开始")
+        preclaimed = run.state is NodeState.DISPATCHING
         unmet = [
             d for d in node.depends_on
             if inst.runs[d].state not in (NodeState.DONE, NodeState.SKIPPED)
@@ -112,9 +133,42 @@ class WorkflowEngine:
             else NodeState.RUNNING
         )
         run.started_at = run.started_at or _now()
-        run.attempts += 1
+        if not preclaimed:
+            run.attempts += 1
         self.refresh(inst)
         LOGGER.info(f"{inst.instance_id}: node {node_id} → {run.state.value}")
+        return run
+
+    def complete_control_node(
+        self, inst: WorkflowInstance, node_id: str, *, evidence: str = "",
+        output_asset_ids: list[str] | None = None,
+    ) -> NodeRun:
+        """Settle deterministic input/end/result/boolean nodes.
+
+        Webhook output is deliberately excluded: external sending remains a
+        named-approval side effect and must run through current Hermes.
+        """
+        node = self.template.node(node_id)
+        if node.type is NodeType.INPUT:
+            pass
+        elif node.type is NodeType.OUTPUT and node.config.get("output_mode") != "webhook":
+            pass
+        else:
+            raise EngineError(f"节点 {node_id} 不是可自动结算的控制节点")
+        run = inst.runs[node_id]
+        if run.state not in (
+            NodeState.PENDING, NodeState.READY, NodeState.RUNNING,
+            NodeState.DISPATCHING, NodeState.WAITING_EXTERNAL,
+        ):
+            raise EngineError(f"节点 {node_id} 当前为 {run.state.value},不可自动结算")
+        if run.state in (NodeState.PENDING, NodeState.READY):
+            self.begin(inst, node_id)
+        run.state = NodeState.DONE
+        run.finished_at = _now()
+        run.evidence = evidence or "deterministic control node"
+        run.acceptance_met = ()
+        run.output_asset_ids = tuple(output_asset_ids or ())
+        self.refresh(inst)
         return run
 
     def complete(

@@ -66,9 +66,9 @@ def _load_instance(instance_id: str):
     inst = store.instance(instance_id)
     if inst is None:
         raise HTTPException(status_code=404, detail=f"工作流实例 {instance_id} 不存在")
-    tpl = store.template(inst.template_id)
+    tpl = store.template_for_instance(inst)
     if tpl is None:
-        raise HTTPException(status_code=409, detail=f"实例引用的模板 {inst.template_id} 已不存在")
+        raise HTTPException(status_code=409, detail=f"实例 {instance_id} 的模板快照不可用")
     return store, inst, tpl, WorkflowEngine(tpl)
 
 

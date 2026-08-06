@@ -54,16 +54,21 @@ SESSION_TTL = 7 * 24 * 3600  # 一周,够用又不至于长期有效的令牌到
 
 # 匿名可达的前缀。登录页要能打开,静态资源要能加载,健康检查要能被探活 ——
 # 除此之外不开口子。
-_PUBLIC_PREFIXES = (
-    "/api/auth/login", "/api/auth/session",
-    "/static/", "/assets/", "/favicon", "/login", "/health",
-)
+_PUBLIC_ROUTES = {"/", "/api/auth/login", "/api/auth/session", "/login", "/health", "/healthz"}
+_PUBLIC_PREFIXES = ("/static/", "/assets/", "/favicon")
+
+# 精确的公开只读 API。不要把 ``/api/public/`` 整段作为前缀放行：以后若在
+# 该命名空间误加写接口，前缀匹配会让它自动裸奔。这里只允许 GET/HEAD 命中
+# 一个固定聚合路径；其它方法与子路径仍走正常会话鉴权。
+_PUBLIC_READONLY_ROUTES = {
+    "/api/public/seo-control-tower/overview": frozenset({"GET", "HEAD"}),
+}
 
 # 机器对机器的入口。`/api/v1/*` 是别的部门实例调本部门用的 collab 协议:
 # 对面是台服务器,拿不到浏览器 cookie,要它「登录」没有意义。这类请求走
 # 服务令牌。令牌没配置时这些端点保持匿名可达 —— 直接锁死会让已经在跑的
 # 跨部门协作在升级瞬间全断,而它们此前本来就是匿名的,不算新增暴露面。
-_SERVICE_PREFIXES = ("/api/v1/",)
+_SERVICE_PREFIXES = ("/api/v1/", "/api/workflows/internal/")
 
 
 def _service_token() -> str:
@@ -165,7 +170,12 @@ class AuthMiddleware(BaseHTTPMiddleware):
 
     async def dispatch(self, request: Request, call_next: Any) -> Any:
         path = request.url.path
-        if path == "/" or any(path.startswith(p) for p in _PUBLIC_PREFIXES):
+        public_methods = _PUBLIC_READONLY_ROUTES.get(path)
+        if (
+            path in _PUBLIC_ROUTES
+            or any(path.startswith(p) for p in _PUBLIC_PREFIXES)
+            or (public_methods is not None and request.method.upper() in public_methods)
+        ):
             return await call_next(request)
 
         if any(path.startswith(p) for p in _SERVICE_PREFIXES):

@@ -218,11 +218,20 @@ async def run_evolution_for_site(rt: Runtime, site_item: Any) -> dict[str, Any]:
             clicks=current_clicks,
             index_ratio=crawl_success_ratio,
             error_count=error_count,
-            breakdown={"observation_only": True, "reason": "M_t 不可计算,仅留存点击基线"},
+            # 把**为什么算不出来**一并留下 —— 只写一句固定文案的话,
+            # 下次排查还是只能从头跑一遍。16 号文说排查起点是看
+            # excluded_inputs 与 data_sources,但那两样此前根本没进库,
+            # 于是「M_t 算不出」查了几天都停在「不知道是哪个源退化了」。
+            breakdown={
+                "observation_only": True,
+                "reason": "M_t 不可计算,仅留存点击基线",
+                **breakdown.to_dict(),
+            },
         )
         LOGGER.warning(
             "本轮 M_t 不可计算,未写分数;已留存点击观测 "
-            f"clicks={current_clicks} 作为下一轮的 C_t 基线"
+            f"clicks={current_clicks} 作为下一轮的 C_t 基线 "
+            f"| 挡住评分的输入: {list(breakdown.excluded) or '(未记录)'}"
         )
 
     compiled_skill: str | None = None

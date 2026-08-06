@@ -36,6 +36,8 @@ services:
       - /data/seoagents/.env.llm
       # 服务令牌等机密。不进 git,权限 600。
       - /data/seo-stack/seoagents-data/service.env
+      # hm 对话入口代理到当前 Hermes API；凭证独立保存，不进 git。
+      - /data/seo-stack/seoagents-data/hermes-api.env
     environment:
       - PYTHONPATH=/app
       - CHROME_PATH=/usr/bin/chromium

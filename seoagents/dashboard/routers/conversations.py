@@ -43,6 +43,9 @@ CREATE TABLE IF NOT EXISTS conversations (
     owner       TEXT NOT NULL,
     title       TEXT NOT NULL,
     archived    INTEGER NOT NULL DEFAULT 0,
+    provider    TEXT NOT NULL DEFAULT '',
+    model       TEXT NOT NULL DEFAULT '',
+    reasoning_effort TEXT NOT NULL DEFAULT 'auto',
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL
 );
@@ -60,6 +63,21 @@ CREATE TABLE IF NOT EXISTS messages (
     seq         INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_msg_conv ON messages(conv_id, seq);
+
+CREATE TABLE IF NOT EXISTS queued_prompts (
+    id          TEXT PRIMARY KEY,
+    conv_id     TEXT NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+    owner       TEXT NOT NULL,
+    text        TEXT NOT NULL,
+    provider    TEXT NOT NULL,
+    model       TEXT NOT NULL,
+    reasoning_effort TEXT NOT NULL DEFAULT 'auto',
+    status      TEXT NOT NULL DEFAULT 'queued',
+    created_at  TEXT NOT NULL,
+    claimed_at  TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_prompt_queue
+ON queued_prompts(conv_id, owner, status, created_at);
 """
 
 
@@ -69,6 +87,15 @@ def _conn() -> sqlite3.Connection:
     c.row_factory = sqlite3.Row
     c.execute("PRAGMA foreign_keys=ON")
     c.executescript(_SCHEMA)
+    # Existing installations predate per-conversation runtime selection.
+    cols = {str(r[1]) for r in c.execute("PRAGMA table_info(conversations)")}
+    for name, ddl in (
+        ("provider", "TEXT NOT NULL DEFAULT ''"),
+        ("model", "TEXT NOT NULL DEFAULT ''"),
+        ("reasoning_effort", "TEXT NOT NULL DEFAULT 'auto'"),
+    ):
+        if name not in cols:
+            c.execute(f"ALTER TABLE conversations ADD COLUMN {name} {ddl}")
     return c
 
 
@@ -84,6 +111,201 @@ def _owner(request: Request) -> str:
 def _title_from(text: str, limit: int = 28) -> str:
     t = " ".join(text.strip().split())
     return (t[:limit] + "…") if len(t) > limit else (t or "新对话")
+
+
+def append_agent_message(
+    cid: str,
+    *,
+    owner: str,
+    text: str,
+    turns: int | None = None,
+    elapsed: float | None = None,
+    trace: list[dict[str, Any]] | None = None,
+) -> bool:
+    """Persist a backend-completed Copilot answer.
+
+    The browser is deliberately not the writer for agent results: if it reloads
+    while Hermes is still working, the backend must still commit the answer to
+    the same conversation.  ``False`` means the conversation no longer exists
+    (for example, the user deleted it while the run was active).
+    """
+    now = _now()
+    with _lock, _conn() as c:
+        conv = c.execute(
+            "SELECT 1 FROM conversations WHERE id = ? AND owner = ?", (cid, owner)
+        ).fetchone()
+        if not conv:
+            return False
+        seq = c.execute(
+            "SELECT COALESCE(MAX(seq),0) FROM messages WHERE conv_id = ?", (cid,)
+        ).fetchone()[0] + 1
+        c.execute(
+            "INSERT INTO messages (id,conv_id,sender,text,turns,elapsed,trace_json,ts,seq)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                uuid.uuid4().hex[:16], cid, "agent", text, turns, elapsed,
+                json.dumps(trace or [], ensure_ascii=False), now, seq,
+            ),
+        )
+        c.execute("UPDATE conversations SET updated_at = ? WHERE id = ?", (now, cid))
+    return True
+
+
+def append_agent_message_once(
+    cid: str,
+    *,
+    owner: str,
+    text: str,
+    turns: int | None = None,
+    elapsed: float | None = None,
+    trace: list[dict[str, Any]] | None = None,
+    idempotency_key: str,
+) -> bool:
+    """Persist one settled result under a stable job key, at most once."""
+    now = _now()
+    with _lock, _conn() as c:
+        if not c.execute(
+            "SELECT 1 FROM conversations WHERE id=? AND owner=?", (cid, owner)
+        ).fetchone():
+            return False
+        if c.execute(
+            "SELECT 1 FROM messages WHERE conv_id=? AND id=?", (cid, idempotency_key)
+        ).fetchone():
+            return True
+        seq = c.execute(
+            "SELECT COALESCE(MAX(seq),0) FROM messages WHERE conv_id=?", (cid,)
+        ).fetchone()[0] + 1
+        c.execute(
+            "INSERT INTO messages (id,conv_id,sender,text,turns,elapsed,trace_json,ts,seq) VALUES (?,?,?,?,?,?,?,?,?)",
+            (
+                idempotency_key, cid, "agent", text, turns, elapsed,
+                json.dumps(trace or [], ensure_ascii=False), now, seq,
+            ),
+        )
+        c.execute("UPDATE conversations SET updated_at=? WHERE id=?", (now, cid))
+    return True
+
+
+def append_user_message(cid: str, *, owner: str, text: str) -> bool:
+    """Persist the submitted user turn before starting the background run."""
+    now = _now()
+    with _lock, _conn() as c:
+        conv = c.execute(
+            "SELECT title FROM conversations WHERE id = ? AND owner = ?", (cid, owner)
+        ).fetchone()
+        if not conv:
+            return False
+        seq = c.execute(
+            "SELECT COALESCE(MAX(seq),0) FROM messages WHERE conv_id = ?", (cid,)
+        ).fetchone()[0] + 1
+        c.execute(
+            "INSERT INTO messages (id,conv_id,sender,text,turns,elapsed,trace_json,ts,seq)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (uuid.uuid4().hex[:16], cid, "user", text, None, None, "[]", now, seq),
+        )
+        title = _title_from(text) if conv["title"] in ("新对话", "") else conv["title"]
+        c.execute(
+            "UPDATE conversations SET title = ?, updated_at = ? WHERE id = ?",
+            (title, now, cid),
+        )
+    return True
+
+
+def set_conversation_runtime(
+    cid: str, *, owner: str, provider: str, model: str, reasoning_effort: str
+) -> bool:
+    """Bind the accepted Hermes runtime to the dashboard conversation."""
+    with _lock, _conn() as c:
+        cur = c.execute(
+            "UPDATE conversations SET provider=?, model=?, reasoning_effort=?, updated_at=?"
+            " WHERE id=? AND owner=?",
+            (provider, model, reasoning_effort, _now(), cid, owner),
+        )
+    return bool(cur.rowcount)
+
+
+def conversation_owned(cid: str, *, owner: str) -> bool:
+    with _conn() as c:
+        return bool(c.execute(
+            "SELECT 1 FROM conversations WHERE id=? AND owner=?", (cid, owner)
+        ).fetchone())
+
+
+def conversation_runtime(cid: str, *, owner: str) -> dict[str, str] | None:
+    with _conn() as c:
+        row = c.execute(
+            "SELECT provider,model,reasoning_effort FROM conversations"
+            " WHERE id=? AND owner=?", (cid, owner),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def enqueue_prompt(
+    cid: str, *, owner: str, text: str, provider: str, model: str,
+    reasoning_effort: str,
+) -> str:
+    """Persist a queued follow-up and its visible user bubble atomically."""
+    prompt_id = uuid.uuid4().hex[:16]
+    now = _now()
+    with _lock, _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        conv = c.execute(
+            "SELECT title FROM conversations WHERE id=? AND owner=?", (cid, owner)
+        ).fetchone()
+        if not conv:
+            raise KeyError(cid)
+        c.execute(
+            "INSERT INTO queued_prompts"
+            " (id,conv_id,owner,text,provider,model,reasoning_effort,status,created_at)"
+            " VALUES (?,?,?,?,?,?,?,'queued',?)",
+            (prompt_id, cid, owner, text, provider, model, reasoning_effort, now),
+        )
+        seq = c.execute(
+            "SELECT COALESCE(MAX(seq),0) FROM messages WHERE conv_id=?", (cid,)
+        ).fetchone()[0] + 1
+        c.execute(
+            "INSERT INTO messages (id,conv_id,sender,text,turns,elapsed,trace_json,ts,seq)"
+            " VALUES (?,?,?,?,?,?,?,?,?)",
+            (uuid.uuid4().hex[:16], cid, "user", text, None, None, "[]", now, seq),
+        )
+        title = _title_from(text) if conv["title"] in ("新对话", "") else conv["title"]
+        c.execute(
+            "UPDATE conversations SET title=?,updated_at=? WHERE id=?",
+            (title, now, cid),
+        )
+    return prompt_id
+
+
+def claim_next_prompt(cid: str, *, owner: str) -> dict[str, Any] | None:
+    """Atomically claim the oldest prompt appended while a turn was active."""
+    with _lock, _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            "SELECT * FROM queued_prompts WHERE conv_id=? AND owner=? AND status='queued'"
+            " ORDER BY created_at,id LIMIT 1", (cid, owner),
+        ).fetchone()
+        if not row:
+            return None
+        cur = c.execute(
+            "UPDATE queued_prompts SET status='claimed',claimed_at=?"
+            " WHERE id=? AND status='queued'", (_now(), row["id"]),
+        )
+        return dict(row) if cur.rowcount else None
+
+
+def finish_prompt(prompt_id: str, *, status: str) -> None:
+    if status not in {"done", "failed"}:
+        raise ValueError(status)
+    with _lock, _conn() as c:
+        c.execute("UPDATE queued_prompts SET status=? WHERE id=?", (status, prompt_id))
+
+
+def queued_prompt_count(cid: str, *, owner: str) -> int:
+    with _conn() as c:
+        return int(c.execute(
+            "SELECT COUNT(*) FROM queued_prompts"
+            " WHERE conv_id=? AND owner=? AND status='queued'", (cid, owner),
+        ).fetchone()[0])
 
 
 router = APIRouter(prefix="/api/conversations", tags=["conversations"])
@@ -234,4 +456,8 @@ def delete_conversation(cid: str, request: Request) -> dict[str, Any]:
     return {"ok": True, "id": cid}
 
 
-__all__ = ["router"]
+__all__ = [
+    "append_agent_message", "append_agent_message_once", "append_user_message", "set_conversation_runtime",
+    "conversation_owned", "conversation_runtime", "enqueue_prompt", "claim_next_prompt",
+    "finish_prompt", "queued_prompt_count", "router",
+]
