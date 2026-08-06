@@ -1015,6 +1015,44 @@ async def sync_runtime(instance_id: str) -> dict[str, Any]:
         elif child.status in (InstanceStatus.FAILED, InstanceStatus.CANCELLED):
             engine.fail(inst, node_id, error=f"子工作流 {child.instance_id} 为 {child.status.value}")
             errors.append({"node": node_id, "error": child.status.value})
+    # ── B4-sync: Collab outbox reconciliation ──────────────────────────
+    for node_id, run in inst.runs.items():
+        if run.runtime_status != "BLOCKED_DEPENDENCY" or not getattr(run, "external_request_id", ""):
+            continue
+        try:
+            from dojocore.collab import get_collab_service
+            _svc2 = get_collab_service()
+            _req2 = _svc2.store.get(run.external_request_id, box="outbox")
+            if _req2 is None:
+                continue
+            if _req2.status.value == "DELIVERED":
+                run.runtime_output = f"collab {_req2.request_id} DELIVERED, assets: {list(_req2.deliverable_asset_ids)}"
+                node2 = engine.template.node(node_id)
+                if node2.acceptance:
+                    run.runtime_status = "AWAITING_ACCEPTANCE"
+                    reconciled.append({"node": node_id, "status": "COLLAB_DELIVERED_AWAITING"})
+                else:
+                    try:
+                        engine.complete(inst, node_id, acceptance_met=[], evidence=run.runtime_output, actor="collab-sync")
+                    except Exception:
+                        pass
+                    reconciled.append({"node": node_id, "status": "COLLAB_DELIVERED"})
+            elif _req2.status.value == "CLOSED":
+                node2 = engine.template.node(node_id)
+                try:
+                    engine.complete(inst, node_id,
+                        acceptance_met=[True]*len(node2.acceptance) if node2.acceptance else [],
+                        evidence=f"collab {_req2.request_id} CLOSED", actor="collab-sync")
+                except Exception:
+                    pass
+                reconciled.append({"node": node_id, "status": "COLLAB_CLOSED"})
+            elif _req2.status.value in ("ESCALATED", "EXPIRED", "REJECTED"):
+                run.runtime_status = "FAILED"
+                run.error = f"collab {_req2.request_id} {_req2.status.value}: {_req2.reason}"
+                reconciled.append({"node": node_id, "status": f"COLLAB_{_req2.status.value}"})
+        except Exception as _exc2:
+            errors.append({"node": node_id, "error": f"collab sync: {_exc2}"})
+    # ── end B4-sync ────────────────────────────────────────────────────
     for node_id, run in inst.runs.items():
         if not run.runtime_run_id or run.state is not NodeState.RUNNING:
             continue
