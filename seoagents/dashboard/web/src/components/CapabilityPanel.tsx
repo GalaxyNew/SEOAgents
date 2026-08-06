@@ -60,6 +60,7 @@ export const CapabilityPanel: React.FC = () => {
   const [msg, setMsg] = useState('')
   const [sel, setSel] = useState<Selected>(null)
   const [detail, setDetail] = useState<{ title: string; body: React.ReactNode } | null>(null)
+  const [search, setSearch] = useState('')
   /**
    * 左侧手风琴。默认只开「插件」——三个列表同时平铺会占满整屏,
    * 右边的详情反而被挤到看不见,而右边才是这个页面的主体。
@@ -99,7 +100,30 @@ export const CapabilityPanel: React.FC = () => {
   if (loading) return <div style={{ ...card, color: '#9ca3af', textAlign: 'center' }}>🧭 正在载入能力目录…</div>
   if (err) return <div style={{ ...card, borderColor: '#7f1d1d', color: '#f87171' }}>⚠️ {err}</div>
 
+  // ── 搜索过滤 ────────────────────────────────────────────────
   const capList = Object.entries(caps)
+  const q = search.trim().toLowerCase()
+  const filteredCatalog = q ? catalog.filter(e =>
+    e.display_name.toLowerCase().includes(q) ||
+    e.id.toLowerCase().includes(q) ||
+    (e.summary || '').toLowerCase().includes(q) ||
+    (e.capability_labels || []).some(c => c.toLowerCase().includes(q))
+  ) : catalog
+  const filteredCaps = q ? capList.filter(([k, v]) =>
+    k.toLowerCase().includes(q) ||
+    (v.label || '').toLowerCase().includes(q) ||
+    (v.installed || []).some(t => t.toLowerCase().includes(q))
+  ) : capList
+  const filteredSkills = q ? skills.filter(s =>
+    s.id.toLowerCase().includes(q) ||
+    (s.description || '').toLowerCase().includes(q) ||
+    (s.kind || '').toLowerCase().includes(q)
+  ) : skills
+
+  // 搜索时自动展开所有折叠面板
+  const searchOpen: Record<string, boolean> | null = q ? { plugin: true, capability: true, skill: true } : null
+  const effectiveOpen = searchOpen || open
+
   const uncovered = capList.filter(([, v]) => v.uncovered)
   const risky = capList.filter(([, v]) => v.single_source_risk)
 
@@ -154,25 +178,45 @@ export const CapabilityPanel: React.FC = () => {
         style={{
           display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
           fontSize: 11, fontWeight: 700, color: '#94a3b8',
-          marginBottom: open[key] ? 7 : 0, userSelect: 'none',
+          marginBottom: effectiveOpen[key] ? 7 : 0, userSelect: 'none',
         }}>
         <span style={{
           display: 'inline-block', width: 10, transition: 'transform .15s',
-          transform: open[key] ? 'rotate(90deg)' : 'none', color: '#64748b',
+          transform: effectiveOpen[key] ? 'rotate(90deg)' : 'none', color: '#64748b',
         }}>▶</span>
         <span>{icon} {title}</span>
         <span style={{ flex: 1 }} />
         {badge}
       </div>
-      {open[key] && body}
+      {effectiveOpen[key] && body}
     </div>
   )
 
   const left = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {section('plugin', '🔌', `插件 (${catalog.length},已装 ${installedCount})`, null, (
+      {/* 搜索框 */}
+      <div style={card}>
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="🔍 搜索插件、能力、技能…"
+          style={{
+            width: '100%', boxSizing: 'border-box',
+            background: '#0f172a', color: '#e2e8f0',
+            border: '1px solid #334155', borderRadius: 6,
+            padding: '7px 10px', fontSize: 12, outline: 'none',
+          }}
+        />
+        {q && (
+          <div style={{ fontSize: 10, color: '#64748b', marginTop: 5 }}>
+            {filteredCatalog.length + filteredCaps.length + filteredSkills.length} 个结果
+          </div>
+        )}
+      </div>
+      {section('plugin', '🔌', `插件 (${filteredCatalog.length}${q ? '/' + catalog.length : ''},已装 ${installedCount})`, null, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {catalog.map((e) => {
+          {filteredCatalog.map((e) => {
             const n = tools.filter((t) => t.startsWith(toolPrefix(e.id))).length
             return listItem(
               e.id, sel?.type === 'plugin' && sel.id === e.id,
@@ -186,14 +230,14 @@ export const CapabilityPanel: React.FC = () => {
         </div>
       ))}
 
-      {section('capability', '🧭', `能力 (${capList.length})`, (
+      {section('capability', '🧭', `能力 (${filteredCaps.length}${q ? '/' + capList.length : ''})`, (
         <span style={{ fontWeight: 400, fontSize: 10 }}>
           {uncovered.length > 0 && <span style={{ color: '#ef4444' }}>{uncovered.length} 未覆盖</span>}
           {risky.length > 0 && <span style={{ color: '#f59e0b', marginLeft: 6 }}>{risky.length} 单源</span>}
         </span>
       ), (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {capList.map(([k, v]) => listItem(
+          {filteredCaps.map(([k, v]) => listItem(
             k, sel?.type === 'capability' && sel.id === k,
             () => setSel({ type: 'capability', id: k }),
             v.label,
@@ -203,16 +247,16 @@ export const CapabilityPanel: React.FC = () => {
         </div>
       ))}
 
-      {section('skill', '🎓', `技能 (${skills.length})`, null, (
+      {section('skill', '🎓', `技能 (${filteredSkills.length}${q ? '/' + skills.length : ''})`, null, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-          {skills.map((s) => listItem(
+          {filteredSkills.map((s) => listItem(
             s.id, sel?.type === 'skill' && sel.id === s.id,
             () => setSel({ type: 'skill', id: s.id }),
             s.id, s.description || s.kind, '#a855f7',
           ))}
-          {skills.length === 0 && (
+          {filteredSkills.length === 0 && (
             <div style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '10px 0' }}>
-              还没有沉淀出技能
+              {q ? '没有匹配的技能' : '还没有沉淀出技能'}
             </div>
           )}
         </div>
