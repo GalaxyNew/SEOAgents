@@ -1983,6 +1983,46 @@
             "source": "Organic Search/bing",
             "sessions": 2
           }
+        ],
+        "totals": {
+          "d0": {
+            "sessions": 11,
+            "users": 7,
+            "engaged_sessions": 4,
+            "engagement_rate": 0.3636,
+            "bounce_rate": 0.6364,
+            "avg_session_duration_s": 77.9
+          }
+        },
+        "kpis": {
+          "d0": {
+            "sessions": 11,
+            "users": 7,
+            "engaged_sessions": 4,
+            "engagement_rate": 0.3636,
+            "bounce_rate": 0.6364,
+            "avg_session_duration_s": 77.9
+          }
+        },
+        "channels": [
+          {
+            "source": "Organic Search/google",
+            "sessions": 5
+          },
+          {
+            "source": "Direct",
+            "sessions": 4
+          },
+          {
+            "source": "Organic Search/bing",
+            "sessions": 2
+          }
+        ],
+        "landing_pages": [
+          {
+            "path": "/",
+            "sessions": 11
+          }
         ]
       },
       "psi": {
@@ -1994,7 +2034,9 @@
           "cls": 0.001,
           "fcp_ms": 2887,
           "ttfb_ms": 82,
-          "test_date": "2026-08-06"
+          "test_date": "2026-08-06",
+          "score": 80,
+          "performance": 80
         },
         "desktop": {
           "performance_score": 97,
@@ -2003,7 +2045,9 @@
           "cls": 0.0,
           "fcp_ms": 767,
           "ttfb_ms": 91,
-          "test_date": "2026-08-06"
+          "test_date": "2026-08-06",
+          "score": 97,
+          "performance": 97
         },
         "last_test_date": "2026-08-06"
       },
