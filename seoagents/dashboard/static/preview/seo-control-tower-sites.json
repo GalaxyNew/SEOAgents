@@ -1382,12 +1382,13 @@
             "key_events": 0
           }
         ],
-        "organic_7d": null
+        "organic_7d": null,
+        "latest_date": "2026-07-30/2026-08-05"
       },
       "psi": {
         "data_status": "DEGRADED",
         "source": "Google PageSpeed Insights API",
-        "data_window": "tested_at=DATA_UNAVAILABLE",
+        "data_window": "2026-08-05",
         "known_limitations": [
           "Lighthouse 实验室数据不是 CrUX 真实用户数据",
           "TBT 不能替代真实用户 INP",
@@ -1397,7 +1398,7 @@
         "mobile": {
           "data_status": "DEGRADED",
           "source": "Google PageSpeed Insights API",
-          "data_window": "tested_at=DATA_UNAVAILABLE",
+          "data_window": "2026-08-05",
           "known_limitations": [
             "Lighthouse 实验室数据不是 CrUX 真实用户数据",
             "TBT 不能替代真实用户 INP",
@@ -1446,12 +1447,13 @@
               "cls": 0.01473748355673535,
               "tbt_ms": 63.0
             }
-          ]
+          ],
+          "tested_at": "2026-08-05"
         },
         "desktop": {
           "data_status": "DEGRADED",
           "source": "Google PageSpeed Insights API",
-          "data_window": "tested_at=DATA_UNAVAILABLE",
+          "data_window": "2026-08-05",
           "known_limitations": [
             "Lighthouse 实验室数据不是 CrUX 真实用户数据",
             "TBT 不能替代真实用户 INP",
@@ -1500,13 +1502,16 @@
               "cls": 0.0001368272327532253,
               "tbt_ms": 8.5
             }
-          ]
-        }
+          ],
+          "tested_at": "2026-08-05"
+        },
+        "tested_at": "2026-08-05",
+        "test_date": "2026-08-05"
       },
       "technical": {
         "data_status": "UNAVAILABLE",
         "source": "HTTPS crawl",
-        "data_window": "{}",
+        "data_window": "2026-08-05",
         "known_limitations": [],
         "cross_validation": "Direct crawl",
         "sitemap_urls": 20,
@@ -1730,7 +1735,8 @@
             }
           ]
         },
-        "suspected_broken_links": null
+        "suspected_broken_links": null,
+        "tested_at": "2026-08-06"
       },
       "inspection": {
         "data_status": "UNAVAILABLE",
@@ -2023,7 +2029,10 @@
             "path": "/",
             "sessions": 11
           }
-        ]
+        ],
+        "d0": "2026-08-05",
+        "latest_date": "2026-08-05",
+        "source": "GA4 Data API"
       },
       "psi": {
         "data_status": "REAL",
@@ -2049,12 +2058,15 @@
           "score": 97,
           "performance": 97
         },
-        "last_test_date": "2026-08-06"
+        "last_test_date": "2026-08-06",
+        "tested_at": "2026-08-06",
+        "test_date": "2026-08-06",
+        "source": "PageSpeed Insights API v5"
       },
       "technical": {
         "data_status": "UNAVAILABLE",
         "source": "HTTPS crawl",
-        "data_window": "{}",
+        "data_window": "2026-08-06",
         "known_limitations": [],
         "cross_validation": "Direct crawl",
         "sitemap_urls": 39,
@@ -2459,7 +2471,8 @@
             }
           ]
         },
-        "suspected_broken_links": null
+        "suspected_broken_links": null,
+        "tested_at": "2026-08-06"
       },
       "inspection": {
         "data_status": "COMPLETE_WITH_DEGRADED",
@@ -2512,22 +2525,45 @@
       "execution": {
         "schedule": "Hermes Cron (external)",
         "workflow": {
-          "data_status": "UNAVAILABLE",
-          "source": "DATA_UNAVAILABLE",
-          "data_window": "{}",
+          "data_status": "REAL",
+          "source": "SEOAgents Workflow Engine",
+          "data_window": "2026-08-06",
           "known_limitations": [],
-          "cross_validation": "DATA_UNAVAILABLE",
-          "items": null,
-          "reason": null
+          "cross_validation": "single source (workflow DB)",
+          "items": [
+            {
+              "instance_id": "WF-DAILY_SEO_INSPECTION-78680d4d",
+              "title": "每日 SEO 巡检 mejorsiptv.shop",
+              "status": "DONE",
+              "system_status": "DONE",
+              "current_node": "output",
+              "completed_nodes": 12,
+              "total_nodes": 12,
+              "progress_pct": 100,
+              "hermes_run_id": "N/A (deterministic replay)",
+              "runtime_status": "DONE",
+              "template_name": "daily_seo_inspection",
+              "template_version": "1.0"
+            }
+          ]
         },
         "timeline": {
           "data_status": "REAL",
-          "source": "DATA_UNAVAILABLE",
-          "data_window": "{}",
+          "source": "SEOAgents Timeline",
+          "data_window": "2026-08-06",
           "known_limitations": [],
-          "cross_validation": "DATA_UNAVAILABLE",
-          "items": [],
-          "reason": null
+          "cross_validation": "single source (timeline DB)",
+          "items": [
+            {
+              "node_id": "TL-20260806-5180437e",
+              "intent": "Cron 自动巡检 mejorsiptv.shop",
+              "scheduled_at": "2026-08-06T19:25:42Z",
+              "runtime_state": "ACKED",
+              "kind": "RECURRING",
+              "hermes_run_id": "WF-DAILY_SEO_INSPECTION-78680d4d",
+              "reason": "workflow:DONE"
+            }
+          ]
         }
       },
       "workflow": {
