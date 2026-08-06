@@ -238,7 +238,7 @@ export const WorkflowPanel: React.FC = () => {
   if (err) return <Alert tone="error" title="工作流服务不可用">{err}</Alert>
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '100%', overflowY: 'auto' }}>
       {/* 概览 */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {[
@@ -373,7 +373,7 @@ export const WorkflowPanel: React.FC = () => {
                   {ins.status === 'RUNNING' && <><button onClick={() => instanceAction(ins.instance_id, 'pause')} style={btn('#92400e')}>⏸ 暂停</button><button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('#7f1d1d')}>⏹ 停止</button></>}
                   {ins.status === 'PAUSED' && <><button onClick={() => instanceAction(ins.instance_id, 'resume')} style={btn('#047857')}>▶ 恢复</button><button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('#7f1d1d')}>⏹ 停止</button></>}
                   {['DONE', 'FAILED', 'CANCELLED'].includes(ins.status) && <button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('#7f1d1d')}>删除</button>}
-                  {ins.status === 'RUNNING' && <span style={{ marginLeft: 4, fontSize: 10, animation: 'spin 1s linear infinite', display: 'inline-block' }}>⚙️</span>}
+                  {ins.status === 'RUNNING' && <span style={{ marginLeft: 4, display: 'inline-flex', verticalAlign: 'middle' }}><RunningSpinner /></span>}
                 </div>
               </div>
             ))}
@@ -527,3 +527,18 @@ const miniBtn = (bg: string, fg: string): React.CSSProperties => ({
   background: bg, color: fg, border: 0, borderRadius: 4, padding: '2px 7px',
   fontSize: 9, fontWeight: 600, cursor: 'pointer',
 })
+
+/** 优雅的 SVG 环形加载动画，替代 emoji 旋转 */
+const RunningSpinner: React.FC = () => (
+  <svg width="14" height="14" viewBox="0 0 50 50" style={{ animation: 'wf-spin 1.2s linear infinite' }}>
+    <defs>
+      <linearGradient id="wf-spinner-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" stopColor="#3b82f6" />
+        <stop offset="100%" stopColor="#06b6d4" />
+      </linearGradient>
+    </defs>
+    <circle cx="25" cy="25" r="20" fill="none" stroke="#1e293b" strokeWidth="5" strokeLinecap="round" />
+    <circle cx="25" cy="25" r="20" fill="none" stroke="url(#wf-spinner-grad)" strokeWidth="5" strokeLinecap="round"
+      strokeDasharray="31.4 125.6" />
+  </svg>
+)

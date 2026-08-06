@@ -212,3 +212,9 @@ html, body {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
 }
+
+/* 工作流运行中 SVG 环形动画 */
+@keyframes wf-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
