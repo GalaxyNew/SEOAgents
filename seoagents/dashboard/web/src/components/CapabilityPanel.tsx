@@ -34,10 +34,81 @@ type CatalogEntry = {
 
 type Skill = { id: string; kind: string; description: string; [k: string]: any }
 
+/** 已安装工具的统一元信息:工具 ID → 中文名、说明、实现能力 */
+const TOOL_META: Record<string, { label: string; desc: string; capability: string; catalog: string }> = {
+  google_seo_monitor: {
+    label: 'Google 搜索监控',
+    desc: '拉取 GSC 真实点击率、展现量、平均排名、趋势',
+    capability: 'traffic',
+    catalog: 'google_search_console',
+  },
+  gsc_indexing_ops: {
+    label: '收录运维',
+    desc: 'sitemap 生成、301 映射、收录状态实测',
+    capability: 'indexing',
+    catalog: 'google_search_console',
+  },
+  lighthouse_audit: {
+    label: '性能审计',
+    desc: 'Core Web Vitals,优先 PSI API,其次本地 Chromium',
+    capability: 'cwv',
+    catalog: 'lighthouse',
+  },
+  site_technical_auditor: {
+    label: '技术 SEO 审计',
+    desc: '同域 BFS:标题/描述/H1/canonical/死链/hreflang',
+    capability: 'site_audit',
+    catalog: 'python_seo_analyzer',
+  },
+  serp_rank_tracker: {
+    label: 'SERP 排名追踪',
+    desc: '目标关键词的谷歌实测排位,优先 DataForSEO',
+    capability: 'serp_rank',
+    catalog: 'openserp',
+  },
+  keyword_discovery: {
+    label: '关键词发现',
+    desc: '合并 GSC 实际词、DataForSEO 建议、竞品词',
+    capability: 'keyword_research',
+    catalog: 'dataforseo',
+  },
+  nlp_internal_linker: {
+    label: '内链推荐',
+    desc: '基于 TF-IDF 语义矩阵匹配,自动植入内链',
+    capability: 'internal_link',
+    catalog: '',
+  },
+  aeo_visibility_monitor: {
+    label: 'AI 搜索可见度',
+    desc: '品牌在 ChatGPT/Claude/Perplexity/AIO 的被引用率',
+    capability: 'aeo_visibility',
+    catalog: 'searchstack_aeo',
+  },
+  asset_hub: {
+    label: '中央资产存储',
+    desc: '产物登记、检索、血缘(多节点)',
+    capability: '',
+    catalog: '',
+  },
+  platform_ops: {
+    label: '平台管理',
+    desc: '系统配置、工具安装、凭证管理(读操作直接执行)',
+    capability: '',
+    catalog: '',
+  },
+  system_ops: {
+    label: '系统运维面板',
+    desc: 'SEOAgents 系统管理(hm 专用)',
+    capability: '',
+    catalog: '',
+  },
+}
+
 type Selected =
   | { type: 'plugin'; id: string }
   | { type: 'capability'; id: string }
   | { type: 'skill'; id: string }
+  | { type: 'tool'; id: string }
   | null
 
 const card: React.CSSProperties = {
@@ -119,9 +190,17 @@ export const CapabilityPanel: React.FC = () => {
     (s.description || '').toLowerCase().includes(q) ||
     (s.kind || '').toLowerCase().includes(q)
   ) : skills
+  const toolIds = Object.keys(TOOL_META)
+  const filteredTools = q ? toolIds.filter(id => {
+    const meta = TOOL_META[id]
+    return id.toLowerCase().includes(q) ||
+      meta.label.toLowerCase().includes(q) ||
+      meta.desc.toLowerCase().includes(q) ||
+      meta.capability.toLowerCase().includes(q)
+  }) : toolIds
 
   // 搜索时自动展开所有折叠面板
-  const searchOpen: Record<string, boolean> | null = q ? { plugin: true, capability: true, skill: true } : null
+  const searchOpen: Record<string, boolean> | null = q ? { tool: true, plugin: true, capability: true, skill: true } : null
   const effectiveOpen = searchOpen || open
 
   const uncovered = capList.filter(([, v]) => v.uncovered)
@@ -214,6 +293,22 @@ export const CapabilityPanel: React.FC = () => {
           </div>
         )}
       </div>
+      {section('tool', '⚙️', `已安装工具 (${filteredTools.length})`, null, (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+          {filteredTools.map(id => {
+            const meta = TOOL_META[id]
+            const capLabel = meta.capability && caps[meta.capability] ? caps[meta.capability].label : meta.capability
+            return listItem(
+              id, sel?.type === 'tool' && sel.id === id,
+              () => setSel({ type: 'tool', id }),
+              <>{meta.label} <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>{id}</span></>,
+              meta.desc + (capLabel ? ` → ${capLabel}` : ''),
+              '#3b82f6',
+            )
+          })}
+        </div>
+      ))}
+
       {section('plugin', '🔌', `插件 (${filteredCatalog.length}${q ? '/' + catalog.length : ''},已装 ${installedCount})`, null, (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
           {filteredCatalog.map((e) => {
@@ -422,6 +517,64 @@ export const CapabilityPanel: React.FC = () => {
               id: `cap:${sel.id}`, origin: v.label,
               title: `🧭 ${v.label}`,
               prompt: `检查一下「${v.label}」这项能力当前的数据状况,如果取不到就说明原因,不要估算。`,
+            }} />
+          </div>
+        </div>
+      )
+    }
+
+    if (sel.type === 'tool') {
+      const meta = TOOL_META[sel.id]
+      if (!meta) return null
+      const capInfo = meta.capability && caps[meta.capability] ? caps[meta.capability] : null
+      const catEntry = meta.catalog ? catalog.find(e => e.id === meta.catalog) : null
+      return (
+        <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: '#f3f4f6' }}>{meta.label}</div>
+            <div style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace', marginTop: 2 }}>{sel.id}</div>
+            <div style={{ color: '#3b82f6', fontSize: 12, fontWeight: 700, marginTop: 6 }}>● 已安装</div>
+          </div>
+          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.7 }}>{meta.desc}</div>
+
+          <div style={{ fontSize: 11, lineHeight: 2 }}>
+            {capInfo && (
+              <div>
+                <span style={{ color: '#64748b' }}>实现能力:</span>{' '}
+                <span style={{ color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => setSel({ type: 'capability', id: meta.capability })}>
+                  {capInfo.label}
+                </span>{' '}
+                {capInfo.single_source_risk && <span style={{ color: '#f59e0b', fontSize: 10 }}>⚠ 单源</span>}
+              </div>
+            )}
+            {catEntry && (
+              <div>
+                <span style={{ color: '#64748b' }}>目录条目:</span>{' '}
+                <span style={{ color: '#93c5fd', cursor: 'pointer', textDecoration: 'underline' }}
+                  onClick={() => setSel({ type: 'plugin', id: catEntry.id })}>
+                  {catEntry.display_name}
+                </span>
+              </div>
+            )}
+            {!capInfo && !catEntry && (
+              <div>
+                <span style={{ color: '#64748b' }}>说明:</span>{' '}
+                <span style={{ color: '#94a3b8' }}>平台内置工具,不映射到外部能力</span>
+              </div>
+            )}
+          </div>
+
+          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: 9, fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
+            <div style={{ color: '#64748b', marginBottom: 4 }}>用法示例</div>
+            <div style={{ fontFamily: 'monospace', color: '#93c5fd' }}>用 {sel.id}({meta.label})查一下…</div>
+          </div>
+
+          <div style={{ borderTop: '1px solid #1f2937', paddingTop: 9, display: 'flex', justifyContent: 'flex-end' }}>
+            <Star cmd={{
+              id: `tool:${sel.id}`, origin: meta.label,
+              title: `⚙️ ${meta.label}`,
+              prompt: `用 ${sel.id}(${meta.label})查一下:`,
             }} />
           </div>
         </div>
