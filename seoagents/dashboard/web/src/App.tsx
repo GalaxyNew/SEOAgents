@@ -3,7 +3,7 @@ import { SeoAuditPanel } from './components/SeoAuditPanel'
 import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
 import { ConfigPanel } from './components/ConfigPanel'
 import { AgentCopilotDrawer } from './components/AgentCopilotDrawer'
-import { SeoControlTowerPanel } from './components/SeoControlTowerPanel'
+import { GscOverviewPanel } from './components/GscOverviewPanel'
 import { KanbanPanel } from './components/KanbanPanel'
 import { TimelinePanel } from './components/TimelinePanel'
 import { WorkflowPanel } from './components/WorkflowPanel'
@@ -449,7 +449,17 @@ export default function App() {
           </div>
         )}
 
-        {activeTab === 'gsc_overview' && <SeoControlTowerPanel />}
+        {activeTab === 'gsc_overview' && (
+          <GscOverviewPanel
+            monitoredSites={configData?.resolved?.monitored_sites || []}
+            onSelectSite={site => {
+              setConfigData((prev: any) => ({
+                ...prev,
+                resolved: { ...(prev?.resolved || {}), monitored_sites: [site] },
+              }))
+            }}
+          />
+        )}
 
         {activeTab === 'kanban' && <KanbanPanel />}
 
