@@ -75,7 +75,7 @@ const MODULE_LABELS: Record<ModuleId, { icon: string; title: string; color: stri
 
 const MODULE_ORDER: ModuleId[] = ['stats', 'running', 'pending', 'done', 'events', 'collab', 'depts']
 
-const LAYOUT_KEY = 'kp-layout-v8'
+const LAYOUT_KEY = 'kp-layout-v8.1'
 
 // ── 按列数生成自适应布局（将 10 列布局缩放到目标列数） ────
 function scaleLayout(base: LayoutItem[], targetCols: number): LayoutItem[] {
@@ -314,11 +314,18 @@ export const KanbanPanel: React.FC = () => {
         setBoard(b)
       }
       try {
-        const [i,o] = await Promise.all([(await fetch('/api/v1/inbox')).json(),(await fetch('/api/v1/outbox')).json()])
+        const [inboxResponse, outboxResponse] = await Promise.all([
+          fetch('/api/v1/inbox'),
+          fetch('/api/v1/outbox'),
+        ])
+        if (!inboxResponse.ok || !outboxResponse.ok) throw new Error('collab unavailable')
+        const [i, o] = await Promise.all([inboxResponse.json(), outboxResponse.json()])
         setInbox(i.items||[]); setOutbox(o.items||[]); setCollabError('')
       } catch { setCollabError('协作服务不可用') }
       try {
-        const d = await (await fetch('/api/v1/departments')).json()
+        const response = await fetch('/api/v1/departments')
+        if (!response.ok) throw new Error('departments unavailable')
+        const d = await response.json()
         if (d.departments) {
           const ds: DeptStatus[] = Object.entries(d.departments).map(([id,v]:[string,any]) => ({
             dept_id: id, name: v.name||id,
@@ -345,9 +352,10 @@ export const KanbanPanel: React.FC = () => {
     setDetail(r.ok ? j.task : {id,error:j.detail})
   }
   // ── 布局回调 ──
-  const onLayoutChange = useCallback((newLayout: LayoutItem[]) => {
-    setLayout(newLayout)
-    saveLayout(newLayout)
+  const onLayoutChange = useCallback((newLayout: LayoutItem[], allLayouts?: Record<string, LayoutItem[]>) => {
+    const desktopLayout = allLayouts?.lg || newLayout
+    setLayout(desktopLayout)
+    saveLayout(desktopLayout)
   }, [])
 
   const resetLayout = () => {
@@ -619,7 +627,7 @@ export const KanbanPanel: React.FC = () => {
 
   // ═══ 骨架 ═══
   return (
-    <div style={{display:'flex',flexDirection:'column',gap:0,minHeight:0,height:'100%'}}>
+    <div style={{display:'flex',flexDirection:'column',gap:0,minHeight:0,width:'100%',height:'100%',overflow:'hidden'}}>
       <style>{CSS}</style>
 
       {/* 编辑模式提示条 */}
@@ -633,7 +641,7 @@ export const KanbanPanel: React.FC = () => {
       )}
 
       {/* react-grid-layout 网格 */}
-      <div className="kp-rgl" style={{flex:1,minHeight:0,overflow:'auto'}}>
+      <div className="kp-rgl" style={{flex:'1 1 0',width:'100%',minWidth:0,minHeight:0,overflowX:'hidden',overflowY:'auto',scrollbarGutter:'stable'}}>
         <ResponsiveGridLayout
           className="kp-layout"
           layouts={buildAllLayouts(layout)}
@@ -647,7 +655,7 @@ export const KanbanPanel: React.FC = () => {
           compactType="vertical"
           preventCollision={false}
           useCSSTransforms={true}
-          onLayoutChange={(curr: any) => onLayoutChange(curr)}
+          onLayoutChange={(curr: any, all: any) => onLayoutChange(curr, all)}
           breakpoints={BREAKPOINTS}
         >
           {MODULE_ORDER.map(modId => {

@@ -1,7 +1,6 @@
 """Security and projection tests for the public SEO Control Tower surface."""
 from __future__ import annotations
 
-import copy
 import json
 import sqlite3
 from pathlib import Path
@@ -123,6 +122,14 @@ async def test_anonymous_public_private_matrix(anonymous_client: httpx.AsyncClie
     assert (await anonymous_client.get("/api/config")).status_code == 401
     assert (await anonymous_client.get("/api/gsc/overview")).status_code == 401
     assert (await anonymous_client.get("/api/workflows/instances")).status_code == 401
+    assert (await anonymous_client.post("/api/workflows/instances", json={})).status_code == 401
+    assert (
+        await anonymous_client.post(
+            "/api/workflows/instances",
+            headers={"X-Service-Token": "test-service-token"},
+            json={"template_id": "missing"},
+        )
+    ).status_code == 404
     assert (await anonymous_client.post("/api/workflows/instances/WF-SAFE-1/start")).status_code == 401
     assert (await anonymous_client.post("/api/audit/run", json={})).status_code == 401
 

@@ -39,13 +39,31 @@ export default function App() {
   const [summary, setSummary] = useState<MetricsSummary | null>(null)
   const [configData, setConfigData] = useState<any>(null)
   const [seonautEndpoint, setSeonautEndpoint] = useState<string>('')
-  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(true)
+  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(window.innerWidth >= 1024)
   const [copilotWidth, setCopilotWidth] = useState<number>(460)
   const [isDesktop, setIsDesktop] = useState<boolean>(window.innerWidth >= 1024)
+
+  // 任务卡需要完整画布；进入该页时自动收起固定右侧助手，用户仍可用浮动按钮重新打开。
+  useEffect(() => {
+    if (activeTab === 'kanban') setIsCopilotOpen(false)
+  }, [activeTab])
 
   // Right-side Settings Dropdown state
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
   const settingsRef = useRef<HTMLDivElement>(null)
+
+  // Theme hue (shared with login page via localStorage)
+  const [themeHue, setThemeHue] = useState<number>(() => {
+    const saved = localStorage.getItem('themeHue')
+    const h = saved ? parseInt(saved, 10) : 220
+    document.documentElement.style.setProperty('--hue', String(h))
+    return isNaN(h) ? 220 : h
+  })
+  const applyHue = (h: number) => {
+    setThemeHue(h)
+    document.documentElement.style.setProperty('--hue', String(h))
+    localStorage.setItem('themeHue', String(h))
+  }
 
   const refresh = async () => {
     try {
@@ -83,13 +101,15 @@ export default function App() {
     }
   }, [])
 
+  const reserveCopilotSpace = isDesktop && isCopilotOpen && activeTab !== 'kanban'
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#e6edf6', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+    <div style={{ height: '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
       {/* Header */}
       <header
         style={{
-          background: '#111827',
-          borderBottom: '1px solid #1f2937',
+          background: 'var(--panel)',
+          borderBottom: '1px solid var(--line)',
           padding: '14px 24px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -109,23 +129,23 @@ export default function App() {
               width: '36px',
               height: '36px',
               borderRadius: '8px',
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+              background: 'linear-gradient(135deg, var(--acc), var(--acc-2))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 'bold',
               fontSize: '18px',
-              color: '#fff',
+              color: 'var(--ink)',
               boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
             }}
           >
             S
           </div>
           <div>
-            <h1 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <h1 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
               SEOAgents · 自进化智能体集群
             </h1>
-            <div style={{ fontSize: '12px', color: '#6b7280', marginTop: '2px' }}>
+            <div style={{ fontSize: '12px', color: 'var(--ink-faint)', marginTop: '2px' }}>
               {summary?.site || 'https://example.com'} · DojoAgents 七层架构
             </div>
           </div>
@@ -146,9 +166,9 @@ export default function App() {
               key={id}
               onClick={() => setActiveTab(id)}
               style={{
-                background: activeTab === id ? '#1e293b' : 'transparent',
-                color: activeTab === id ? '#60a5fa' : '#9ca3af',
-                border: `1px solid ${activeTab === id ? '#3b82f6' : 'transparent'}`,
+                background: activeTab === id ? 'oklch(0.22 0.02 var(--hue))' : 'transparent',
+                color: activeTab === id ? 'var(--acc)' : 'var(--ink-dim)',
+                border: `1px solid activeTab === id ? 'var(--acc)' : 'transparent'}`,
                 borderRadius: '8px',
                 padding: isMobile ? '5px 9px' : '6px 12px',
                 fontSize: isMobile ? '12px' : '13px',
@@ -163,17 +183,17 @@ export default function App() {
             </button>
           ))}
 
-          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: '#a5b4fc', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '5px 9px' : '6px 12px', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
+          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'oklch(0.75 0.12 calc(var(--hue) + 70))', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '5px 9px' : '6px 12px', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
 
           {activeTab === 'config' && (
             <span
               style={{
                 fontSize: '12px',
-                color: '#3b82f6',
-                background: '#1e1b4b',
+                color: 'var(--acc)',
+                background: 'oklch(0.22 0.03 280)',
                 padding: '4px 10px',
                 borderRadius: '6px',
-                border: '1px solid #4338ca',
+                border: '1px solid oklch(0.45 0.12 270)',
                 fontWeight: '500',
               }}
             >
@@ -187,11 +207,11 @@ export default function App() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
           <span
             style={{
-              background: '#064e3b',
-              color: '#34d399',
+              background: 'oklch(0.30 0.05 155)',
+              color: 'var(--ok)',
               padding: '4px 10px',
               borderRadius: '12px',
-              border: '1px solid #059669',
+              border: '1px solid var(--ok)',
               fontWeight: '500',
             }}
           >
@@ -204,9 +224,9 @@ export default function App() {
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
               style={{
-                background: isSettingsOpen ? '#374151' : '#1f2937',
-                color: '#f3f4f6',
-                border: '1px solid #374151',
+                background: isSettingsOpen ? 'var(--panel-2)' : 'var(--panel)',
+                color: 'var(--ink)',
+                border: '1px solid var(--panel-2)',
                 borderRadius: '8px',
                 padding: '7px 14px',
                 fontSize: '13px',
@@ -231,8 +251,8 @@ export default function App() {
                   right: 0,
                   top: 'calc(100% + 8px)',
                   width: '200px',
-                  background: '#111827',
-                  border: '1px solid #374151',
+                  background: 'var(--panel)',
+                  border: '1px solid var(--panel-2)',
                   borderRadius: '10px',
                   padding: '6px',
                   boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
@@ -249,7 +269,7 @@ export default function App() {
                   }}
                   style={{
                     background: 'transparent',
-                    color: '#e5e7eb',
+                    color: 'var(--ink)',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -264,7 +284,7 @@ export default function App() {
                     boxSizing: 'border-box',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -279,8 +299,8 @@ export default function App() {
                     setIsSettingsOpen(false)
                   }}
                   style={{
-                    background: activeTab === 'departments' ? '#1f2937' : 'transparent',
-                    color: activeTab === 'departments' ? '#60a5fa' : '#e5e7eb',
+                    background: activeTab === 'departments' ? 'var(--panel)' : 'transparent',
+                    color: activeTab === 'departments' ? 'var(--acc)' : 'var(--ink)',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -295,13 +315,13 @@ export default function App() {
                     boxSizing: 'border-box',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
-                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'departments' ? '#1f2937' : 'transparent')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'departments' ? 'var(--panel)' : 'transparent')}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     🏢 部门管理
                   </span>
-                  {activeTab === 'departments' && <span style={{ fontSize: '12px', color: '#60a5fa' }}>✓</span>}
+                  {activeTab === 'departments' && <span style={{ fontSize: '12px', color: 'var(--acc)' }}>✓</span>}
                 </button>
 
                 <button
@@ -310,8 +330,8 @@ export default function App() {
                     setIsSettingsOpen(false)
                   }}
                   style={{
-                    background: activeTab === 'config' ? '#1f2937' : 'transparent',
-                    color: activeTab === 'config' ? '#60a5fa' : '#e5e7eb',
+                    background: activeTab === 'config' ? 'var(--panel)' : 'transparent',
+                    color: activeTab === 'config' ? 'var(--acc)' : 'var(--ink)',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -326,30 +346,57 @@ export default function App() {
                     boxSizing: 'border-box',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
-                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'config' ? '#1f2937' : 'transparent')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
+                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'config' ? 'var(--panel)' : 'transparent')}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     ⚙️ 系统配置中心
                   </span>
-                  {activeTab === 'config' && <span style={{ fontSize: '12px', color: '#60a5fa' }}>✓</span>}
+                  {activeTab === 'config' && <span style={{ fontSize: '12px', color: 'var(--acc)' }}>✓</span>}
                 </button>
 
-                <div style={{ height: 1, background: '#1f2937', margin: '6px 0' }} />
+                <div style={{ height: 1, background: 'var(--panel)', margin: '6px 0' }} />
+
+                {/* Theme Hue Slider */}
+                <div style={{ padding: '10px 12px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--ink-dim)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>🎨 主题色相</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--acc)', fontSize: '11px' }}>{themeHue}°</span>
+                  </div>
+                  <input
+                    type="range"
+                    min={0}
+                    max={360}
+                    value={themeHue}
+                    onChange={e => applyHue(parseInt(e.target.value, 10))}
+                    style={{
+                      width: '100%',
+                      height: '6px',
+                      appearance: 'none',
+                      WebkitAppearance: 'none',
+                      background: 'linear-gradient(90deg, oklch(0.7 0.2 0), oklch(0.7 0.2 60), oklch(0.7 0.2 120), oklch(0.7 0.2 180), oklch(0.7 0.2 240), oklch(0.7 0.2 300), oklch(0.7 0.2 360))',
+                      borderRadius: '3px',
+                      outline: 'none',
+                      cursor: 'pointer',
+                    }}
+                  />
+                </div>
+
+                <div style={{ height: 1, background: 'var(--panel)', margin: '6px 0' }} />
 
                 <button
                   onClick={async () => {
                     await fetch('/api/auth/logout', { method: 'POST' })
-                    window.location.reload()   // 重载后登录门会自己挡在前面
+                    window.location.reload()
                   }}
                   style={{
-                    background: 'transparent', color: '#fca5a5', border: 0,
+                    background: 'transparent', color: 'oklch(0.72 0.15 20)', border: 0,
                     borderRadius: '6px', padding: '10px 12px', fontSize: '13px',
                     fontWeight: '500', textAlign: 'left', cursor: 'pointer',
                     display: 'flex', alignItems: 'center', gap: '8px',
                     width: '100%', boxSizing: 'border-box', transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   🚪 退出登录
@@ -363,7 +410,7 @@ export default function App() {
                   onClick={() => setIsSettingsOpen(false)}
                   style={{
                     background: 'transparent',
-                    color: '#e5e7eb',
+                    color: 'var(--ink)',
                     borderRadius: '6px',
                     padding: '10px 12px',
                     fontSize: '13px',
@@ -375,18 +422,18 @@ export default function App() {
                     boxSizing: 'border-box',
                     transition: 'background 0.15s',
                   }}
-                  onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
+                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
                   onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                 >
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     📚 API 接口文档
                   </span>
-                  <span style={{ fontSize: '11px', color: '#9ca3af' }}>↗</span>
+                  <span style={{ fontSize: '11px', color: 'var(--ink-dim)' }}>↗</span>
                 </a>
 
                 {activeTab === 'config' && (
                   <>
-                    <div style={{ height: '1px', background: '#1f2937', margin: '4px 0' }} />
+                    <div style={{ height: '1px', background: 'var(--panel)', margin: '4px 0' }} />
                     <button
                       onClick={() => {
                         setActiveTab('dashboard')
@@ -394,7 +441,7 @@ export default function App() {
                       }}
                       style={{
                         background: 'transparent',
-                        color: '#9ca3af',
+                        color: 'var(--ink-dim)',
                         border: 0,
                         borderRadius: '6px',
                         padding: '8px 12px',
@@ -408,7 +455,7 @@ export default function App() {
                         width: '100%',
                         boxSizing: 'border-box',
                       }}
-                      onMouseEnter={e => (e.currentTarget.style.background = '#1f2937')}
+                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     >
                       📊 返回监控大屏
@@ -424,15 +471,16 @@ export default function App() {
       {/* Main Content Area (uncompressed, full-featured layout) */}
       <main
         style={{
-          flex: 1,
-          height: 'calc(100vh - 65px)',
-          maxHeight: 'calc(100vh - 65px)',
+          flex: '1 1 0',
+          minHeight: 0,
+          height: 'auto',
+          maxHeight: 'none',
           overflowY: 'auto',
           overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
           padding: isMobile ? '10px 12px' : '12px 20px',
-          paddingRight: isDesktop && isCopilotOpen ? `${copilotWidth + 20}px` : (isMobile ? '12px' : '20px'),
+          paddingRight: reserveCopilotSpace ? `${copilotWidth + 20}px` : (isMobile ? '12px' : '20px'),
           width: '100%',
           maxWidth: '100%',
           margin: '0 auto',
@@ -468,8 +516,8 @@ export default function App() {
         {activeTab === 'departments' && (
           <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>
             <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: '#f3f4f6', margin: 0 }}>🏢 部门管理</h2>
-              <p style={{ fontSize: '12px', color: '#9ca3af', margin: '6px 0 0' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>🏢 部门管理</h2>
+              <p style={{ fontSize: '12px', color: 'var(--ink-dim)', margin: '6px 0 0' }}>
                 登记本联邦里其他部门实例的端点与能力。跨部门工作流节点靠它找到对方。
               </p>
             </div>
@@ -481,10 +529,10 @@ export default function App() {
 
           <div style={{ maxWidth: '960px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>
             <div style={{ marginBottom: '24px', textAlign: 'center' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: '#f3f4f6', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--ink)', marginBottom: '8px' }}>
                 ⚙️ 系统配置中心 (Config Portal)
               </h2>
-              <p style={{ fontSize: '14px', color: '#9ca3af', margin: '0 auto', maxWidth: '680px', lineHeight: '1.6' }}>
+              <p style={{ fontSize: '14px', color: 'var(--ink-dim)', margin: '0 auto', maxWidth: '680px', lineHeight: '1.6' }}>
                 在这里可视化管理目标站点、LLM 智能体 API Key、演化打分权重与飞书通知网关，配置改动将自动持久化至本地配置文件。
               </p>
             </div>
@@ -511,23 +559,27 @@ export default function App() {
           className="rainbow-gradient-btn"
           style={{
             position: 'fixed',
-            bottom: '24px',
-            right: '24px',
-            color: '#fff',
+            bottom: isMobile ? '16px' : '24px',
+            right: isMobile ? '16px' : '24px',
+            color: 'var(--ink)',
             border: 0,
-            borderRadius: '28px',
-            padding: '14px 24px',
+            borderRadius: isMobile ? '50%' : '28px',
+            width: isMobile ? 48 : undefined,
+            height: isMobile ? 48 : undefined,
+            padding: isMobile ? 0 : '14px 24px',
             fontWeight: '700',
-            fontSize: '14px',
+            fontSize: isMobile ? 22 : 14,
             cursor: 'pointer',
             zIndex: 9000,
             display: 'flex',
             alignItems: 'center',
+            justifyContent: 'center',
             gap: '8px',
             textShadow: '0 1px 3px rgba(0,0,0,0.4)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
           }}
         >
-          <span>🤖 SEOAgent</span>
+          <span>{isMobile ? '' : '🤖 SEOAgent'}</span>
         </button>
       )}
 

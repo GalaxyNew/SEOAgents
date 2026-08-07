@@ -33,6 +33,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from dojocore.logging import LOGGER
 
+
 def _data_dir() -> Path:
     """每次都读环境变量,而不是在 import 时定死。
 
@@ -68,6 +69,9 @@ _PUBLIC_READONLY_ROUTES = {
 # 对面是台服务器,拿不到浏览器 cookie,要它「登录」没有意义。这类请求走
 # 服务令牌。令牌没配置时这些端点保持匿名可达 —— 直接锁死会让已经在跑的
 # 跨部门协作在升级瞬间全断,而它们此前本来就是匿名的,不算新增暴露面。
+_SERVICE_EXACT_METHODS = {
+    ("POST", "/api/workflows/instances"),
+}
 _SERVICE_PREFIXES = ("/api/v1/", "/api/workflows/internal/")
 
 
@@ -178,7 +182,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
         ):
             return await call_next(request)
 
-        if any(path.startswith(p) for p in _SERVICE_PREFIXES):
+        service_route = (
+            (request.method.upper(), path) in _SERVICE_EXACT_METHODS
+            or any(path.startswith(p) for p in _SERVICE_PREFIXES)
+        )
+        if service_route:
             if _service_authorized(request):
                 return await call_next(request)
             from fastapi.responses import JSONResponse
