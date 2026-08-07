@@ -10,14 +10,13 @@ import { WorkflowPanel } from './components/WorkflowPanel'
 import { CapabilityPanel } from './components/CapabilityPanel'
 import { StoragePanel } from './components/StoragePanel'
 import { DepartmentPanel } from './components/DepartmentPanel'
-import { SeoControlTowerGridPanel } from './components/SeoControlTowerGridPanel'
 import { useIsMobile } from './hooks'
 
-export type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config' | 'tower'
+export type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
 
 export default function App() {
   // tab 存进 URL hash:刷新后回到原页面,链接也能直接分享到具体页
-  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config', 'tower']
+  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config']
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const h = (window.location.hash || '').replace(/^#\/?/, '') as TabId
     return VALID_TABS.includes(h) ? h : 'dashboard'
@@ -163,7 +162,6 @@ export default function App() {
             ['workflow', '⚙️ 工作流'],
             ['capability', '🧭 能力中心'],
             ['storage', '🗄️ 存储资产'],
-            ['tower', '🏗️ 总控大屏'],
           ] as Array<[TabId, string]>).map(([id, label]) => (
             <button
               key={id}
@@ -188,7 +186,7 @@ export default function App() {
             </button>
           ))}
 
-          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'oklch(0.75 0.12 calc(var(--hue) + 70))', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '9px 10px' : '6px 12px', minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, display:'inline-flex', alignItems:'center', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }} title="在新窗口打开静态 HTML 版本">静态版 ↗</a>
+          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'oklch(0.75 0.12 calc(var(--hue) + 70))', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '9px 10px' : '6px 12px', minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, display:'inline-flex', alignItems:'center', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
 
           {activeTab === 'config' && (
             <span
@@ -512,8 +510,6 @@ export default function App() {
         )}
 
         {activeTab === 'kanban' && <KanbanPanel />}
-
-        {activeTab === 'tower' && <SeoControlTowerGridPanel />}
 
         {activeTab === 'timeline' && <TimelinePanel />}
 
