@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import concurrent.futures
+import multiprocessing
 import sqlite3
 from dataclasses import replace
 
@@ -26,9 +27,12 @@ def run(*, status=DataStatus.REAL, reason=None, collected_at="2026-08-07T12:00:0
         workflow_instance_id="WF-GSC-1",
         timeline_node_id="TL-GSC-1",
         asset_id="asset_gsc_1",
-        metrics={"periods": {"d0": {"clicks": 1, "impressions": 19}}},
-        dimensions={"queries": []},
-        findings=(
+        metrics=(
+            {"periods": {"d0": {"clicks": 1, "impressions": 19}}}
+            if status is not DataStatus.UNAVAILABLE else {}
+        ),
+        dimensions={"queries": []} if status is not DataStatus.UNAVAILABLE else {},
+        findings=(() if status is DataStatus.UNAVAILABLE else (
             ModuleFinding(
                 finding_key="low_sample",
                 severity="INFO",
@@ -39,7 +43,7 @@ def run(*, status=DataStatus.REAL, reason=None, collected_at="2026-08-07T12:00:0
                 expected_benefit="待验证，当前不能量化",
                 verification_method="观察 14/28 日同口径数据",
             ),
-        ),
+        )),
     )
 
 
@@ -56,6 +60,16 @@ def points():
             unit="比例", data_status=DataStatus.REAL,
         ),
     ]
+
+
+def _process_write(data_dir: str, minute: int, output: multiprocessing.Queue) -> None:
+    try:
+        saved = ControlTowerStore(data_dir).record_attempt(
+            run(collected_at=f"2026-08-07T12:{minute:02d}:00+00:00")
+        )
+        output.put(("ok", saved["module_run_id"], saved["attempt_no"]))
+    except Exception as exc:  # noqa: BLE001  # pragma: no cover - child boundary
+        output.put(("error", type(exc).__name__, str(exc)))
 
 
 def test_non_real_requires_reason():
@@ -128,6 +142,24 @@ def test_concurrent_attempts_keep_one_logical_run(tmp_path):
     assert sorted(x["attempt_no"] for x in results) == [1, 2, 3, 4]
 
 
+def test_cross_process_attempts_keep_one_logical_run(tmp_path):
+    ctx = multiprocessing.get_context("spawn")
+    output = ctx.Queue()
+    processes = [
+        ctx.Process(target=_process_write, args=(str(tmp_path), minute, output))
+        for minute in range(4)
+    ]
+    for process in processes:
+        process.start()
+    for process in processes:
+        process.join(timeout=30)
+        assert process.exitcode == 0
+    results = [output.get(timeout=5) for _ in processes]
+    assert {item[0] for item in results} == {"ok"}
+    assert len({item[1] for item in results}) == 1
+    assert sorted(item[2] for item in results) == [1, 2, 3, 4]
+
+
 def test_unavailable_is_not_persisted_as_zero_metric(tmp_path):
     store = ControlTowerStore(tmp_path)
     unavailable = run(status=DataStatus.UNAVAILABLE, reason="GSC 权限不足")
@@ -136,8 +168,11 @@ def test_unavailable_is_not_persisted_as_zero_metric(tmp_path):
     assert latest is not None
     assert saved["attempt_no"] == 1
     assert latest["data_status"] == "UNAVAILABLE"
+    assert latest["metrics"] == {}
+    assert latest["dimensions"] == {}
+    assert latest["findings"] == []
     assert latest["metric_points"] == []
-    with pytest.raises(ValueError, match="UNAVAILABLE"):
+    with pytest.raises(ValueError, match="只有 REAL|UNAVAILABLE"):
         store.record_attempt(
             unavailable,
             metric_points=[

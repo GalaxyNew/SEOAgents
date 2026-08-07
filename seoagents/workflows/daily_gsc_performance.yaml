@@ -1,0 +1,115 @@
+# Google 搜索表现 — 每日模块工作流
+# 调度时间不写在模板内：Hermes Cron 是唯一时钟；Timeline 只记录计划与轨迹。
+id: daily_gsc_performance
+name: 每日 Google 搜索表现
+version: "1.0"
+dept: seo
+description: 独立探测 GSC D0，并采集窗口、维度、归档证据、持久化及回读验收
+tags: [gsc, search-console, daily, control-tower]
+
+nodes:
+  - id: input
+    type: input
+    title: 站点与业务日期
+    depends_on: []
+    acceptance: []
+    config:
+      input_mode: direct
+
+  - id: preflight
+    type: agent_task
+    title: 前置条件校验
+    depends_on: [input]
+    acceptance:
+      - 站点属于配置白名单
+      - GSC property 与站点配置一致
+      - 只回报凭证是否可用，不回显路径或内容
+    config:
+      instruction: 校验站点白名单、GSC property 和 google_seo_monitor 工具是否可用；不得读取或输出凭证正文。
+
+  - id: collect_gsc
+    type: tool_call
+    title: 探测 D0 并采集 GSC
+    depends_on: [preflight]
+    acceptance:
+      - 从业务日期减二日开始向前探测最近有数据的 D0
+      - 返回 D0、D-1、近7日、前7日、近30日、前30日
+      - 返回日、查询、页面、国家、设备五类维度
+      - 无凭证或 API 失败时返回 UNAVAILABLE，不进入模拟路径
+    config:
+      tool: google_seo_monitor
+      action: collect_gsc_module
+      arguments:
+        target_site: "{{ input.gsc_property }}"
+        business_date: "{{ input.business_date }}"
+        probe_days: 10
+        row_limit: 25000
+
+  - id: normalize
+    type: agent_task
+    title: 确定性标准化
+    depends_on: [collect_gsc]
+    acceptance:
+      - 使用 control_tower.gsc 构造统一模块合同
+      - position 统一命名为加权平均位置
+      - 缺失窗口为 null，不借用旧日期、不补零
+      - 单源风险明确标记为未经交叉验证
+    config:
+      instruction: 调用确定性 GSC 标准化边界生成 ModuleRun 与 MetricPoint；不得创造指标或字段别名。
+
+  - id: analyze
+    type: agent_task
+    title: 历史对比与候选问题
+    depends_on: [normalize]
+    acceptance:
+      - 仅 REAL 数据进入确定性结论
+      - DEGRADED 只展示原因，不评分
+      - UNAVAILABLE 原样报告 DATA_UNAVAILABLE
+      - 小样本和因果关系均标注待验证
+    config:
+      instruction: 从 control_tower.db 读取前日同口径结果，生成可复现、非因果化的候选问题。
+
+  - id: archive
+    type: tool_call
+    title: 原始证据入库
+    depends_on: [analyze]
+    acceptance:
+      - Asset Hub PUT 成功并获得 asset_id
+      - 原始 GSC 响应在持久化业务结果前入库
+    config:
+      tool: asset_hub
+      action: put
+      arguments:
+        key: "seo/control-tower/gsc/{{ input.site_id }}/{{ input.business_date }}"
+        data_status: "{{ collect_gsc.data_status }}"
+
+  - id: persist
+    type: agent_task
+    title: 写入模块历史数据库
+    depends_on: [archive]
+    acceptance:
+      - 按 site_id、module_id、business_date 定位唯一逻辑运行
+      - 当日重试追加 attempt，不覆盖历史尝试
+      - 写入 asset_id、指标点与问题记录
+    config:
+      instruction: 使用 ControlTowerStore 写入 GSC ModuleRun 和 MetricPoint，asset_id 必须来自 archive 节点。
+
+  - id: verify_persisted
+    type: agent_task
+    title: 回读业务验收
+    depends_on: [persist]
+    acceptance:
+      - 按业务日期回读成功
+      - 回读 site_id、module_id、business_date 与输入一致
+      - asset_id 非空且与归档结果一致
+      - 最新 attempt 可追溯到当前工作流与 Timeline
+    config:
+      instruction: 通过只读 Store/API 回读并核对；Hermes 进程 completed 不等于本节点验收通过。
+
+  - id: output
+    type: output
+    title: GSC 模块完成
+    depends_on: [verify_persisted]
+    acceptance: []
+    config:
+      output_mode: result

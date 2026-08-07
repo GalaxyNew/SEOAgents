@@ -25,6 +25,13 @@ def temp_config(tmp_path, monkeypatch):
               site_url: "https://example.com"
               gsc_property: "sc-domain:example.com"
               brand_name: "Example"
+              monitored_sites:
+                - site_url: "https://example.com"
+                  gsc_property: "sc-domain:example.com"
+                  brand_name: "Example"
+                - site_url: "https://mejorsiptv.shop"
+                  gsc_property: "sc-domain:mejorsiptv.shop"
+                  brand_name: "Mejors IPTV"
               tracked_keywords: ["seo agent", "aeo monitoring"]
               content_pages:
                 - url: "https://example.com/features"

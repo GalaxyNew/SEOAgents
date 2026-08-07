@@ -15,6 +15,7 @@ from typing import Any
 
 from dojocore.quality import DataStatus
 from seoagents.control_tower.models import MetricPoint, ModuleRun, utc_now
+from seoagents.storage.locks import file_lock
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -122,12 +123,12 @@ class ControlTowerStore:
         self.dir = Path(os.path.expanduser(str(data_dir)))
         self.dir.mkdir(parents=True, exist_ok=True)
         self.db = self.dir / "control_tower.db"
+        self._lock_path = str(self.db) + ".lock"
         self._lock = threading.Lock()
-        # journal_mode and CREATE TABLE both acquire database-wide locks. A
-        # Timeline pulse and an API request can construct stores at the same
-        # instant, so initialise the schema behind a process-wide lock. Normal
-        # reads/writes still rely on SQLite's cross-process locking.
-        with _SCHEMA_LOCK, self._conn() as conn:
+        # journal_mode and CREATE TABLE both acquire database-wide locks. Use
+        # both an in-process lock and the project's portalocker-backed file lock
+        # so API workers and Timeline/Cron processes can initialise safely.
+        with _SCHEMA_LOCK, file_lock(self._lock_path, timeout=15), self._conn() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
             conn.executescript(_SCHEMA)
             conn.execute(
@@ -149,14 +150,20 @@ class ControlTowerStore:
         metric_points: tuple[MetricPoint, ...] | list[MetricPoint] = (),
     ) -> dict[str, Any]:
         run.validate()
+        status = DataStatus(run.data_status)
         points = tuple(metric_points)
         for point in points:
             point.validate()
-            if point.data_status is DataStatus.UNAVAILABLE:
-                raise ValueError("UNAVAILABLE 不应写成指标点；保持缺失即可")
+            if DataStatus(point.data_status) is not DataStatus.REAL:
+                raise ValueError("只有 REAL 指标点可以写入历史库")
+        if status is DataStatus.UNAVAILABLE and points:
+            raise ValueError("UNAVAILABLE 不应写成指标点；保持缺失即可")
 
         now = utc_now()
-        with self._lock, self._conn() as conn:
+        # BEGIN IMMEDIATE serialises the read-increment-write sequence. The
+        # outer file lock prevents independent worker processes from racing on
+        # the same logical key before SQLite obtains its write lock.
+        with self._lock, file_lock(self._lock_path, timeout=15), self._conn() as conn:
             conn.execute("BEGIN IMMEDIATE")
             row = conn.execute(
                 "SELECT module_run_id,latest_attempt_no FROM module_runs "

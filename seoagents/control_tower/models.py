@@ -29,6 +29,30 @@ def require_iso_date(value: str, *, field_name: str) -> str:
     return value
 
 
+def require_iso_datetime(value: str, *, field_name: str) -> str:
+    try:
+        parsed = dt.datetime.fromisoformat(str(value))
+    except (TypeError, ValueError) as exc:
+        raise ValueError(f"{field_name} 必须是带时区的 ISO 8601 时间") from exc
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise ValueError(f"{field_name} 必须是带时区的 ISO 8601 时间")
+    return value
+
+
+def strict_bool(value: Any, *, field_name: str) -> bool:
+    if type(value) is not bool:
+        raise TypeError(f"{field_name} 必须是布尔值")
+    return value
+
+
+def contains_non_null_metric(value: Any) -> bool:
+    if isinstance(value, Mapping):
+        return any(contains_non_null_metric(item) for item in value.values())
+    if isinstance(value, (list, tuple)):
+        return any(contains_non_null_metric(item) for item in value)
+    return value is not None
+
+
 def validate_json_object(value: Mapping[str, Any], *, field_name: str) -> dict[str, Any]:
     if not isinstance(value, Mapping):
         raise TypeError(f"{field_name} 必须是对象")
@@ -85,7 +109,7 @@ class MetricPoint:
             "value_text": self.value_text,
             "unit": self.unit,
             "dimensions": dict(self.dimensions),
-            "data_status": self.data_status.value,
+            "data_status": DataStatus(self.data_status).value,
         }
 
 
@@ -158,13 +182,25 @@ class ModuleRun:
         if self.module_id not in MODULE_IDS:
             raise ValueError(f"未知模块: {self.module_id}")
         require_iso_date(self.business_date, field_name="business_date")
+        require_iso_datetime(self.collected_at, field_name="collected_at")
         if not self.source.strip():
             raise ValueError("source 不能为空")
         validate_json_object(self.data_window, field_name="data_window")
-        validate_json_object(self.metrics, field_name="metrics")
-        validate_json_object(self.dimensions, field_name="dimensions")
-        if self.data_status is not DataStatus.REAL and not (self.reason or "").strip():
-            raise ValueError(f"{self.data_status.value} 必须说明 reason")
+        metrics = validate_json_object(self.metrics, field_name="metrics")
+        dimensions = validate_json_object(self.dimensions, field_name="dimensions")
+        try:
+            status = DataStatus(self.data_status)
+        except ValueError as exc:
+            raise ValueError(f"未知 data_status: {self.data_status}") from exc
+        if status is not DataStatus.REAL and not (self.reason or "").strip():
+            raise ValueError(f"{status.value} 必须说明 reason")
+        if status is DataStatus.UNAVAILABLE and (
+            contains_non_null_metric(metrics)
+            or contains_non_null_metric(dimensions)
+            or bool(self.findings)
+        ):
+            raise ValueError("UNAVAILABLE 的 metrics/dimensions/findings 只能为空或 null")
+        strict_bool(self.single_source_risk, field_name="single_source_risk")
         if not self.cross_validation.strip():
             raise ValueError("cross_validation 不能为空")
         if any(not str(x).strip() for x in self.known_limitations):
@@ -181,7 +217,7 @@ class ModuleRun:
             "module_id": self.module_id,
             "site_id": self.site_id,
             "business_date": self.business_date,
-            "data_status": self.data_status.value,
+            "data_status": DataStatus(self.data_status).value,
             "source": self.source,
             "data_window": dict(self.data_window),
             "reason": self.reason,
@@ -210,7 +246,9 @@ class ModuleRun:
             reason=raw.get("reason"),
             known_limitations=tuple(str(x) for x in (raw.get("known_limitations") or ())),
             cross_validation=str(raw.get("cross_validation", "")),
-            single_source_risk=bool(raw.get("single_source_risk", False)),
+            single_source_risk=strict_bool(
+                raw.get("single_source_risk", False), field_name="single_source_risk"
+            ),
             collected_at=str(raw.get("collected_at") or utc_now()),
             workflow_instance_id=str(raw.get("workflow_instance_id", "")),
             timeline_node_id=str(raw.get("timeline_node_id", "")),

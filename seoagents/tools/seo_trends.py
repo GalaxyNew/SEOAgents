@@ -1,16 +1,15 @@
 """GoogleSEOMonitorSpec (L4) — GSC performance + Google Trends rising keywords.
 
-Fixed rewrite of manual §4.1:
-  * broken ``flat_data =`` / ``summary_output =`` assignments completed
-  * ``r["keys"][0] / [1]`` indexing corrected (via quant.frames)
-  * ``pd.Timestamp.now().sub(...)`` replaced with valid timestamp arithmetic
-  * real Google API / pytrends imports are lazy & optional; without credentials
-    the spec produces deterministic mock datasets so the loop stays closed.
+Legacy actions keep their existing behavior. ``collect_gsc_module`` is the strict
+control-tower path: it never uses mock/demo data, detects an independent GSC D0,
+and returns all contract windows and dimensions from the first-party API.
 """
 from __future__ import annotations
 
+import datetime as dt
 import json
 import os
+import time
 from typing import Any
 
 import pandas as pd
@@ -18,6 +17,7 @@ import pandas as pd
 from dojocore.logging import LOGGER
 from dojocore.quality import real, unavailable, window_iso
 from seoagents.config.models import SeoAgentsConfig
+from seoagents.control_tower.gsc import period_windows
 from seoagents.quant.frames import gsc_rows_to_frame
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
@@ -58,7 +58,11 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                 "properties": {
                     "action": {
                         "type": "string",
-                        "enum": ["query_gsc_performance", "query_rising_keywords"],
+                        "enum": [
+                            "query_gsc_performance",
+                            "query_rising_keywords",
+                            "collect_gsc_module",
+                        ],
                         "description": "具体获取指标动作",
                     },
                     "target_site": {
@@ -75,6 +79,20 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                         "default": 30,
                         "description": "GSC 历史统计回溯天数",
                     },
+                    "business_date": {
+                        "type": "string",
+                        "description": "模块业务日期 YYYY-MM-DD；缺省为当前 UTC 日期",
+                    },
+                    "probe_days": {
+                        "type": "integer",
+                        "default": 10,
+                        "description": "从 today-2 向前探测 D0 的最大天数",
+                    },
+                    "row_limit": {
+                        "type": "integer",
+                        "default": 25000,
+                        "description": "每个维度最多返回的 API 行数",
+                    },
                 },
                 "required": ["action"],
             },
@@ -90,6 +108,18 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         if action == "query_gsc_performance":
             dims = arguments.get("dimensions")
             return self._query_gsc_performance(target_site, days_limit, dimensions=dims)
+
+        if action == "collect_gsc_module":
+            business_date = str(
+                arguments.get("business_date")
+                or dt.datetime.now(dt.timezone.utc).date().isoformat()
+            )
+            return self._collect_gsc_module(
+                target_site=target_site,
+                business_date=business_date,
+                probe_days=int(arguments.get("probe_days", 10)),
+                row_limit=int(arguments.get("row_limit", 25000)),
+            )
 
         if action == "query_rising_keywords":
             return await self._query_rising_keywords(keywords)
@@ -143,12 +173,12 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             else:
                 from google.oauth2.credentials import Credentials
                 creds = Credentials.from_authorized_user_file(cred_path, scopes=_GSC_SCOPES)
-        except Exception as err:
+        except Exception as err:  # noqa: BLE001 - credential format boundary
             LOGGER.warning(f"Fallback credential parsing for {cred_path}: {err}")
             from google.oauth2 import service_account
             try:
                 creds = service_account.Credentials.from_service_account_file(cred_path, scopes=_GSC_SCOPES)
-            except Exception:
+            except Exception:  # noqa: BLE001 - credential format boundary
                 from google.oauth2.credentials import Credentials
                 creds = Credentials.from_authorized_user_file(cred_path, scopes=_GSC_SCOPES)
 
@@ -162,6 +192,8 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         dimensions: list[str] | None = None,
         start_date_str: str | None = None,
         end_date_str: str | None = None,
+        row_limit: int = 25000,
+        start_row: int = 0,
     ) -> list[dict[str, Any]]:
         if not target_site:
             return []
@@ -178,10 +210,161 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             "startDate": s_str,
             "endDate": e_str,
             "dimensions": dims,
-            "rowLimit": 25000,
+            "rowLimit": row_limit,
+            "startRow": start_row,
         }
         response = gsc.searchanalytics().query(siteUrl=target_site, body=request_body).execute()
         return response.get("rows", [])
+
+    @staticmethod
+    def _row_to_contract(raw: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "key": str((raw.get("keys") or [""])[0]),
+            "clicks": float(raw.get("clicks") or 0.0),
+            "impressions": float(raw.get("impressions") or 0.0),
+            "ctr": float(raw.get("ctr") or 0.0),
+            "position": float(raw.get("position") or 0.0),
+        }
+
+    def _query_gsc_with_retry(
+        self,
+        *,
+        target_site: str,
+        start: str,
+        end: str,
+        dimensions: list[str],
+        row_limit: int,
+        max_attempts: int = 3,
+    ) -> list[dict[str, Any]]:
+        last_error: Exception | None = None
+        for attempt in range(max_attempts):
+            try:
+                return self.query_gsc_raw(
+                    target_site,
+                    0,
+                    dimensions=dimensions,
+                    start_date_str=start,
+                    end_date_str=end,
+                    row_limit=row_limit,
+                )
+            except Exception as exc:  # noqa: BLE001 - first-party API boundary
+                last_error = exc
+                if attempt + 1 < max_attempts:
+                    time.sleep(0.25 * (2**attempt))
+        assert last_error is not None
+        raise last_error
+
+    def _collect_gsc_module(
+        self,
+        *,
+        target_site: str,
+        business_date: str,
+        probe_days: int,
+        row_limit: int,
+    ) -> dict[str, Any]:
+        """Strict, first-party collection for the modular control tower."""
+        source = "Google Search Console Search Analytics API"
+        if not target_site:
+            return unavailable(source=source, reason="target_site 未提供，无法查询 GSC")
+        try:
+            business_day = dt.date.fromisoformat(business_date)
+        except ValueError:
+            return unavailable(source=source, reason="business_date 必须是 YYYY-MM-DD")
+        probe_days = max(1, min(int(probe_days), 30))
+        row_limit = max(1, min(int(row_limit), 25000))
+        try:
+            self._init_gsc_client()
+            d0: dt.date | None = None
+            probe_evidence: list[dict[str, Any]] = []
+            for offset in range(2, 2 + probe_days):
+                candidate = business_day - dt.timedelta(days=offset)
+                rows = self._query_gsc_with_retry(
+                    target_site=target_site,
+                    start=candidate.isoformat(),
+                    end=candidate.isoformat(),
+                    dimensions=["date"],
+                    row_limit=10,
+                )
+                probe_evidence.append({"date": candidate.isoformat(), "row_count": len(rows)})
+                if rows:
+                    d0 = candidate
+                    break
+            if d0 is None:
+                return unavailable(
+                    source=source,
+                    reason=(
+                        f"从 {business_day - dt.timedelta(days=2)} 向前探测 "
+                        f"{probe_days} 日，未找到有数据的 GSC 完整日"
+                    ),
+                    site=target_site,
+                    business_date=business_date,
+                    probe_evidence=probe_evidence,
+                )
+
+            windows = period_windows(d0.isoformat())
+            periods: dict[str, list[dict[str, Any]]] = {}
+            for key, window in windows.items():
+                raw_rows = self._query_gsc_with_retry(
+                    target_site=target_site,
+                    start=window.start,
+                    end=window.end,
+                    dimensions=["date"],
+                    row_limit=row_limit,
+                )
+                periods[key] = [self._row_to_contract(row) for row in raw_rows]
+
+            dimensions: dict[str, list[dict[str, Any]]] = {}
+            dimension_windows: dict[str, dict[str, str]] = {}
+            truncated: list[str] = []
+            for output_key, api_dimension in {
+                "daily": "date",
+                "queries": "query",
+                "pages": "page",
+                "countries": "country",
+                "devices": "device",
+            }.items():
+                start, end = windows["cur30"].start, windows["cur30"].end
+                raw_rows = self._query_gsc_with_retry(
+                    target_site=target_site,
+                    start=start,
+                    end=end,
+                    dimensions=[api_dimension],
+                    row_limit=row_limit,
+                )
+                if len(raw_rows) >= row_limit:
+                    truncated.append(output_key)
+                dimensions[output_key] = [self._row_to_contract(row) for row in raw_rows]
+                dimension_windows[output_key] = {"start": start, "end": end}
+
+            collected_at = dt.datetime.now(dt.timezone.utc).isoformat()
+            return real(
+                {
+                    "site": target_site,
+                    "business_date": business_date,
+                    "d0": d0.isoformat(),
+                    "period_rows": periods,
+                    "dimension_rows": dimensions,
+                    "dimension_windows": dimension_windows,
+                    "truncated_dimensions": truncated,
+                    "probe_evidence": probe_evidence,
+                    "collected_at": collected_at,
+                    "single_source_risk": True,
+                    "cross_validation": "单源，未经外部 SERP 交叉验证",
+                },
+                source=source,
+                data_window=f"{windows['prev30'].start}/{windows['d0'].end}",
+            )
+        except FileNotFoundError as exc:
+            return unavailable(source=source, reason=f"GSC 凭证缺失: {exc}", site=target_site)
+        except ImportError:
+            return unavailable(
+                source=source,
+                reason="google-api-python-client 未安装 (pip install 'seoagents[google]')",
+                site=target_site,
+            )
+        except Exception as exc:  # noqa: BLE001 - API boundary
+            LOGGER.exception("GSC 模块采集失败")
+            return unavailable(source=source, reason=f"GSC 模块采集失败: {exc}", site=target_site)
 
 
     def _query_gsc_performance(
@@ -412,6 +595,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             )
             for kw, w in sorted(measured.items(), key=lambda x: -x[1])
         ]
+        markdown = f"### 关键词趋势权重(地域:{loc})\n" + "\n".join(lines)
         return real(
             {
                 "keywords": keywords,
@@ -420,7 +604,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                 "geo": loc,
                 "provider": "dataforseo",
                 "cost_usd": d.get("cost"),
-                "markdown": "### 关键词趋势权重(地域:%s)\n%s" % (loc, "\n".join(lines)),
+                "markdown": markdown,
             },
             source="google_seo_monitor.trends",
             data_window=window_iso(),
