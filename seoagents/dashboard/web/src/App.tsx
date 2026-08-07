@@ -101,11 +101,47 @@ export default function App() {
     }
   }, [])
 
+  // ── Ch.1: Pointer Aura — 鼠标跟随环境光 ──
+  useEffect(() => {
+    const aura = document.getElementById('aura')
+    if (!aura) return
+    let raf = 0
+    let tx = 0, ty = 0, cx = 0, cy = 0
+    const onMove = (e: MouseEvent) => {
+      tx = e.clientX; ty = e.clientY
+      if (!raf) raf = requestAnimationFrame(loop)
+    }
+    const loop = () => {
+      cx += (tx - cx) * 0.08
+      cy += (ty - cy) * 0.08
+      aura.style.left = cx + 'px'
+      aura.style.top = cy + 'px'
+      if (Math.abs(tx - cx) > 0.5 || Math.abs(ty - cy) > 0.5) {
+        raf = requestAnimationFrame(loop)
+      } else { raf = 0 }
+    }
+    window.addEventListener('mousemove', onMove)
+    return () => { window.removeEventListener('mousemove', onMove); if (raf) cancelAnimationFrame(raf) }
+  }, [])
+
+  // ── Ch.5: View Transitions — Tab 切换动画 ──
+  const switchTab = (tab: TabId) => {
+    if (tab === activeTab) return
+    const swap = () => setActiveTab(tab)
+    if ('startViewTransition' in document) {
+      (document as any).startViewTransition(swap)
+    } else {
+      swap()
+    }
+  }
+
   // 与 useIsMobile(820) 同一个阈值：>=820 为 fixed 侧栏并让出等宽正文；<820 为全屏 overlay。
   const reserveCopilotSpace = !isMobile && isCopilotOpen
 
   return (
     <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+      {/* Ch.1: Pointer Aura */}
+      <div id="aura" />
       {/* Header */}
       <header
         style={{
@@ -121,7 +157,7 @@ export default function App() {
       >
         {/* Left: Brand Logo & Title */}
         <div
-          onClick={() => setActiveTab('dashboard')}
+          onClick={() => switchTab('dashboard')}
           style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px', cursor: 'pointer', minWidth: 0 }}
           title="点击返回监控大屏"
         >
@@ -165,7 +201,7 @@ export default function App() {
           ] as Array<[TabId, string]>).map(([id, label]) => (
             <button
               key={id}
-              onClick={() => setActiveTab(id)}
+              onClick={() => switchTab(id)}
               style={{
                 background: activeTab === id ? 'oklch(0.22 0.02 var(--hue))' : 'transparent',
                 color: activeTab === id ? 'var(--acc)' : 'var(--ink-dim)',

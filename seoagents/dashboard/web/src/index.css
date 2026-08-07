@@ -153,6 +153,100 @@ html, body {
   @keyframes vt-in  { from { opacity: 0; transform: scale(1.02); } to { opacity: 1; transform: scale(1); } }
 }
 
+/* ── Ch.2: 滚动驱动 — 卡片错落入场 ── */
+@supports (animation-timeline: view()) {
+  .reveal-stagger {
+    animation: stagger-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 50%;
+  }
+  @keyframes stagger-in {
+    from { opacity: 0; translate: 0 1.5rem; filter: blur(4px); }
+    to   { opacity: 1; translate: 0 0; filter: blur(0); }
+  }
+}
+@supports not (animation-timeline: view()) {
+  .reveal-stagger { animation: reveal-fallback 0.5s ease both; }
+}
+
+/* ── Ch.1: 鼠标光晕（Pointer Aura）── */
+#aura {
+  position: fixed;
+  width: 500px;
+  height: 500px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(circle,
+    oklch(0.72 0.16 calc(var(--hue) + 30) / 0.06) 0%,
+    oklch(0.62 0.19 calc(var(--hue) + 40) / 0.03) 30%,
+    transparent 60%);
+  transform: translate(-50%, -50%);
+  transition: opacity 0.4s ease;
+  will-change: left, top;
+}
+
+/* ── Ch.2: 水平滚动条 reveal ── */
+@supports (animation-timeline: view()) {
+  .reveal-h {
+    animation: reveal-h-in linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 60%;
+  }
+  @keyframes reveal-h-in {
+    from { opacity: 0; translate: 2rem 0; }
+    to   { opacity: 1; translate: 0 0; }
+  }
+}
+@supports not (animation-timeline: view()) {
+  .reveal-h { animation: reveal-fallback 0.5s ease both; }
+}
+
+/* ── Ch.5: Container Queries 面板级响应式 ── */
+.cq-panel {
+  container-type: inline-size;
+}
+@container cq-panel (max-width: 480px) {
+  .cq-panel .grid-2-col,
+  .cq-panel .grid-4-col { grid-template-columns: 1fr; }
+  .cq-panel .gsc-kpi-grid { grid-template-columns: repeat(2, 1fr); }
+}
+@container cq-panel (min-width: 760px) {
+  .cq-panel .gsc-kpi-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── Ch.5: Popover API 原生提示弹层 ── */
+[popover] {
+  background: var(--panel-2);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.6;
+  margin: auto;
+  inset: auto;
+  box-shadow: 0 8px 30px oklch(0 0 0 / 0.5);
+}
+[popover]::backdrop {
+  background: oklch(0 0 0 / 0.4);
+  backdrop-filter: blur(2px);
+}
+
+/* ── Ch.3: @property --spin 用于旋转动画 ── */
+@property --spin {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+.spin-slow {
+  animation: spin-360 8s linear infinite;
+}
+@keyframes spin-360 {
+  to { --spin: 360deg; transform: rotate(var(--spin)); }
+}
+
 /* ── Enhanced Rainbow Animated Gradient Button (OKLCH) ── */
 @keyframes rainbowGradient {
   0%   { background-position: 0% 50%; filter: hue-rotate(0deg); }
