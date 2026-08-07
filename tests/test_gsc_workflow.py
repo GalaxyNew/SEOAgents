@@ -31,6 +31,9 @@ def test_gsc_template_is_deterministic_archive_before_persist():
         assert tpl.node(node_id).type.value == "tool_call"
     assert tpl.node("collect_gsc").config["action"] == "collect_gsc_module"
     assert tpl.node("normalize").config["action"] == "normalize_gsc_module"
+    normalize_args = tpl.node("normalize").config["arguments"]
+    assert normalize_args["workflow_instance_id"] == "{{ runtime.instance_id }}"
+    assert normalize_args["timeline_node_id"] == "{{ context.timeline_node_id }}"
     assert tpl.node("archive").config["tool"] == "asset_hub"
     assert tpl.node("archive").config["action"] == "put"
     assert set(tpl.node("persist").depends_on) == {"normalize", "archive"}

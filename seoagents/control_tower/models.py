@@ -194,12 +194,12 @@ class ModuleRun:
             raise ValueError(f"未知 data_status: {self.data_status}") from exc
         if status is not DataStatus.REAL and not (self.reason or "").strip():
             raise ValueError(f"{status.value} 必须说明 reason")
-        if status is DataStatus.UNAVAILABLE and (
+        if status is not DataStatus.REAL and (
             contains_non_null_metric(metrics)
             or contains_non_null_metric(dimensions)
             or bool(self.findings)
         ):
-            raise ValueError("UNAVAILABLE 的 metrics/dimensions/findings 只能为空或 null")
+            raise ValueError("非 REAL 的 metrics/dimensions/findings 只能为空或 null")
         strict_bool(self.single_source_risk, field_name="single_source_risk")
         if not self.cross_validation.strip():
             raise ValueError("cross_validation 不能为空")

@@ -106,5 +106,7 @@ def test_truncated_dimension_is_degraded_and_not_scorable():
     run, points = _build(truncated_dimensions=["queries"])
     assert run.data_status is DataStatus.DEGRADED
     assert "queries" in (run.reason or "")
+    assert run.metrics == {}
+    assert run.dimensions == {}
     assert run.findings == ()
-    assert points
+    assert points == ()

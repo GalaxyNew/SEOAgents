@@ -11,7 +11,7 @@ from seoagents.agent.models import ToolCall
 from seoagents.config.models import SandboxConfig
 from seoagents.tools.base import BaseToolSpec, ToolRegistry
 from seoagents.tools.environments.sandbox import SandboxPolicy
-from seoagents.tools.executor import ToolExecutor, active_session_id
+from seoagents.tools.executor import ToolExecutor, active_runtime_metadata, active_session_id
 
 
 class _EchoSpec(BaseToolSpec):
@@ -22,7 +22,14 @@ class _EchoSpec(BaseToolSpec):
         return {"name": "echo", "description": "", "parameters": {"type": "object", "properties": {}}}
 
     async def execute(self, arguments: dict[str, Any], session_id: str) -> dict[str, Any]:
-        return real({"echo": arguments.get("msg", ""), "session": active_session_id.get()}, source="echo")
+        return real(
+            {
+                "echo": arguments.get("msg", ""),
+                "session": active_session_id.get(),
+                "runtime": dict(active_runtime_metadata.get() or {}),
+            },
+            source="echo",
+        )
 
 
 class _SlowSpec(BaseToolSpec):
@@ -47,11 +54,17 @@ def executor() -> ToolExecutor:
 
 
 async def test_ok_path_coerces_dict_and_propagates_session(executor: ToolExecutor):
-    res = await executor.execute_one(ToolCall(name="echo", arguments={"msg": "hi"}), session_id="s1")
+    res = await executor.execute_one(
+        ToolCall(name="echo", arguments={"msg": "hi"}),
+        session_id="s1",
+        runtime_metadata={"instance_id": "WF-REAL"},
+    )
     assert res.ok
     assert '"echo": "hi"' in res.content
     assert '"session": "s1"' in res.content
+    assert '"instance_id": "WF-REAL"' in res.content
     assert res.latency_ms >= 0
+    assert active_runtime_metadata.get() is None
 
 
 async def test_unregistered_tool(executor: ToolExecutor):

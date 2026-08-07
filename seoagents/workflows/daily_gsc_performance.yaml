@@ -50,6 +50,8 @@ nodes:
       action: normalize_gsc_module
       arguments:
         payload: "{{ collect_gsc }}"
+        workflow_instance_id: "{{ runtime.instance_id }}"
+        timeline_node_id: "{{ context.timeline_node_id }}"
 
   - id: archive
     type: tool_call

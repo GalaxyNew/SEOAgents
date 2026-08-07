@@ -357,7 +357,7 @@ export function SeoControlTowerPanel() {
         </div>
       </header>
 
-      {error && <div style={{ color: C.yellow, border: `1px solid ${C.yellow}55`, borderRadius: 8, padding: 8, marginBottom: 10 }}>上次刷新失败，保留已加载数据：{error}</div>}
+      {error && <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9500, color: C.yellow, border: `1px solid ${C.yellow}55`, borderRadius: 8, padding: '8px 14px', background: 'rgba(20,20,30,.9)', boxShadow: '0 8px 24px rgba(0,0,0,.4)', maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', backdropFilter: 'blur(8px)' }}>⚠ 刷新失败，保留旧数据</div>}
 
       <div className="tower-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,minmax(0,1fr))', gap: 10 }}>
         <Kpi label={`GSC 自然点击 · D0 ${data.gsc.d0}`} value={formatNumber(g0?.clicks)} detail={deltaText(g0?.clicks, g1?.clicks)} color={C.blue} />

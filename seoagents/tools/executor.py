@@ -4,8 +4,9 @@
 引用再跑测试,红了分不清是哪一步搬错的。等引用都改到新路径之后,
 这层会被删掉。
 """
-from dojocore.tools.executor import *  # noqa: F401,F403
+from dojocore.tools.executor import *
 from dojocore.tools.executor import (  # noqa: F401
     ToolExecutor,
+    active_runtime_metadata,
     active_session_id,
 )

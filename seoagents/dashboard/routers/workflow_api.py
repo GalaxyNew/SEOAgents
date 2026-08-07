@@ -251,20 +251,47 @@ def _lookup_runtime_value(path: str, *, inst, deps: dict[str, Any]) -> Any:
     parts = [part.strip() for part in path.split(".") if part.strip()]
     if not parts:
         return None
-    if parts[0] in {"input", "context"}:
-        value: Any = inst.context
-        parts = parts[1:]
-    else:
-        dep = parts[0]
-        if dep not in deps:
+    namespace = parts.pop(0)
+    if namespace == "input":
+        # StartBody deliberately keeps business input separate from workflow
+        # context.  Never fall back to top-level context: doing so lets schedule
+        # metadata masquerade as caller input (and vice versa).
+        value: Any = inst.context.get("input_params")
+        if not isinstance(value, dict):
             return None
-        value = deps[dep].get("runtime_output")
+    elif namespace == "context":
+        # Context is the persisted scheduler/runtime hand-off.  input_params is
+        # reserved and may only be addressed through the input.* namespace.
+        if not parts or parts[0] == "input_params":
+            return None
+        if parts == ["timeline_node_id"]:
+            # Legacy/manual instances legitimately have no Timeline parent.
+            # Their explicit contract is an empty ID, never a value borrowed
+            # from input or another context field.
+            return str(inst.context.get("timeline_node_id") or "")
+        value = inst.context
+    elif namespace == "runtime":
+        # Runtime metadata is projected from authoritative instance attributes,
+        # never from caller-controlled context/input or an upstream tool result.
+        if not parts:
+            return None
+        runtime_values = {
+            "instance_id": getattr(inst, "instance_id", None),
+            "template_id": getattr(inst, "template_id", None),
+            "template_version": getattr(inst, "template_version", None),
+        }
+        value = runtime_values.get(parts.pop(0))
+        if value is None or parts:
+            return None
+    else:
+        if namespace not in deps:
+            return None
+        value = deps[namespace].get("runtime_output")
         if isinstance(value, str):
             try:
                 value = json.loads(value)
             except json.JSONDecodeError:
                 return None
-        parts = parts[1:]
     for part in parts:
         if isinstance(value, dict) and part in value:
             value = value[part]
@@ -335,6 +362,15 @@ async def _execute_tool_node(inst, node, run) -> tuple[bool, str, str]:
     result = await get_runtime().executor.execute_one(
         call,
         session_id=f"workflow:{inst.instance_id}:{node.id}:{run.attempts}",
+        runtime_metadata={
+            "instance_id": inst.instance_id,
+            "node_id": node.id,
+            "timeline_node_id": str(inst.context.get("timeline_node_id") or ""),
+            # Bind lineage to the values that actually reached the tool. The
+            # GSC spec requires an exact match before trusting either ID.
+            "lineage_instance_id": str(arguments.get("workflow_instance_id") or ""),
+            "lineage_timeline_node_id": str(arguments.get("timeline_node_id") or ""),
+        },
     )
     if not result.ok:
         return False, "", result.error or f"工具 {tool} 执行失败"

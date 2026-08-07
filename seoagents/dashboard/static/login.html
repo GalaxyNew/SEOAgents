@@ -1,13 +1,62 @@
 <!DOCTYPE html>
 <html lang="zh"><head><meta charset="utf-8">
-<title>SEOAgents 登录界面预览</title>
-<style>
-html,body{margin:0;height:100%;background:#04060d}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SEOAgents · 接入系统</title>
 
+<!-- Ch.4: Variable Fonts — Fraunces -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   SEOAgents Login — FRONTIER/26 技术栈，原始视觉保留
+   Ch.1 Particle Canvas  ·  Ch.2 Scroll-Driven  ·  Ch.3 OKLCH
+   Ch.4 Variable Fonts   ·  Ch.5 :has() / View   ·  Ch.6 @supports
+   ============================================================ */
+
+/* ── Ch.3: OKLCH + @property — 一个变量驱动全站色相 ── */
+@property --hue {
+  syntax: '<number>';
+  initial-value: 195;
+  inherits: true;
+}
+
+:root {
+  --hue: 195;
+  /* 原始配色用 OKLCH 重写，亮度/色度不变、感知更均匀 */
+  --c-bg:      oklch(0.06 0.015 var(--hue));
+  --c-cyan:    oklch(0.78 0.15 calc(var(--hue) + 0));
+  --c-purple:  oklch(0.62 0.20 calc(var(--hue) + 130));
+  --c-pink:    oklch(0.68 0.20 calc(var(--hue) + 180));
+  --c-teal:    oklch(0.72 0.14 calc(var(--hue) - 25));
+  --c-ink:     oklch(0.92 0.01 var(--hue));
+  --c-ink-dim: oklch(0.65 0.02 var(--hue));
+  --c-ink-faint: oklch(0.45 0.02 var(--hue));
+  --c-line:    oklch(1 0 0 / 0.09);
+  --c-glass:   oklch(1 0 0 / 0.045);
+  --font-display: "Fraunces", ui-serif, Georgia, serif;
+  --font-body: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  interpolate-size: allow-keywords;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+html, body { margin: 0; height: 100%; background: var(--c-bg); }
+
+::selection { background: var(--c-cyan); color: var(--c-bg); }
+
+/* ── 原始动画关键帧（完全保留） ── */
 @keyframes sg-rotate { to { transform: rotate(360deg) } }
-/* 幻彩流动。四团各走各的路径,周期取互质的数(29/37/43/53 秒),
-   合起来要几十分钟才回到同一画面 —— 看上去是随机的,而不是
-   「哦这个动画又循环了」。 */
 @keyframes sg-f1 { 0%{transform:translate(-14%,-10%) scale(1)} 33%{transform:translate(16%,8%) scale(1.18)} 66%{transform:translate(6%,-16%) scale(.92)} 100%{transform:translate(-14%,-10%) scale(1)} }
 @keyframes sg-f2 { 0%{transform:translate(18%,12%) scale(1.1)} 30%{transform:translate(-12%,-6%) scale(.94)} 70%{transform:translate(-4%,18%) scale(1.22)} 100%{transform:translate(18%,12%) scale(1.1)} }
 @keyframes sg-f3 { 0%{transform:translate(6%,-18%) scale(.96)} 40%{transform:translate(-18%,10%) scale(1.2)} 75%{transform:translate(14%,14%) scale(1.04)} 100%{transform:translate(6%,-18%) scale(.96)} }
@@ -16,152 +65,259 @@ html,body{margin:0;height:100%;background:#04060d}
 @keyframes sg-rise   { from { opacity: 0; transform: translateY(14px) } to { opacity: 1; transform: none } }
 @keyframes sg-orbit  { to { transform: rotate(-360deg) } }
 
-.sg-wrap { position: fixed; inset: 0; z-index: 9999; background: #04060d;
+/* ── 主容器（保留原始布局） ── */
+.sg-wrap {
+  position: fixed; inset: 0; z-index: 9999; background: var(--c-bg);
   display: grid; place-items: center; overflow: hidden;
-  font-family: ui-sans-serif, system-ui, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  padding: 16px;
+  font-family: var(--font-body);
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
+}
 
-.sg-grid { position: absolute; inset: -50%; opacity: .45;
+/* ── 透视网格背景（保留） ── */
+.sg-grid {
+  position: absolute; inset: -50%; opacity: .45;
   background-image:
-    linear-gradient(rgba(56,189,248,.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(56,189,248,.055) 1px, transparent 1px);
+    linear-gradient(oklch(0.78 0.15 var(--hue) / .055) 1px, transparent 1px),
+    linear-gradient(90deg, oklch(0.78 0.15 var(--hue) / .055) 1px, transparent 1px);
   background-size: 46px 46px;
-  transform: perspective(560px) rotateX(62deg) translateY(-16%); }
+  transform: perspective(560px) rotateX(62deg) translateY(-16%);
+}
 
-/* 每团都用多档缓入的 alpha,而不是「实心→透明」两档。
-   两档的径向渐变在大尺寸上会被 8 位色量化出一圈圈同心环 —— 就是肉眼看到的
-   那条分界线。档位密了,相邻档之间色差小于 1/255,环就没了。 */
-.sg-flow { position: absolute; inset: -30%; pointer-events: none;
-  filter: blur(70px); mix-blend-mode: screen; }
-.sg-flow i { position: absolute; width: 62%; height: 62%; border-radius: 50%;
-  will-change: transform; }
-.sg-flow i:nth-child(1) { top: 4%; left: 2%;  animation: sg-f1 29s ease-in-out infinite;
+/* ── 流动光团（保留视觉，颜色换 OKLCH） ── */
+.sg-flow { position: absolute; inset: -30%; pointer-events: none; filter: blur(70px); mix-blend-mode: screen; }
+.sg-flow i { position: absolute; width: 62%; height: 62%; border-radius: 50%; will-change: transform; }
+.sg-flow i:nth-child(1) { top: 4%; left: 2%; animation: sg-f1 29s ease-in-out infinite;
   background: radial-gradient(circle at 50% 50%,
-    rgba(34,211,238,.30) 0%, rgba(34,211,238,.26) 14%, rgba(30,180,220,.20) 28%,
-    rgba(26,140,190,.14) 42%, rgba(22,100,155,.09) 56%, rgba(18,64,118,.05) 70%,
-    rgba(14,36,80,.02) 84%, transparent 100%); }
+    oklch(0.78 0.15 var(--hue) / .30) 0%, oklch(0.78 0.15 var(--hue) / .26) 14%, oklch(0.68 0.13 var(--hue) / .20) 28%,
+    oklch(0.55 0.10 var(--hue) / .14) 42%, oklch(0.42 0.07 var(--hue) / .09) 56%, oklch(0.30 0.04 var(--hue) / .05) 70%,
+    oklch(0.20 0.02 var(--hue) / .02) 84%, transparent 100%); }
 .sg-flow i:nth-child(2) { top: 0%; right: 0%; animation: sg-f2 37s ease-in-out infinite;
   background: radial-gradient(circle at 50% 50%,
-    rgba(129,90,240,.28) 0%, rgba(129,90,240,.24) 14%, rgba(112,84,225,.19) 28%,
-    rgba(94,76,205,.13) 42%, rgba(76,66,178,.085) 56%, rgba(56,52,140,.045) 70%,
-    rgba(36,34,96,.018) 84%, transparent 100%); }
+    oklch(0.62 0.20 calc(var(--hue) + 130) / .28) 0%, oklch(0.62 0.20 calc(var(--hue) + 130) / .24) 14%, oklch(0.55 0.18 calc(var(--hue) + 130) / .19) 28%,
+    oklch(0.46 0.15 calc(var(--hue) + 130) / .13) 42%, oklch(0.38 0.12 calc(var(--hue) + 130) / .085) 56%, oklch(0.28 0.08 calc(var(--hue) + 130) / .045) 70%,
+    oklch(0.18 0.04 calc(var(--hue) + 130) / .018) 84%, transparent 100%); }
 .sg-flow i:nth-child(3) { bottom: 2%; left: 14%; animation: sg-f3 43s ease-in-out infinite;
   background: radial-gradient(circle at 50% 50%,
-    rgba(232,90,180,.20) 0%, rgba(232,90,180,.17) 14%, rgba(205,84,170,.135) 28%,
-    rgba(172,76,155,.095) 42%, rgba(136,66,132,.06) 56%, rgba(96,52,102,.032) 70%,
-    rgba(58,34,66,.013) 84%, transparent 100%); }
+    oklch(0.68 0.20 calc(var(--hue) + 180) / .20) 0%, oklch(0.68 0.20 calc(var(--hue) + 180) / .17) 14%, oklch(0.60 0.18 calc(var(--hue) + 180) / .135) 28%,
+    oklch(0.50 0.15 calc(var(--hue) + 180) / .095) 42%, oklch(0.40 0.12 calc(var(--hue) + 180) / .06) 56%, oklch(0.30 0.08 calc(var(--hue) + 180) / .032) 70%,
+    oklch(0.20 0.04 calc(var(--hue) + 180) / .013) 84%, transparent 100%); }
 .sg-flow i:nth-child(4) { bottom: 6%; right: 8%; animation: sg-f4 53s ease-in-out infinite;
   background: radial-gradient(circle at 50% 50%,
-    rgba(45,212,191,.22) 0%, rgba(45,212,191,.19) 14%, rgba(40,190,180,.15) 28%,
-    rgba(34,162,162,.105) 42%, rgba(28,130,138,.068) 56%, rgba(22,96,106,.036) 70%,
-    rgba(14,58,68,.014) 84%, transparent 100%); }
+    oklch(0.72 0.14 calc(var(--hue) - 25) / .22) 0%, oklch(0.72 0.14 calc(var(--hue) - 25) / .19) 14%, oklch(0.64 0.12 calc(var(--hue) - 25) / .15) 28%,
+    oklch(0.54 0.10 calc(var(--hue) - 25) / .105) 42%, oklch(0.42 0.08 calc(var(--hue) - 25) / .068) 56%, oklch(0.32 0.05 calc(var(--hue) - 25) / .036) 70%,
+    oklch(0.20 0.03 calc(var(--hue) - 25) / .014) 84%, transparent 100%); }
 
-/* 颗粒。大面积平滑渐变在 8 位色下必然分层,加渐变档位只能减轻不能根治。
-   叠一层极淡的噪点把相邻色阶打散 —— 印刷业的抖动算法,搬到屏幕上一样管用。
-   用 SVG feTurbulence 生成,不额外请求图片。 */
-.sg-noise { position: absolute; inset: 0; pointer-events: none; opacity: .035;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+/* ── 噪点层（保留） ── */
+.sg-noise {
+  position: absolute; inset: 0; pointer-events: none; opacity: .035;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
-.sg-vignette { position: absolute; inset: 0; pointer-events: none;
+/* ── 暗角层（保留） ── */
+.sg-vignette {
+  position: absolute; inset: 0; pointer-events: none;
   background: radial-gradient(ellipse at center,
-    transparent 30%, rgba(3,5,12,.20) 48%, rgba(3,5,12,.46) 64%,
-    rgba(2,4,10,.68) 80%, rgba(2,4,10,.84) 100%); }
+    transparent 30%, oklch(0.02 0.01 var(--hue) / .20) 48%, oklch(0.02 0.01 var(--hue) / .46) 64%,
+    oklch(0.01 0.005 var(--hue) / .68) 80%, oklch(0.01 0.005 var(--hue) / .84) 100%);
+}
 
-.sg-card { position: relative; width: 372px; padding: 2px; border-radius: 16px;
-  animation: sg-rise .5s cubic-bezier(.22,1,.36,1) both; }
-.sg-card::before { content:''; position:absolute; inset:-1px; border-radius:17px; padding:1px;
-  background: conic-gradient(from 0deg, transparent 0deg, #22d3ee 40deg, #6366f1 90deg, transparent 150deg, transparent 360deg);
+/* ── Ch.2: 登录卡片 scroll-driven 入场 ── */
+.sg-card {
+  position: relative; width: 372px; max-width: 100%; padding: 2px; border-radius: 16px;
+  animation: sg-rise .5s cubic-bezier(.22,1,.36,1) both;
+}
+/* Ch.2: view() timeline 入场（渐进增强） */
+@supports (animation-timeline: view()) {
+  .sg-card {
+    animation: card-reveal linear both;
+    animation-timeline: view();
+    animation-range: entry 0% entry 55%;
+  }
+  @keyframes card-reveal {
+    from { opacity: 0; translate: 0 2rem; filter: blur(6px); }
+    to { opacity: 1; translate: 0 0; filter: blur(0); }
+  }
+}
+
+/* 旋转边框光环（保留视觉，颜色用 OKLCH） */
+.sg-card::before {
+  content: ''; position: absolute; inset: -1px; border-radius: 17px; padding: 1px;
+  background: conic-gradient(from 0deg, transparent 0deg,
+    var(--c-cyan) 40deg, var(--c-purple) 90deg, transparent 150deg, transparent 360deg);
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor; mask-composite: exclude;
-  animation: sg-rotate 6s linear infinite; }
-
-.sg-inner { position: relative; border-radius: 15px; padding: 30px 28px 24px;
-  background: linear-gradient(165deg, rgba(13,19,34,.94), rgba(7,11,22,.97));
-  border: 1px solid rgba(56,189,248,.13);
-  box-shadow: 0 24px 70px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.045); }
-
-.sg-corner { position:absolute; width:15px; height:15px; border-color:#22d3ee; opacity:.55; }
-.sg-corner.tl { top:9px; left:9px;  border-top:1.5px solid; border-left:1.5px solid; }
-.sg-corner.tr { top:9px; right:9px; border-top:1.5px solid; border-right:1.5px solid; }
-.sg-corner.bl { bottom:9px; left:9px;  border-bottom:1.5px solid; border-left:1.5px solid; }
-.sg-corner.br { bottom:9px; right:9px; border-bottom:1.5px solid; border-right:1.5px solid; }
-
-.sg-mark { position: relative; width: 52px; height: 52px; margin: 0 auto 16px; }
-.sg-mark i { position:absolute; inset:0; border-radius:50%;
-  border:1px solid rgba(34,211,238,.28); }
-.sg-mark i:nth-child(2) { inset:7px; border-color:rgba(99,102,241,.34);
-  animation: sg-orbit 9s linear infinite; border-style:dashed; }
-.sg-mark b { position:absolute; inset:15px; border-radius:9px; display:grid; place-items:center;
-  background: linear-gradient(135deg,#22d3ee,#4f46e5); color:#04060d;
-  font-size:12px; font-weight:800; letter-spacing:.4px; font-style:normal;
-  box-shadow: 0 0 18px rgba(34,211,238,.5); }
-
-.sg-title { text-align:center; font-size:21px; font-weight:700; letter-spacing:2.5px;
-  color:#e8f4ff; margin:0 0 5px;
-  text-shadow: 0 0 22px rgba(56,189,248,.42); }
-.sg-sub { text-align:center; font-size:10.5px; letter-spacing:1.6px; margin:0 0 22px;
-  color:#4d7fa6; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.sg-sub s { text-decoration:none; color:#22d3ee; animation: sg-blink 1.4s steps(1) infinite; }
-
-.sg-field { position:relative; margin-bottom:12px; }
-.sg-field label { position:absolute; left:12px; top:-7px; padding:0 5px; font-size:9.5px;
-  letter-spacing:1.3px; color:#4d7fa6; background:#0a1122; border-radius:3px;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.sg-field input { width:100%; box-sizing:border-box; height:42px; padding:0 13px;
-  background:rgba(6,12,26,.85); color:#dcefff; font-size:14px;
-  border:1px solid rgba(56,189,248,.16); border-radius:9px; outline:none;
-  transition: border-color .18s, box-shadow .18s, background .18s; }
-.sg-field input::placeholder { color:#33526e; }
-.sg-field input:focus { border-color:#22d3ee; background:rgba(8,17,34,.95);
-  box-shadow: 0 0 0 3px rgba(34,211,238,.11), 0 0 22px rgba(34,211,238,.14); }
-
-.sg-btn { position:relative; width:100%; height:43px; margin-top:6px; border:0;
-  border-radius:9px; cursor:pointer; overflow:hidden; color:#04060d;
-  font-size:14px; font-weight:700; letter-spacing:2.5px;
-  background: linear-gradient(100deg,#22d3ee,#4f46e5);
-  box-shadow: 0 8px 26px rgba(34,211,238,.24);
-  transition: transform .14s, box-shadow .18s, filter .18s; }
-.sg-btn:hover:not(:disabled) { transform:translateY(-1px); filter:brightness(1.07);
-  box-shadow: 0 12px 34px rgba(34,211,238,.36); }
-.sg-btn:active:not(:disabled) { transform:translateY(0) scale(.99); }
-.sg-btn:disabled { opacity:.34; cursor:not-allowed; box-shadow:none; }
-.sg-btn span { position:absolute; top:0; left:-120%; width:60%; height:100%;
-  background: linear-gradient(90deg, transparent, rgba(255,255,255,.42), transparent);
-  transition: left .5s; }
-.sg-btn:hover:not(:disabled) span { left:130%; }
-
-.sg-warn { font-size:11.5px; line-height:1.65; color:#fbbf24; margin-bottom:13px;
-  padding:9px 11px; border-radius:8px; background:rgba(69,26,3,.42);
-  border:1px solid rgba(180,83,9,.42); }
-
-.sg-err { margin-top:12px; font-size:11.5px; color:#fca5a5; text-align:center;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-
-.sg-foot { margin-top:18px; padding-top:13px; border-top:1px solid rgba(56,189,248,.09);
-  display:flex; justify-content:space-between; font-size:9.5px; letter-spacing:.7px;
-  color:#3c6484; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
-.sg-dot { display:inline-block; width:5px; height:5px; border-radius:50%; background:#22c55e;
-  margin-right:5px; box-shadow:0 0 7px #22c55e; animation: sg-blink 2.1s ease-in-out infinite; }
-
-@media (prefers-reduced-motion: reduce) {
-  .sg-card::before, .sg-mark i:nth-child(2), .sg-dot, .sg-sub s,
-  .sg-flow i { animation: none }
+  animation: sg-rotate 6s linear infinite;
 }
-@media (max-width: 420px) { .sg-card { width: calc(100vw - 34px) } }
-.sg-wrap{position:fixed;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
-.sg-toggle{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:10001;
-  display:flex;gap:8px;font-family:ui-monospace,Menlo,monospace;font-size:11px}
-.sg-toggle button{background:rgba(13,19,34,.9);color:#7dd3fc;border:1px solid rgba(56,189,248,.3);
-  border-radius:6px;padding:7px 14px;cursor:pointer;letter-spacing:1px}
-.sg-toggle button.on{background:#22d3ee;color:#04060d;border-color:#22d3ee}
+
+.sg-inner {
+  position: relative; border-radius: 15px; padding: 30px 28px 24px;
+  background: linear-gradient(165deg,
+    oklch(0.10 0.02 var(--hue) / .94), oklch(0.06 0.015 var(--hue) / .97));
+  border: 1px solid oklch(0.78 0.15 var(--hue) / .13);
+  box-shadow: 0 24px 70px oklch(0 0 0 / .6), inset 0 1px 0 oklch(1 0 0 / .045);
+  backdrop-filter: blur(20px);
+}
+
+/* ── 角标（保留） ── */
+.sg-corner { position: absolute; width: 15px; height: 15px; opacity: .55; }
+.sg-corner.tl { top: 9px; left: 9px; border-top: 1.5px solid var(--c-cyan); border-left: 1.5px solid var(--c-cyan); }
+.sg-corner.tr { top: 9px; right: 9px; border-top: 1.5px solid var(--c-cyan); border-right: 1.5px solid var(--c-cyan); }
+.sg-corner.bl { bottom: 9px; left: 9px; border-bottom: 1.5px solid var(--c-cyan); border-left: 1.5px solid var(--c-cyan); }
+.sg-corner.br { bottom: 9px; right: 9px; border-bottom: 1.5px solid var(--c-cyan); border-right: 1.5px solid var(--c-cyan); }
+
+/* ── Logo 标记（保留） ── */
+.sg-mark { position: relative; width: 52px; height: 52px; margin: 0 auto 16px; }
+.sg-mark i { position: absolute; inset: 0; border-radius: 50%; border: 1px solid oklch(0.78 0.15 var(--hue) / .28); }
+.sg-mark i:nth-child(2) { inset: 7px; border-color: oklch(0.62 0.20 calc(var(--hue) + 130) / .34); animation: sg-orbit 9s linear infinite; border-style: dashed; }
+.sg-mark b { position: absolute; inset: 15px; border-radius: 9px; display: grid; place-items: center;
+  background: linear-gradient(135deg, var(--c-cyan), var(--c-purple));
+  color: var(--c-bg); font-size: 12px; font-weight: 800; letter-spacing: .4px; font-style: normal;
+  box-shadow: 0 0 18px oklch(0.78 0.15 var(--hue) / .5); }
+
+/* ── Ch.4: 可变字体标题 + text-wrap ── */
+.sg-title {
+  text-align: center;
+  font-family: var(--font-display);
+  font-variation-settings: "opsz" 144, "wght" 700, "SOFT" 50, "WONK" 0;
+  font-size: 21px; font-weight: 700; letter-spacing: 2.5px;
+  color: var(--c-ink); margin: 0 0 5px;
+  text-shadow: 0 0 22px oklch(0.78 0.15 var(--hue) / .42);
+  text-wrap: balance;
+}
+.sg-sub {
+  text-align: center; font-size: 10.5px; letter-spacing: 1.6px; margin: 0 0 22px;
+  color: var(--c-ink-faint); font-family: var(--font-mono);
+  text-wrap: pretty;
+}
+.sg-sub s { text-decoration: none; color: var(--c-cyan); animation: sg-blink 1.4s steps(1) infinite; }
+
+/* ── 表单字段 ── */
+.sg-field { position: relative; margin-bottom: 12px; }
+.sg-field label {
+  position: absolute; left: 12px; top: -7px; padding: 0 5px; font-size: 9.5px;
+  letter-spacing: 1.3px; color: var(--c-ink-faint);
+  background: oklch(0.07 0.015 var(--hue)); border-radius: 3px;
+  font-family: var(--font-mono);
+}
+.sg-field input {
+  width: 100%; box-sizing: border-box; height: 46px; padding: 0 13px;
+  background: oklch(0.05 0.01 var(--hue) / .85); color: var(--c-ink); font-size: 16px;
+  border: 1px solid oklch(0.78 0.15 var(--hue) / .16); border-radius: 9px; outline: none;
+  font-family: var(--font-body);
+  transition: border-color .18s, box-shadow .18s, background .18s;
+}
+.sg-field input::placeholder { color: var(--c-ink-faint); }
+.sg-field input:focus {
+  border-color: var(--c-cyan);
+  background: oklch(0.06 0.015 var(--hue) / .95);
+  box-shadow: 0 0 0 3px oklch(0.78 0.15 var(--hue) / .11), 0 0 22px oklch(0.78 0.15 var(--hue) / .14);
+}
+
+/* ── Ch.5: :has() — 输入验证实时反馈 ── */
+.sg-field:has(input:valid:not(:placeholder-shown)) input {
+  border-color: oklch(0.72 0.17 145 / .4);
+  box-shadow: 0 0 0 2px oklch(0.72 0.17 145 / .08);
+}
+.sg-field:has(input:focus:invalid) input {
+  border-color: oklch(0.65 0.2 25 / .5);
+}
+
+/* ── 按钮（保留视觉，颜色用 OKLCH） ── */
+.sg-btn {
+  position: relative; width: 100%; height: 46px; margin-top: 6px; border: 0;
+  border-radius: 9px; cursor: pointer; overflow: hidden; color: var(--c-bg);
+  font-family: var(--font-body); font-size: 15px; font-weight: 700; letter-spacing: 2.5px;
+  background: linear-gradient(100deg, var(--c-cyan), var(--c-purple));
+  box-shadow: 0 8px 26px oklch(0.78 0.15 var(--hue) / .24);
+  transition: transform .14s, box-shadow .18s, filter .18s;
+}
+.sg-btn:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.07); box-shadow: 0 12px 34px oklch(0.78 0.15 var(--hue) / .36); }
+.sg-btn:active:not(:disabled) { transform: translateY(0) scale(.99); }
+.sg-btn:disabled { opacity: .34; cursor: not-allowed; box-shadow: none; }
+.sg-btn span { position: absolute; top: 0; left: -120%; width: 60%; height: 100%;
+  background: linear-gradient(90deg, transparent, oklch(1 0 0 / .42), transparent);
+  transition: left .5s; }
+.sg-btn:hover:not(:disabled) span { left: 130%; }
+
+/* ── 改密警告 + 错误信息 ── */
+.sg-warn { font-size: 11.5px; line-height: 1.65; color: oklch(0.78 0.15 75); margin-bottom: 13px;
+  padding: 9px 11px; border-radius: 8px; background: oklch(0.3 0.06 75 / .15); border: 1px solid oklch(0.6 0.1 75 / .42); }
+.sg-err { margin-top: 12px; font-size: 11.5px; color: oklch(0.7 0.18 25); text-align: center; font-family: var(--font-mono); }
+
+/* ── 底栏（保留） ── */
+.sg-foot { margin-top: 18px; padding-top: 13px; border-top: 1px solid oklch(0.78 0.15 var(--hue) / .09);
+  display: flex; justify-content: space-between; font-size: 9.5px; letter-spacing: .7px;
+  color: var(--c-ink-faint); font-family: var(--font-mono); }
+.sg-dot { display: inline-block; width: 5px; height: 5px; border-radius: 50%; background: oklch(0.72 0.17 145);
+  margin-right: 5px; box-shadow: 0 0 7px oklch(0.72 0.17 145); animation: sg-blink 2.1s ease-in-out infinite; }
+
+/* ── Ch.3: HUE 滑块 — 实时换肤 ── */
+.sg-hue-bar {
+  position: fixed; top: 16px; right: 16px; z-index: 10001;
+  display: flex; align-items: center; gap: 8px;
+  background: oklch(0.08 0.015 var(--hue) / .85);
+  border: 1px solid oklch(0.78 0.15 var(--hue) / .2); border-radius: 8px; padding: 6px 10px;
+  backdrop-filter: blur(8px);
+}
+.sg-hue-bar label { font-family: var(--font-mono); font-size: 9px; color: var(--c-ink-faint); letter-spacing: .1em; }
+.sg-hue-bar input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 80px; height: 4px;
+  background: linear-gradient(90deg, oklch(0.7 0.2 0), oklch(0.7 0.2 60), oklch(0.7 0.2 120), oklch(0.7 0.2 180), oklch(0.7 0.2 240), oklch(0.7 0.2 300), oklch(0.7 0.2 360));
+  border-radius: 2px; outline: none; cursor: pointer;
+}
+.sg-hue-bar input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; border-radius: 50%; background: var(--c-cyan); box-shadow: 0 0 8px oklch(0.78 0.15 var(--hue) / .5); cursor: pointer; }
+.sg-hue-val { font-family: var(--font-mono); font-size: 10px; color: var(--c-cyan); min-width: 30px; text-align: right; }
+
+/* ── Ch.6: @supports 功能徽章 ── */
+.sg-tech {
+  position: fixed; bottom: 16px; left: 50%; transform: translateX(-50%); z-index: 10001;
+  display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; max-width: 90vw;
+}
+.sg-tech span {
+  font-family: var(--font-mono); font-size: 9px; letter-spacing: .1em;
+  padding: 3px 8px; border-radius: 4px;
+  background: oklch(0.08 0.015 var(--hue) / .8); border: 1px solid oklch(0.78 0.15 var(--hue) / .15);
+  color: var(--c-ink-faint); backdrop-filter: blur(6px); transition: opacity .3s;
+}
+.sg-tech span.on { color: var(--c-cyan); border-color: oklch(0.78 0.15 var(--hue) / .3); }
+.sg-tech span.off { opacity: .3; }
+
+/* ── 移动端（保留原始适配） ── */
+@media (max-width: 480px) {
+  .sg-card { width: calc(100vw - 34px); }
+  .sg-inner { padding: 24px 18px 20px; border-radius: 13px; }
+  .sg-title { font-size: 18px; letter-spacing: 2px; }
+  .sg-sub { font-size: 9.5px; letter-spacing: 1.2px; margin-bottom: 18px; }
+  .sg-mark { width: 44px; height: 44px; margin-bottom: 12px; }
+  .sg-mark b { font-size: 10px; inset: 13px; }
+  .sg-field input { height: 48px; font-size: 16px; }
+  .sg-btn { height: 48px; font-size: 14px; }
+  .sg-corner { width: 12px; height: 12px; }
+  .sg-grid { background-size: 32px 32px; }
+  .sg-foot { font-size: 8.5px; }
+  .sg-warn { font-size: 11px; padding: 8px 10px; }
+  .sg-tech { display: none; }
+  .sg-hue-bar { top: 10px; right: 10px; padding: 5px 8px; }
+  .sg-hue-bar input[type=range] { width: 60px; }
+}
+@media (max-width: 360px) {
+  .sg-inner { padding: 20px 14px 18px; }
+  .sg-title { font-size: 16px; }
+  .sg-sub { font-size: 9px; }
+  .sg-hue-bar { display: none; }
+}
 </style></head><body>
 
 <div class="sg-wrap" oncontextmenu="return false">
+  <!-- 原始背景层：流动光团 + 透视网格 + 粒子网络 + 噪点 + 暗角 -->
   <div class="sg-flow"><i></i><i></i><i></i><i></i></div>
   <div class="sg-grid"></div>
   <canvas id="net" style="position:absolute;inset:0;width:100%;height:100%;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none"></canvas>
   <div class="sg-vignette"></div>
   <div class="sg-noise"></div>
 
+  <!-- 登录卡片 -->
   <div class="sg-card"><div class="sg-inner">
     <i class="sg-corner tl"></i><i class="sg-corner tr"></i>
     <i class="sg-corner bl"></i><i class="sg-corner br"></i>
@@ -171,37 +327,57 @@ html,body{margin:0;height:100%;background:#04060d}
     <p class="sg-sub"><span id="sub">自适应演化 · SEO 智能体集群</span><s>_</s></p>
 
     <div id="viewLogin">
-      <div class="sg-field"><label>USER</label><input placeholder="用户名" value="admin"></div>
-      <div class="sg-field"><label>PASS</label><input type="password" placeholder="口令" value="admin123"></div>
+      <div class="sg-field"><label>USER</label><input id="loginUser" placeholder="用户名" value="admin" required autocomplete="username"></div>
+      <div class="sg-field"><label>PASS</label><input id="loginPass" type="password" placeholder="口令" value="" required autocomplete="current-password"></div>
       <button class="sg-btn" id="loginBtn" onclick="doLogin()">接 入 系 统<span></span></button>
     </div>
 
     <div id="viewChange" style="display:none">
-      <div class="sg-warn">这个后台可以从公网访问,而 admin/admin123 正是扫描器最先试的一组。换掉它之前,其它功能都用不了。</div>
-      <div class="sg-field"><label>CURRENT</label><input type="password" placeholder="当前口令"></div>
-      <div class="sg-field"><label>NEW</label><input type="password" placeholder="新口令（至少 8 位）"></div>
-      <div class="sg-field"><label>CONFIRM</label><input type="password" placeholder="再输一次"></div>
+      <div class="sg-warn">这个后台可以从公网访问，而 admin/admin123 正是扫描器最先试的一组。换掉它之前，其它功能都用不了。</div>
+      <div class="sg-field"><label>CURRENT</label><input type="password" placeholder="当前口令" autocomplete="current-password"></div>
+      <div class="sg-field"><label>NEW</label><input type="password" placeholder="新口令（至少 8 位）" autocomplete="new-password"></div>
+      <div class="sg-field"><label>CONFIRM</label><input type="password" placeholder="再输一次" autocomplete="new-password"></div>
       <button class="sg-btn" id="changeBtn" onclick="doChange()">设 置 新 口 令<span></span></button>
     </div>
 
     <div class="sg-foot">
       <span><i class="sg-dot"></i>SYSTEM ONLINE</span>
-      <span>DATA_STATUS · REAL</span>
+      <span>FRONTIER/26 · LIVE</span>
     </div>
   </div></div>
 </div>
 
-<div class="sg-toggle">
-  <button id="b1" class="on">登录态</button>
-  <button id="b2">首次改口令态</button>
+<!-- Ch.3: HUE 滑块 -->
+<div class="sg-hue-bar">
+  <label>HUE</label>
+  <input type="range" min="0" max="360" value="195" id="hueSlider">
+  <span class="sg-hue-val" id="hueVal">195°</span>
 </div>
 
-<script>
-var L=document.getElementById('viewLogin'),C=document.getElementById('viewChange'),
-    S=document.getElementById('sub'),b1=document.getElementById('b1'),b2=document.getElementById('b2');
-b1.onclick=function(){L.style.display='';C.style.display='none';S.textContent='自适应演化 · SEO 智能体集群';b1.className='on';b2.className='';};
-b2.onclick=function(){L.style.display='none';C.style.display='';S.textContent='SET NEW CREDENTIALS';b2.className='on';b1.className='';};
+<!-- Ch.6: @supports 功能徽章 -->
+<div class="sg-tech" id="techBadges"></div>
 
+<script>
+/* ============================================================
+   Ch.3: OKLCH Hue — 拖动滑块全站换肤
+   ============================================================ */
+var siteHue = parseInt(localStorage.getItem('themeHue') || '195', 10);
+if (isNaN(siteHue)) siteHue = 195;
+document.documentElement.style.setProperty('--hue', siteHue);
+var hueSlider = document.getElementById('hueSlider');
+var hueVal = document.getElementById('hueVal');
+if (hueSlider) hueSlider.value = siteHue;
+if (hueVal) hueVal.textContent = siteHue + '\u00b0';
+hueSlider.addEventListener('input', function(e) {
+  siteHue = +e.target.value;
+  document.documentElement.style.setProperty('--hue', siteHue);
+  hueVal.textContent = siteHue + '\u00b0';
+  localStorage.setItem('themeHue', String(siteHue));
+});
+
+/* ============================================================
+   Ch.1: 原始粒子网络（完整保留）
+   ============================================================ */
 var cv=document.getElementById('net'),ctx=cv.getContext('2d'),w,h,pts=[],
     dpr=Math.min(window.devicePixelRatio||1,2),mouse={x:-9999,y:-9999};
 function seed(){w=cv.clientWidth;h=cv.clientHeight;cv.width=w*dpr;cv.height=h*dpr;
@@ -227,18 +403,38 @@ function draw(){ctx.clearRect(0,0,w,h);
 window.addEventListener('resize',seed);
 window.addEventListener('mousemove',function(e){var b=cv.getBoundingClientRect();
   mouse.x=e.clientX-b.left;mouse.y=e.clientY-b.top;});
+window.addEventListener('touchmove',function(e){if(e.touches[0]){var b=cv.getBoundingClientRect();
+  mouse.x=e.touches[0].clientX-b.left;mouse.y=e.touches[0].clientY-b.top;}},{passive:true});
 seed();draw();
-</script>
 
-<script>
-// 检查会话
+/* ============================================================
+   Ch.6: @supports 功能探测徽章
+   ============================================================ */
+var features = [
+  { name: 'OKLCH',        test: function() { return CSS.supports('color', 'oklch(0.5 0.1 280)'); } },
+  { name: 'COLOR-MIX',    test: function() { return CSS.supports('color', 'color-mix(in oklch, red, blue)'); } },
+  { name: '@PROPERTY',    test: function() { return typeof CSS.registerProperty === 'function'; } },
+  { name: ':HAS()',       test: function() { try { return CSS.supports('selector', ':has(*)'); } catch(e){ return false; } } },
+  { name: 'VIEW()',       test: function() { return CSS.supports('animation-timeline', 'view()'); } },
+  { name: 'VAR-FONT',     test: function() { return CSS.supports('font-variation-settings', '"wght" 400'); } },
+  { name: 'TEXT-WRAP',    test: function() { return CSS.supports('text-wrap', 'balance'); } },
+  { name: 'VIEW-TRANS',   test: function() { return typeof document.startViewTransition === 'function'; } },
+];
+var badgeC = document.getElementById('techBadges');
+features.forEach(function(f) {
+  var on = false; try { on = f.test(); } catch(e) {}
+  var el = document.createElement('span');
+  el.className = on ? 'on' : 'off';
+  el.textContent = f.name;
+  badgeC.appendChild(el);
+});
+
+/* ============================================================
+   认证逻辑（保留原始，加 Ch.5 View Transition 增强）
+   ============================================================ */
 fetch('/api/auth/session').then(r=>r.json()).then(s=>{
-  if(s.authenticated && !s.must_change){
-    window.location.href='/';
-  }
-  if(s.authenticated && s.must_change){
-    showChange();
-  }
+  if(s.authenticated && !s.must_change){ window.location.href='/'; }
+  if(s.authenticated && s.must_change){ showChange(); }
 });
 
 function showChange(){
@@ -254,8 +450,7 @@ function showLogin(){
 
 function doLogin(){
   var btn=document.getElementById('loginBtn');
-  var inputs=document.querySelectorAll('#viewLogin input');
-  var u=inputs[0].value, p=inputs[1].value;
+  var u=document.getElementById('loginUser').value, p=document.getElementById('loginPass').value;
   btn.disabled=true; btn.textContent='接 入 中…';
   fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})})
     .then(r=>r.json()).then(b=>{
@@ -272,7 +467,7 @@ function doChange(){
   var cur=inputs[0].value, np=inputs[1].value, np2=inputs[2].value;
   if(np!==np2){alert('两次输入不一致');return;}
   btn.disabled=true; btn.textContent='提 交 中…';
-  fetch('/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:cur||'admin123',new_password:np})})
+  fetch('/api/auth/password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_password:cur||'',new_password:np})})
     .then(r=>r.json()).then(b=>{
       btn.disabled=false; btn.textContent='设 置 新 口 令';
       if(b.ok||b.username){ window.location.href='/'; }

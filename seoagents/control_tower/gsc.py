@@ -179,6 +179,36 @@ def build_gsc_module_run(
         )
         limitations.append(effective_reason)
 
+    if effective_status is not DataStatus.REAL:
+        # Non-REAL first-party rows remain visible only in the upstream/archive
+        # evidence envelope.  They must not enter ModuleRun trend payloads or
+        # metric_points, where consumers could mistake them for scorable data.
+        run = ModuleRun(
+            site_id=site_id,
+            module_id="gsc",
+            business_date=business_date,
+            data_status=effective_status,
+            source="Google Search Console Search Analytics API",
+            data_window={
+                "d0": d0,
+                "d1": (dt.date.fromisoformat(d0) - dt.timedelta(days=1)).isoformat(),
+                "timezone": "UTC",
+            },
+            reason=effective_reason or f"GSC 数据状态为 {effective_status.value}",
+            known_limitations=tuple(limitations),
+            cross_validation="单源，未经外部 SERP 交叉验证",
+            single_source_risk=True,
+            collected_at=collected_at,
+            workflow_instance_id=workflow_instance_id,
+            timeline_node_id=timeline_node_id,
+            asset_id=asset_id,
+            metrics={},
+            dimensions={},
+            findings=(),
+        )
+        run.validate()
+        return run, ()
+
     findings: tuple[ModuleFinding, ...] = ()
     if effective_status is DataStatus.REAL and not dimensions["queries"]:
         findings = (
@@ -193,10 +223,6 @@ def build_gsc_module_run(
                 verification_method="复查后续 14/28 日 GSC 查询维度",
             ),
         )
-    if effective_status is not DataStatus.REAL:
-        # 非 REAL 结果只展示来源数据和降级原因，不生成可被误读为结论的 findings。
-        findings = ()
-
     run = ModuleRun(
         site_id=site_id,
         module_id="gsc",

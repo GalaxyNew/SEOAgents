@@ -133,10 +133,19 @@ export const Modal: React.FC<{
               <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>{subtitle}</div>
             )}
           </div>
-          <button onClick={onClose} title="关闭" aria-label="关闭" style={{
-            background: 'transparent', border: 0, color: '#94a3b8',
-            fontSize: 17, cursor: 'pointer', padding: '0 4px', lineHeight: 1,
-          }}>✕</button>
+          <button
+            data-testid="modal-close"
+            type="button"
+            onClick={onClose}
+            title="关闭"
+            aria-label="关闭"
+            style={{
+              minWidth: 44, minHeight: 44,
+              background: 'transparent', border: 0, color: '#94a3b8',
+              fontSize: 17, cursor: 'pointer', padding: 8, lineHeight: 1,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            }}
+          >✕</button>
         </div>
 
         <div style={{ flex: 1, overflowY: 'auto', padding: '14px 16px' }}>{children}</div>

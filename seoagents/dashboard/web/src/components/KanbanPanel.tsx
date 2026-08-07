@@ -3,12 +3,13 @@ import { useIsMobile } from '../hooks'
 import { Responsive, WidthProvider, type LayoutItem } from 'react-grid-layout/legacy'
 
 /**
- * 任务流转看板 V8 — 10×12 可拖拽网格 (react-grid-layout)
+ * 任务流转看板 V8.2 — 20×12 可拖拽网格 (react-grid-layout)
  *
- * - 10 列 × 12 行
+ * - 20 列 × 12 行（比 V8 的 10 列细一倍）
  * - 拖拽卡片换位置，其它卡片自动让位重排
  * - 拖拽右下角手柄改大小，邻居自动联动
- * - 布局存 localStorage，刷新后恢复
+ * - 所有可编辑断点都显式映射回 canonical 20 列后持久化
+ * - 布局存 localStorage，刷新后恢复；兼容迁移 v8.1 10 列缓存
  * - ✏️ 按钮切换编辑 / 锁定模式
  */
 
@@ -41,27 +42,30 @@ type DeptStatus = {
 }
 
 // ── 网格常量 ──────────────────────────────────────────────
-const COLS = 10
-const ROWS = 12
+const CANONICAL_COLS = 20
 
 // ── 断点配置 ──────────────────────────────────────────────
-const BREAKPOINTS = { lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }
-const COLS_MAP = { lg: 10, md: 8, sm: 4, xs: 2, xxs: 1 }
+type GridBreakpoint = 'lg' | 'md' | 'sm' | 'xs'
+const BREAKPOINTS: Record<GridBreakpoint, number> = { lg: 1180, md: 900, sm: 620, xs: 0 }
+const COLS_MAP: Record<GridBreakpoint, number> = { lg: CANONICAL_COLS, md: 16, sm: 8, xs: 1 }
 const ROW_HEIGHT = 48   // px, 配合 gap 算
 
 // ── 模块 ID ──────────────────────────────────────────────
 type ModuleId = 'stats' | 'running' | 'pending' | 'done' | 'events' | 'collab' | 'depts'
+const MODULE_ORDER: ModuleId[] = ['stats', 'running', 'pending', 'done', 'events', 'collab', 'depts']
+const MODULE_IDS = new Set<string>(MODULE_ORDER)
 
-// ── 默认布局 ──────────────────────────────────────────────
+// ── 默认 canonical 20 列布局 ─────────────────────────────
 const DEFAULT_LAYOUT: LayoutItem[] = [
-  { i: 'stats',   x: 0, y: 0,  w: 10, h: 2, minW: 4, minH: 1 },  // 顶栏全宽
-  { i: 'running', x: 0, y: 2,  w: 6,  h: 5, minW: 3, minH: 2 },  // 执行中 左大块
-  { i: 'events',  x: 6, y: 2,  w: 4,  h: 5, minW: 2, minH: 2 },  // 事件流 右
-  { i: 'pending', x: 0, y: 7,  w: 3,  h: 3, minW: 2, minH: 1 },  // 待办
-  { i: 'done',    x: 3, y: 7,  w: 3,  h: 3, minW: 2, minH: 1 },  // 已完成
-  { i: 'collab',  x: 6, y: 7,  w: 4,  h: 3, minW: 2, minH: 1 },  // 协作流
-  { i: 'depts',   x: 0, y: 10, w: 10, h: 2, minW: 4, minH: 1 },  // 部门状态 底部全宽
+  { i: 'stats',   x: 0,  y: 0,  w: 20, h: 2, minW: 8, minH: 1 },
+  { i: 'running', x: 0,  y: 2,  w: 12, h: 5, minW: 6, minH: 2 },
+  { i: 'events',  x: 12, y: 2,  w: 8,  h: 5, minW: 4, minH: 2 },
+  { i: 'pending', x: 0,  y: 7,  w: 6,  h: 3, minW: 4, minH: 1 },
+  { i: 'done',    x: 6,  y: 7,  w: 6,  h: 3, minW: 4, minH: 1 },
+  { i: 'collab',  x: 12, y: 7,  w: 8,  h: 3, minW: 4, minH: 1 },
+  { i: 'depts',   x: 0,  y: 10, w: 20, h: 2, minW: 8, minH: 1 },
 ]
+const DEFAULT_BY_ID = new Map(DEFAULT_LAYOUT.map((item) => [item.i as ModuleId, item]))
 
 const MODULE_LABELS: Record<ModuleId, { icon: string; title: string; color: string; showHeader: boolean }> = {
   stats:   { icon: '📊', title: '统计胶囊',     color: '#4f8cff', showHeader: false },
@@ -73,40 +77,210 @@ const MODULE_LABELS: Record<ModuleId, { icon: string; title: string; color: stri
   depts:   { icon: '📈', title: '部门任务状态', color: '#8b93a7', showHeader: true },
 }
 
-const MODULE_ORDER: ModuleId[] = ['stats', 'running', 'pending', 'done', 'events', 'collab', 'depts']
+const LAYOUT_KEY = 'kp-layout-v8.2-20col'
+const LEGACY_LAYOUT_KEY = 'kp-layout-v8.1'
+const LAYOUT_VERSION = 2
+const MAX_LAYOUT_ROWS = 10_000
 
-const LAYOUT_KEY = 'kp-layout-v8.1'
-
-// ── 按列数生成自适应布局（将 10 列布局缩放到目标列数） ────
-function scaleLayout(base: LayoutItem[], targetCols: number): LayoutItem[] {
-  if (targetCols >= 10) return base.map(it => ({ ...it }))
-  const ratio = targetCols / 10
-  return base.map(it => ({
-    ...it,
-    x: Math.min(Math.floor(it.x * ratio), targetCols - 1),
-    w: Math.max(1, Math.min(Math.round(it.w * ratio), targetCols)),
-  }))
+type PersistedLayoutV2 = {
+  version: typeof LAYOUT_VERSION
+  cols: typeof CANONICAL_COLS
+  layout: LayoutItem[]
 }
 
-// 单列堆叠布局（移动端竖排）
+type LayoutRect = Pick<LayoutItem, 'x' | 'y' | 'w' | 'h'>
+
+const isFiniteInt = (value: unknown): value is number => (
+  typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value)
+)
+
+const collides = (a: LayoutRect, b: LayoutRect) => (
+  a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+)
+
+/**
+ * 仅接受完整、有限、无越界、无碰撞的布局。任何坏缓存都整体拒绝，不能把
+ * 一半坏数据交给 react-grid-layout “修一修”，否则会产生负坐标或静默丢卡。
+ */
+function validateLayout(input: unknown, cols: number): LayoutItem[] | null {
+  if (!Array.isArray(input) || input.length !== MODULE_ORDER.length) return null
+  const byId = new Map<ModuleId, LayoutItem>()
+  for (const raw of input) {
+    if (!raw || typeof raw !== 'object') return null
+    const item = raw as Record<string, unknown>
+    if (typeof item.i !== 'string' || !MODULE_IDS.has(item.i) || byId.has(item.i as ModuleId)) return null
+    if (![item.x, item.y, item.w, item.h].every(isFiniteInt)) return null
+    const x = item.x as number
+    const y = item.y as number
+    const w = item.w as number
+    const h = item.h as number
+    if (x < 0 || y < 0 || w < 1 || h < 1 || x + w > cols || y + h > MAX_LAYOUT_ROWS) return null
+    byId.set(item.i as ModuleId, { i: item.i, x, y, w, h })
+  }
+  const ordered = MODULE_ORDER.map((id) => byId.get(id)!)
+  for (let i = 0; i < ordered.length; i++) {
+    for (let j = i + 1; j < ordered.length; j++) {
+      if (collides(ordered[i], ordered[j])) return null
+    }
+  }
+  return ordered
+}
+
+function withCanonicalConstraints(layout: LayoutItem[]): LayoutItem[] {
+  return MODULE_ORDER.map((id) => {
+    const item = layout.find((candidate) => candidate.i === id)!
+    const defaults = DEFAULT_BY_ID.get(id)!
+    return {
+      i: id,
+      x: item.x,
+      y: item.y,
+      w: item.w,
+      h: item.h,
+      minW: Math.min(defaults.minW ?? 1, item.w),
+      minH: Math.min(defaults.minH ?? 1, item.h),
+    }
+  })
+}
+
+/**
+ * 一维边界的 largest-remainder 映射。所有边界都由同一组整数累计值导出，
+ * 所以共享边界保持共享；正向 20→16/8 与反向 16/8→20 使用同一算法。
+ */
+function mapBoundaries(values: number[], sourceCols: number, targetCols: number): Map<number, number> {
+  const unique = [...new Set([0, sourceCols, ...values])].sort((a, b) => a - b)
+  const exactIntervals = unique.slice(1).map((value, index) => (
+    ((value - unique[index]) * targetCols) / sourceCols
+  ))
+  const sizes = exactIntervals.map(Math.floor)
+  let remainder = targetCols - sizes.reduce((sum, value) => sum + value, 0)
+  const ranked = exactIntervals
+    .map((value, index) => ({ index, fraction: value - Math.floor(value) }))
+    .sort((a, b) => b.fraction - a.fraction || a.index - b.index)
+  for (let index = 0; index < remainder; index++) sizes[ranked[index].index]++
+  const result = new Map<number, number>([[unique[0], 0]])
+  let cursor = 0
+  sizes.forEach((size, index) => {
+    cursor += size
+    result.set(unique[index + 1], cursor)
+  })
+  return result
+}
+
+function compactVertically(layout: LayoutItem[]): LayoutItem[] {
+  const placed: LayoutItem[] = []
+  const sorted = layout.map((item) => ({ ...item })).sort((a, b) => a.y - b.y || a.x - b.x || MODULE_ORDER.indexOf(a.i as ModuleId) - MODULE_ORDER.indexOf(b.i as ModuleId))
+  for (const item of sorted) {
+    let y = 0
+    while (y < item.y && !placed.some((other) => collides({ ...item, y }, other))) y++
+    item.y = y
+    while (placed.some((other) => collides(item, other))) item.y++
+    placed.push(item)
+  }
+  return MODULE_ORDER.map((id) => placed.find((item) => item.i === id)!)
+}
+
+function mapLayoutColumns(base: LayoutItem[], sourceCols: number, targetCols: number): LayoutItem[] {
+  if (sourceCols === targetCols) return compactVertically(base.map((item) => ({ ...item })))
+  const boundaryMap = mapBoundaries(base.flatMap((item) => [item.x, item.x + item.w]), sourceCols, targetCols)
+  const mapped = base.map((item) => {
+    const left = boundaryMap.get(item.x)!
+    const right = boundaryMap.get(item.x + item.w)!
+    return {
+      ...item,
+      x: Math.min(left, targetCols - 1),
+      w: Math.max(1, Math.min(targetCols - left, right - left)),
+      // minW 也必须在同一坐标系；不能把 canonical minW=8 原样塞进 8 列布局。
+      minW: Math.max(1, Math.min(targetCols, Math.round((item.minW ?? 1) * targetCols / sourceCols))),
+    }
+  })
+  return compactVertically(mapped)
+}
+
+// 单列只读堆叠布局（移动端竖排，并为触控内容预留足够高度）
+const MOBILE_HEIGHTS: Record<ModuleId, number> = {
+  stats: 4,
+  running: 5,
+  pending: 4,
+  done: 4,
+  events: 5,
+  collab: 7,
+  depts: 4,
+}
+
 function stackLayout(base: LayoutItem[]): LayoutItem[] {
-  return base.map((it, i) => ({
-    ...it,
-    x: 0,
-    y: base.slice(0, i).reduce((s, p) => s + p.h, 0),
-    w: 1,
-    minW: 1,
-  }))
+  let y = 0
+  return MODULE_ORDER.map((moduleId) => {
+    const source = base.find((item) => item.i === moduleId) || DEFAULT_BY_ID.get(moduleId)!
+    const h = MOBILE_HEIGHTS[moduleId]
+    const item = { ...source, x: 0, y, w: 1, h, minW: 1, minH: 1, isDraggable: false, isResizable: false }
+    y += h
+    return item
+  })
 }
 
-// 预生成所有断点的布局
-function buildAllLayouts(lg: LayoutItem[]) {
+function buildAllLayouts(canonical: LayoutItem[]) {
   return {
-    lg,
-    md: scaleLayout(lg, 8),
-    sm: scaleLayout(lg, 4),
-    xs: scaleLayout(lg, 2),
-    xxs: stackLayout(lg),
+    lg: canonical.map((item) => ({ ...item })),
+    md: mapLayoutColumns(canonical, CANONICAL_COLS, COLS_MAP.md),
+    sm: mapLayoutColumns(canonical, CANONICAL_COLS, COLS_MAP.sm),
+    xs: stackLayout(canonical),
+  }
+}
+
+/** 旧 v8.1 是裸 10 列数组；只在完整合法时迁移，并保留旧 key 便于降级。 */
+function migrateLegacyLayout(input: unknown): LayoutItem[] | null {
+  const legacy = validateLayout(input, 10)
+  if (!legacy) return null
+  return withCanonicalConstraints(mapLayoutColumns(legacy, 10, CANONICAL_COLS))
+}
+
+function parseCanonicalCache(raw: string): LayoutItem[] | null {
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    const payload = parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? parsed as Partial<PersistedLayoutV2>
+      : null
+    if (!payload || payload.version !== LAYOUT_VERSION || payload.cols !== CANONICAL_COLS) return null
+    const valid = validateLayout(payload.layout, CANONICAL_COLS)
+    return valid ? withCanonicalConstraints(valid) : null
+  } catch {
+    return null
+  }
+}
+
+function loadLayout(): LayoutItem[] {
+  try {
+    const currentRaw = localStorage.getItem(LAYOUT_KEY)
+    if (currentRaw !== null) {
+      // 新 key 存在但损坏时 fail closed 到默认值；绝不再采信更旧缓存。
+      return parseCanonicalCache(currentRaw) || DEFAULT_LAYOUT.map((item) => ({ ...item }))
+    }
+    const legacyRaw = localStorage.getItem(LEGACY_LAYOUT_KEY)
+    if (legacyRaw !== null) {
+      let parsed: unknown
+      try { parsed = JSON.parse(legacyRaw) } catch { return DEFAULT_LAYOUT.map((item) => ({ ...item })) }
+      const migrated = migrateLegacyLayout(parsed)
+      if (!migrated) return DEFAULT_LAYOUT.map((item) => ({ ...item }))
+      saveLayout(migrated)
+      return migrated
+    }
+  } catch { /* localStorage 可被浏览器策略禁用，使用内存默认值 */ }
+  return DEFAULT_LAYOUT.map((item) => ({ ...item }))
+}
+
+function saveLayout(layout: LayoutItem[]) {
+  const valid = validateLayout(layout, CANONICAL_COLS)
+  if (!valid) return false
+  const payload: PersistedLayoutV2 = {
+    version: LAYOUT_VERSION,
+    cols: CANONICAL_COLS,
+    layout: withCanonicalConstraints(valid),
+  }
+  try {
+    localStorage.setItem(LAYOUT_KEY, JSON.stringify(payload))
+    return true
+  } catch {
+    return false
   }
 }
 
@@ -215,6 +389,17 @@ const CSS = `
 .kp-rgl .react-grid-item.react-draggable-dragging > .kp-drag-handle {
   cursor: grabbing;
 }
+@media (max-width: 619px) {
+  .kp-rgl { -webkit-overflow-scrolling: touch; }
+  .kp-rgl .react-grid-item { transition: none; }
+  .kp-rgl .react-resizable-handle { display: none !important; }
+  .kp-mobile-scroll { overflow-x: auto !important; -webkit-overflow-scrolling: touch; }
+  .kp-mobile-stack { grid-template-columns: 1fr !important; }
+  .kp-mobile-action { min-width: 44px; min-height: 44px; padding: 8px 10px !important; }
+  .kp-mobile-card { width: min(78vw, 280px) !important; min-width: min(78vw, 280px) !important; }
+  .kp-mobile-task { min-height: 44px; }
+  .kp-rgl .react-grid-item { touch-action: pan-y !important; }
+}
 `
 
 // ── 小组件 ────────────────────────────────────────────────
@@ -225,42 +410,19 @@ const StatPill = ({n,label,color}:{n:number;label:string;color:string}) => (
   </div>
 )
 
-const miniBtn = (bg:string,fg:string):React.CSSProperties => ({
-  background:bg,color:fg,border:0,borderRadius:4,padding:'2px 7px',fontSize:9,fontWeight:600,cursor:'pointer',
+const miniBtn = (bg:string,fg:string,isMobile=false):React.CSSProperties => ({
+  background:bg,color:fg,border:0,borderRadius:6,padding:isMobile?'8px 10px':'2px 7px',minHeight:isMobile?44:undefined,minWidth:isMobile?52:undefined,fontSize:isMobile?11:9,fontWeight:600,cursor:'pointer',
 })
 
 // ── 区块标题（带拖拽手柄） ────────────────────────────────
 const SectionHeader = ({icon,title,color,count,extra,dragHandle}:{icon:string;title:string;color:string;count?:number;extra?:React.ReactNode;dragHandle?:boolean}) => (
-  <div className={dragHandle ? 'kp-drag-handle' : ''} style={{display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:`1px solid ${T.line}`,marginBottom:8,flexShrink:0,touchAction:'none'}}>
+  <div style={{display:'flex',alignItems:'center',gap:6,paddingBottom:6,borderBottom:`1px solid ${T.line}`,marginBottom:8,flexShrink:0,touchAction:dragHandle?'none':'auto'}} className={dragHandle ? 'kp-drag-handle' : ''}>
     <span className="kp-dot" style={{background:color,width:6,height:6}}/>
     <span style={{fontSize:12,fontWeight:700,color}}>{icon} {title}</span>
     {count!==undefined && <span style={{fontSize:11,color:T.faint}}>{count}</span>}
     {extra}
   </div>
 )
-
-// ── Layout 持久化 ─────────────────────────────────────────
-const loadLayout = (): LayoutItem[] => {
-  try {
-    const raw = localStorage.getItem(LAYOUT_KEY)
-    if (raw) {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed) && parsed.length === MODULE_ORDER.length) {
-        // 确保 minW/minH 存在
-        return parsed.map((it: any) => ({
-          ...it,
-          minW: it.minW ?? 2,
-          minH: it.minH ?? 1,
-        }))
-      }
-    }
-  } catch {}
-  return DEFAULT_LAYOUT
-}
-
-const saveLayout = (layout: LayoutItem[]) => {
-  try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(layout)) } catch {}
-}
 
 // ════════════════════════════════════════════════════════════
 // 主组件
@@ -289,6 +451,9 @@ export const KanbanPanel: React.FC = () => {
   // ── 布局状态 ──
   const [layout, setLayout] = useState<LayoutItem[]>(loadLayout)
   const [editMode, setEditMode] = useState(false)
+  const [activeBreakpoint, setActiveBreakpoint] = useState<GridBreakpoint>('lg')
+  const layoutChangeArmedRef = useRef(false)
+  const layouts = useMemo(() => buildAllLayouts(layout), [layout])
 
   const addEv = useCallback((text:string,type:string) => {
     evCtr.current++
@@ -352,15 +517,58 @@ export const KanbanPanel: React.FC = () => {
     setDetail(r.ok ? j.task : {id,error:j.detail})
   }
   // ── 布局回调 ──
-  const onLayoutChange = useCallback((newLayout: LayoutItem[], allLayouts?: Record<string, LayoutItem[]>) => {
-    const desktopLayout = allLayouts?.lg || newLayout
-    setLayout(desktopLayout)
-    saveLayout(desktopLayout)
-  }, [])
+  const persistBreakpointLayout = useCallback((breakpointLayout: LayoutItem[]) => {
+    if (activeBreakpoint === 'xs') return
+    const cols = COLS_MAP[activeBreakpoint]
+    const valid = validateLayout(breakpointLayout, cols)
+    if (!valid) return
+    const canonical = withCanonicalConstraints(
+      activeBreakpoint === 'lg'
+        ? compactVertically(valid)
+        : mapLayoutColumns(valid, cols, CANONICAL_COLS),
+    )
+    const canonicalValid = validateLayout(canonical, CANONICAL_COLS)
+    if (!canonicalValid) return
+
+    // Smaller grids quantize 20-column boundaries. Persist only edits whose canonical
+    // representation derives back to the exact active-breakpoint geometry; otherwise
+    // react-grid-layout would appear to save an edit that silently changes on refresh.
+    if (activeBreakpoint !== 'lg') {
+      const roundTrip = mapLayoutColumns(canonicalValid, CANONICAL_COLS, cols)
+      const roundTripValid = validateLayout(roundTrip, cols)
+      const exactRoundTrip = roundTripValid && MODULE_ORDER.every((id) => {
+        const before = valid.find((item) => item.i === id)!
+        const after = roundTripValid.find((item) => item.i === id)!
+        return before.x === after.x && before.y === after.y && before.w === after.w && before.h === after.h
+      })
+      if (!exactRoundTrip) {
+        setLayout((current) => current.map((item) => ({ ...item })))
+        setMsg('当前断点的布局无法无损映射到 20 列，已恢复到上次保存的布局。')
+        return
+      }
+    }
+
+    const next = withCanonicalConstraints(canonicalValid)
+    setMsg('')
+    setLayout(next)
+    saveLayout(next)
+  }, [activeBreakpoint])
+
+  const armLayoutChange = useCallback(() => {
+    if (activeBreakpoint !== 'xs') layoutChangeArmedRef.current = true
+  }, [activeBreakpoint])
+
+  const finishLayoutChange = useCallback((breakpointLayout: readonly LayoutItem[]) => {
+    if (!layoutChangeArmedRef.current) return
+    layoutChangeArmedRef.current = false
+    persistBreakpointLayout(breakpointLayout.map((item) => ({ ...item })))
+  }, [persistBreakpointLayout])
 
   const resetLayout = () => {
+    const defaults = DEFAULT_LAYOUT.map((item) => ({ ...item }))
     localStorage.removeItem(LAYOUT_KEY)
-    setLayout(DEFAULT_LAYOUT)
+    setLayout(defaults)
+    saveLayout(defaults)
   }
 
   // ── 计算数据 ──────────────────────────────────────────
@@ -393,7 +601,7 @@ export const KanbanPanel: React.FC = () => {
     const s = ST[t.status] || {label:t.status,color:T.faint}
     return (
       <div key={t.id} style={{display:'flex',alignItems:'stretch',flexShrink:0}}>
-        <div className="kp-run" onClick={()=>openDetail(t.id)} style={{
+        <div className="kp-run kp-mobile-card" onClick={()=>openDetail(t.id)} style={{
           '--kp-glow': s.color+'60',
           background:T.bg2, border:`1px solid ${T.line}`, borderLeft:`4px solid ${s.color}`,
           borderRadius:10, padding:'10px 12px', cursor:'pointer', width:230, minWidth:230,
@@ -416,9 +624,9 @@ export const KanbanPanel: React.FC = () => {
           </div>
           {t.last_failure_error && <div style={{color:T.bad,fontSize:9.5,marginTop:3}}>✗ {t.last_failure_error.slice(0,38)}{(t.consecutive_failures||0)>1?` (×${t.consecutive_failures})`:''}</div>}
           <div style={{display:'flex',gap:3,marginTop:5}} onClick={e=>e.stopPropagation()}>
-            <button onClick={()=>move(t.id,'done')} style={miniBtn(T.ok+'20',T.ok)}>完成</button>
-            <button onClick={()=>move(t.id,'review')} style={miniBtn(T.rev+'20',T.rev)}>验收</button>
-            <button onClick={()=>move(t.id,'blocked')} style={miniBtn(T.warn+'20',T.warn)}>阻塞</button>
+            <button onClick={()=>move(t.id,'done')} style={miniBtn(T.ok+'20',T.ok,isMobile)}>完成</button>
+            <button onClick={()=>move(t.id,'review')} style={miniBtn(T.rev+'20',T.rev,isMobile)}>验收</button>
+            <button onClick={()=>move(t.id,'blocked')} style={miniBtn(T.warn+'20',T.warn,isMobile)}>阻塞</button>
           </div>
         </div>
         <div style={{width:28,minWidth:28,display:'flex',alignItems:'center',justifyContent:'center'}}>
@@ -431,9 +639,14 @@ export const KanbanPanel: React.FC = () => {
   const renderCompactCard = (t:Task) => {
     const s = ST[t.status] || {label:t.status,color:T.faint}
     return (
-      <div key={t.id} onClick={()=>openDetail(t.id)} style={{background:T.bg2,border:`1px solid ${T.line}`,borderLeft:`3px solid ${s.color}`,borderRadius:7,padding:'5px 9px',cursor:'pointer',transition:'transform .12s, border-color .12s'}}
+      <div
+        key={t.id}
+        className={isMobile?'kp-mobile-task':''}
+        onClick={()=>openDetail(t.id)}
+        style={{background:T.bg2,border:`1px solid ${T.line}`,borderLeft:`3px solid ${s.color}`,borderRadius:7,padding:isMobile?'9px 10px':'5px 9px',cursor:'pointer',transition:'transform .12s, border-color .12s',display:'flex',flexDirection:'column',justifyContent:'center'}}
         onMouseEnter={e=>{e.currentTarget.style.transform='translateY(-1px)';e.currentTarget.style.borderColor=s.color}}
-        onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.borderColor=T.line}}>
+        onMouseLeave={e=>{e.currentTarget.style.transform='translateY(0)';e.currentTarget.style.borderColor=T.line}}
+      >
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',gap:4}}>
           <span style={{fontSize:11.5,fontWeight:600,color:T.txt,whiteSpace:'nowrap',overflow:'hidden',textOverflow:'ellipsis',flex:1}}>{t.workflow_template_id?.startsWith('REQ-')&&<span style={{color:T.rev,marginRight:2}}>🔗</span>}{t.title}</span>
           <span style={{fontSize:9,color:s.color,fontWeight:600,flexShrink:0}}>{s.label}</span>
@@ -488,9 +701,9 @@ export const KanbanPanel: React.FC = () => {
                   <div style={{height:'100%',width:`${progress}%`,background:`linear-gradient(90deg,${T.ok},${T.acc})`,transition:'width .5s'}}/>
                 </div>
                 <span style={{fontSize:9,color:T.faint,width:24}}>{progress}%</span>
-                <button onClick={()=>setAutoRefresh(!autoRefresh)} style={{padding:'3px 7px',fontSize:10,borderRadius:5,border:`1px solid ${autoRefresh?T.ok+'40':T.line}`,background:autoRefresh?T.ok+'15':T.panel2,color:autoRefresh?T.ok:T.dim,cursor:'pointer'}}>{autoRefresh?'⏸':'▶'}</button>
-                <button onClick={load} style={{padding:'3px 7px',fontSize:10,borderRadius:5,border:`1px solid ${T.line}`,background:T.panel2,color:T.txt,cursor:'pointer'}}>↻</button>
-                <button onClick={()=>setEditMode(!editMode)} style={{padding:'3px 7px',fontSize:10,borderRadius:5,border:`1px solid ${editMode?T.warn:T.line}`,background:editMode?T.warn+'15':T.panel2,color:editMode?T.warn:T.dim,cursor:'pointer'}}>✏️</button>
+                <button className={isMobile?'kp-mobile-action':''} aria-label={autoRefresh?'暂停自动刷新':'启用自动刷新'} onClick={()=>setAutoRefresh(!autoRefresh)} style={{padding:'3px 7px',fontSize:10,borderRadius:5,border:`1px solid ${autoRefresh?T.ok+'40':T.line}`,background:autoRefresh?T.ok+'15':T.panel2,color:autoRefresh?T.ok:T.dim,cursor:'pointer'}}>{autoRefresh?'⏸':'▶'}</button>
+                <button className={isMobile?'kp-mobile-action':''} aria-label="立即刷新" onClick={load} style={{padding:'3px 7px',fontSize:10,borderRadius:5,border:`1px solid ${T.line}`,background:T.panel2,color:T.txt,cursor:'pointer'}}>↻</button>
+                {!isMobile && <button aria-label="编辑布局" onClick={()=>setEditMode(!editMode)} style={{padding:'3px 7px',fontSize:10,borderRadius:5,border:`1px solid ${editMode?T.warn:T.line}`,background:editMode?T.warn+'15':T.panel2,color:editMode?T.warn:T.dim,cursor:'pointer'}}>✏️</button>}
               </div>
             </div>
             {msg && <div style={{background:T.bad+'15',border:`1px solid ${T.bad}40`,borderRadius:6,padding:'5px 10px',color:T.bad,fontSize:11,flexShrink:0,marginTop:4}}>{msg}</div>}
@@ -499,7 +712,7 @@ export const KanbanPanel: React.FC = () => {
 
       case 'running':
         return (
-          <div style={{flex:1,minHeight:0,overflowX:'auto',overflowY:'hidden',display:'flex',alignItems:'flex-start'}}>
+          <div className="kp-mobile-scroll" style={{flex:1,minHeight:0,overflowX:'auto',overflowY:'hidden',display:'flex',alignItems:'flex-start'}}>
             {laneRunning.length===0 && laneReview.length===0 && laneBlocked.length===0 ? (
               <div style={{color:T.faint,fontSize:11,padding:'8px 0'}}>暂无执行中任务</div>
             ) : (
@@ -513,8 +726,8 @@ export const KanbanPanel: React.FC = () => {
                         <div style={{fontWeight:600,fontSize:12.5,color:T.txt}}>{t.title}</div>
                         <div style={{display:'flex',alignItems:'center',gap:5,marginTop:3}}><span className="kp-dot" style={{background:s.color,width:5,height:5}}/><span style={{fontSize:10.5,color:s.color,fontWeight:600}}>{s.label}</span></div>
                         <div style={{display:'flex',gap:3,marginTop:5}} onClick={e=>e.stopPropagation()}>
-                          <button onClick={()=>move(t.id,'done')} style={miniBtn(T.ok+'20',T.ok)}>验收通过</button>
-                          <button onClick={()=>move(t.id,'in_progress')} style={miniBtn(T.warn+'20',T.warn)}>退回</button>
+                          <button onClick={()=>move(t.id,'done')} style={miniBtn(T.ok+'20',T.ok,isMobile)}>验收通过</button>
+                          <button onClick={()=>move(t.id,'in_progress')} style={miniBtn(T.warn+'20',T.warn,isMobile)}>退回</button>
                         </div>
                       </div>
                       <div style={{width:28,minWidth:28,display:'flex',alignItems:'center',justifyContent:'center'}}><div className="kp-arrow" style={{width:'100%',height:2,color:s.color}}/></div>
@@ -588,7 +801,7 @@ export const KanbanPanel: React.FC = () => {
                   <div className="kp-arrow" style={{width:35,height:2,color:T.dim}}/>
                   <div style={{textAlign:'center'}}><div style={{fontSize:15,fontWeight:700,fontFamily:'SF Mono,monospace',color:T.ok}}>{inbox.length}</div><div style={{fontSize:9,color:T.dim}}>📥 接收</div></div>
                 </div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+                <div className="kp-mobile-stack" style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
                   {[['📤 发件箱',outbox],['📥 收件箱',inbox]].map(([title,items]:any)=>(
                     <div key={title}>
                       <div style={{fontSize:10.5,fontWeight:700,color:T.dim,marginBottom:3}}>{title} ({items.length})</div>
@@ -614,7 +827,7 @@ export const KanbanPanel: React.FC = () => {
 
       case 'depts':
         return (
-          <div style={{display:'flex',alignItems:'flex-start',gap:0,overflowX:'auto',minHeight:50}}>
+          <div className="kp-mobile-scroll" style={{display:'flex',alignItems:'flex-start',gap:0,overflowX:'auto',minHeight:50}}>
             {depts.length===0 ? (
               <div style={{color:T.faint,fontSize:11,padding:'6px 0'}}>暂无部门数据</div>
             ) : (
@@ -631,7 +844,7 @@ export const KanbanPanel: React.FC = () => {
       <style>{CSS}</style>
 
       {/* 编辑模式提示条 */}
-      {editMode && (
+      {editMode && !isMobile && (
         <div style={{background:T.warn+'15',border:`1px solid ${T.warn}40`,borderRadius:6,padding:'5px 10px',display:'flex',alignItems:'center',gap:8,marginBottom:6,flexShrink:0}}>
           <span style={{color:T.warn,fontSize:11,fontWeight:600}}>✏️ 布局编辑模式</span>
           <span style={{color:T.dim,fontSize:10}}>拖拽模块标题移动位置 · 拖右下角调整大小 · 邻居自动让位</span>
@@ -644,18 +857,28 @@ export const KanbanPanel: React.FC = () => {
       <div className="kp-rgl" style={{flex:'1 1 0',width:'100%',minWidth:0,minHeight:0,overflowX:'hidden',overflowY:'auto',scrollbarGutter:'stable'}}>
         <ResponsiveGridLayout
           className="kp-layout"
-          layouts={buildAllLayouts(layout)}
+          layouts={layouts}
           cols={COLS_MAP}
           rowHeight={ROW_HEIGHT}
           margin={[6, 6]}
           containerPadding={[0, 0]}
-          isDraggable={editMode}
-          isResizable={editMode}
+          isDraggable={editMode && !isMobile}
+          isResizable={editMode && !isMobile}
+          isBounded={true}
           draggableHandle=".kp-drag-handle"
           compactType="vertical"
           preventCollision={false}
           useCSSTransforms={true}
-          onLayoutChange={(curr: any, all: any) => onLayoutChange(curr, all)}
+          onBreakpointChange={(breakpoint: string) => {
+            const nextBreakpoint = breakpoint as GridBreakpoint
+            layoutChangeArmedRef.current = false
+            setActiveBreakpoint(nextBreakpoint)
+            if (nextBreakpoint === 'xs') setEditMode(false)
+          }}
+          onDragStart={armLayoutChange}
+          onResizeStart={armLayoutChange}
+          onDragStop={(next) => finishLayoutChange(next)}
+          onResizeStop={(next) => finishLayoutChange(next)}
           breakpoints={BREAKPOINTS}
         >
           {MODULE_ORDER.map(modId => {
@@ -667,7 +890,7 @@ export const KanbanPanel: React.FC = () => {
                   background: T.panel,
                   border: `1px solid ${editMode ? T.acc + '60' : T.line}`,
                   borderRadius: 10,
-                  padding: modId === 'stats' ? 6 : 10,
+                  padding: modId === 'stats' ? (isMobile ? 8 : 6) : (isMobile ? 9 : 10),
                   display: 'flex',
                   flexDirection: 'column',
                   minHeight: 0,
@@ -681,7 +904,7 @@ export const KanbanPanel: React.FC = () => {
                     icon={meta.icon}
                     title={meta.title}
                     color={meta.color}
-                    dragHandle={editMode}
+                    dragHandle={editMode && !isMobile}
                     count={modId==='running' ? laneRunning.length+laneReview.length+laneBlocked.length :
                            modId==='pending' ? lanePending.length :
                            modId==='done' ? doneCount :
@@ -701,8 +924,8 @@ export const KanbanPanel: React.FC = () => {
 
       {/* ═══ 详情弹窗 ═══ */}
       {detail && (
-        <div onClick={()=>setDetail(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:20}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:T.panel,border:`1px solid ${T.line}`,borderRadius:10,padding:16,width:'100%',maxWidth:560,maxHeight:'80vh',overflowY:'auto'}}>
+        <div onClick={()=>setDetail(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:isMobile?0:20}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:T.panel,border:`1px solid ${T.line}`,borderRadius:isMobile?0:10,padding:isMobile?14:16,width:'100%',maxWidth:isMobile?'none':560,height:isMobile?'100%':'auto',maxHeight:isMobile?'100%':'80vh',overflowY:'auto'}}>
             {detail.error ? <div style={{color:T.bad}}>{detail.error}</div> : (
               <>
                 <div style={{fontSize:15,fontWeight:700,color:T.txt}}>{detail.title}</div>
@@ -713,7 +936,7 @@ export const KanbanPanel: React.FC = () => {
                     {detail.runs.map((r:any)=>(<div key={r.id} style={{background:T.bg2,borderRadius:5,padding:5,marginTop:3,fontSize:10,color:T.dim}}>#{r.id} {r.step_key} · {r.status} {r.error&&<span style={{color:T.bad}}>✗{r.error}</span>}</div>))}
                   </div>
                 )}
-                <button onClick={()=>setDetail(null)} style={{marginTop:12,padding:'5px 12px',fontSize:11,borderRadius:6,border:`1px solid ${T.line}`,background:T.panel2,color:T.txt,cursor:'pointer'}}>关闭</button>
+                <button className={isMobile?'kp-mobile-action':''} onClick={()=>setDetail(null)} style={{marginTop:12,padding:isMobile?'10px 16px':'5px 12px',minHeight:isMobile?44:undefined,fontSize:isMobile?13:11,borderRadius:6,border:`1px solid ${T.line}`,background:T.panel2,color:T.txt,cursor:'pointer'}}>关闭</button>
               </>
             )}
           </div>

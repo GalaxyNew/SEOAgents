@@ -29,10 +29,10 @@ def run(*, status=DataStatus.REAL, reason=None, collected_at="2026-08-07T12:00:0
         asset_id="asset_gsc_1",
         metrics=(
             {"periods": {"d0": {"clicks": 1, "impressions": 19}}}
-            if status is not DataStatus.UNAVAILABLE else {}
+            if status is DataStatus.REAL else {}
         ),
-        dimensions={"queries": []} if status is not DataStatus.UNAVAILABLE else {},
-        findings=(() if status is DataStatus.UNAVAILABLE else (
+        dimensions={"queries": []} if status is DataStatus.REAL else {},
+        findings=(() if status is not DataStatus.REAL else (
             ModuleFinding(
                 finding_key="low_sample",
                 severity="INFO",
@@ -75,6 +75,16 @@ def _process_write(data_dir: str, minute: int, output: multiprocessing.Queue) ->
 def test_non_real_requires_reason():
     with pytest.raises(ValueError, match="必须说明 reason"):
         run(status=DataStatus.UNAVAILABLE).validate()
+
+
+def test_degraded_rejects_metrics_dimensions_and_findings():
+    with pytest.raises(ValueError, match="非 REAL"):
+        replace(
+            run(),
+            data_status=DataStatus.DEGRADED,
+            reason="维度截断",
+            metrics={"periods": {"d0": {"clicks": 1}}},
+        ).validate()
 
 
 def test_metric_point_rejects_missing_and_nan():

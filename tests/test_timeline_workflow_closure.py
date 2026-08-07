@@ -10,7 +10,6 @@ import pytest
 
 from dojocore.timeline import TimelineService, TimelineStore
 
-
 _PULSE_PATH = Path("/opt/hermes-seo/scripts/timeline_pulse.py")
 
 
@@ -37,7 +36,7 @@ def pulse_env(tmp_path: Path, monkeypatch):
 def _due_workflow(service: TimelineService):
     return service.schedule(
         {
-            "scheduled_at": (dt.datetime.now(dt.timezone.utc) - dt.timedelta(seconds=1)).isoformat(),
+            "scheduled_at": (dt.datetime.now(dt.UTC) - dt.timedelta(seconds=1)).isoformat(),
             "kind": "START",
             "intent": "Run isolated workflow",
             "subject_ref": "test-only",
@@ -88,6 +87,13 @@ def test_due_workflow_uses_auto_start_and_persists_instance_run_ids(
     assert body["auto_start"] is True
     assert body["template_id"] == "runtime_closure"
     assert body["input_params"] == {"query": "fake"}
+    assert body["context"]["timeline_node_id"] == node.node_id
+    assert "timeline_node_id" not in body["input_params"]
+    assert body["context"] == {
+        "query": "fake",
+        "timeline_node_id": node.node_id,
+        "schedule_slot": "",
+    }
     assert body["parent_task"] == node.node_id
 
     persisted = pulse.load_node(node.node_id)
@@ -137,6 +143,46 @@ def test_timeline_acks_only_after_workflow_business_done(pulse_env, monkeypatch)
     assert "business status DONE" in persisted["outcome"]
     assert _run_row(pulse, node.node_id)["status"] == "COMPLETED"
     assert len(post_bodies) == 1
+
+
+def test_due_deterministic_workflow_can_complete_inline(pulse_env, monkeypatch):
+    pulse, service = pulse_env
+    node = _due_workflow(service)
+
+    def fake_dashboard(method: str, path: str, body: dict | None = None) -> dict:
+        assert (method, path) == ("POST", "/api/workflows/instances")
+        return {
+            "instance_id": "WF-INLINE-DONE",
+            "status": "DONE",
+            "runtime": {"created": [], "status": "DONE", "errors": []},
+        }
+
+    monkeypatch.setattr(pulse, "seoagents_api", fake_dashboard)
+    [claimed] = pulse.claim_due()
+    pulse.dispatch(claimed)
+    persisted = pulse.load_node(node.node_id)
+    assert persisted is not None
+    assert persisted["state"] == "ACKED"
+    assert persisted["context"]["runtime_state"] == "COMPLETED"
+    assert persisted["context"]["workflow_instance_id"] == "WF-INLINE-DONE"
+    assert _run_row(pulse, node.node_id)["status"] == "COMPLETED"
+
+
+def test_claim_due_filters_legacy_nodes_before_limit(pulse_env):
+    pulse, service = pulse_env
+    old = {
+        "scheduled_at": (dt.datetime.now(dt.UTC) - dt.timedelta(minutes=10)).isoformat(),
+        "kind": "START",
+        "intent": "legacy task",
+        "subject_ref": "legacy",
+        "expected_minutes": 5,
+        "context": {},
+    }
+    for index in range(5):
+        service.schedule({**old, "intent": f"legacy {index}", "subject_ref": f"legacy-{index}"}, allow_conflict=True)
+    due = _due_workflow(service)
+    claimed = pulse.claim_due(limit=1)
+    assert [node["node_id"] for node in claimed] == [due.node_id]
 
 
 def test_workflow_start_without_run_id_is_unknown_and_never_redispatched(

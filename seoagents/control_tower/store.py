@@ -156,8 +156,8 @@ class ControlTowerStore:
             point.validate()
             if DataStatus(point.data_status) is not DataStatus.REAL:
                 raise ValueError("只有 REAL 指标点可以写入历史库")
-        if status is DataStatus.UNAVAILABLE and points:
-            raise ValueError("UNAVAILABLE 不应写成指标点；保持缺失即可")
+        if status is not DataStatus.REAL and points:
+            raise ValueError("非 REAL 不应写成指标点；保持缺失即可")
 
         now = utc_now()
         # BEGIN IMMEDIATE serialises the read-increment-write sequence. The

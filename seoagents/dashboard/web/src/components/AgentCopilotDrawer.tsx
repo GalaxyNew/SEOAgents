@@ -776,6 +776,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
     ...qc.cmds.map((c) => ({ id: c.id, title: c.title, prompt: c.prompt, custom: true })),
   ]
   const width = isMobile ? '100vw' : `${drawerWidth}px`
+  const mobileTarget: React.CSSProperties = isMobile ? { minWidth: 44, minHeight: 44 } : {}
+  const mobileSelect: React.CSSProperties = isMobile ? { minHeight: 44, fontSize: 12, padding: '8px 9px' } : {}
 
   return (
     <>
@@ -791,16 +793,22 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         onClose={() => setShowHistory(false)}
         zIndex={100001}
         footer={(
-          <button onClick={() => void newConv()} style={{ ...smallBtn, background: '#2563eb', color: '#fff' }}>✚ 新建对话</button>
+          <button
+            type="button"
+            onClick={() => void newConv()}
+            style={{ ...smallBtn, ...mobileTarget, background: '#2563eb', color: '#fff' }}
+          >✚ 新建对话</button>
         )}
       >
         <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
           {(['active', 'archived'] as const).map((tab) => (
             <button
+              type="button"
               key={tab}
               onClick={() => { setHistTab(tab); void loadConvs(tab === 'archived') }}
               style={{
                 ...smallBtn,
+                ...mobileTarget,
                 background: histTab === tab ? '#1e293b' : 'transparent',
                 color: histTab === tab ? '#60a5fa' : '#94a3b8',
                 border: `1px solid ${histTab === tab ? '#3b82f6' : '#334155'}`,
@@ -816,9 +824,18 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         {convs.map((conversation) => (
           <div
             key={conversation.id}
+            role="button"
+            tabIndex={0}
             onClick={() => void openConv(conversation.id)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                void openConv(conversation.id)
+              }
+            }}
             style={{
               padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
+              minHeight: isMobile ? 44 : undefined,
               background: conversation.id === convId ? '#1e293b' : 'transparent',
               border: `1px solid ${conversation.id === convId ? '#334155' : 'transparent'}`,
               marginBottom: 4,
@@ -831,14 +848,16 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               }}>{conversation.title}</span>
               <span style={{ fontSize: 10, color: '#475569' }}>{conversation.message_count} 条</span>
               <button
+                type="button"
                 title={histTab === 'archived' ? '取回' : '归档'}
                 onClick={(event) => { event.stopPropagation(); void archiveConv(conversation.id, histTab !== 'archived') }}
-                style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 4px' }}
+                style={{ ...mobileTarget, background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: isMobile ? 8 : '2px 4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >{histTab === 'archived' ? '↩' : '📥'}</button>
               <button
+                type="button"
                 title="删除"
                 onClick={(event) => { event.stopPropagation(); void deleteConv(conversation.id) }}
-                style={{ background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: '2px 4px' }}
+                style={{ ...mobileTarget, background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: isMobile ? 8 : '2px 4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >🗑</button>
             </div>
             {conversation.last_text && (
@@ -881,7 +900,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
 
         {/* 头部 */}
         <div style={{
-          padding: '14px 16px', background: '#1e293b', borderBottom: '1px solid #334155',
+          padding: isMobile ? '6px 8px 6px 12px' : '14px 16px', background: '#1e293b', borderBottom: '1px solid #334155',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -899,20 +918,27 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               </div>
             </div>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <button onClick={() => void newConv()} title="新建对话" style={{
+          <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 2 }}>
+            <button type="button" onClick={() => void newConv()} title="新建对话" aria-label="新建对话" style={{
+              ...mobileTarget,
               background: 'transparent', border: 0, color: '#94a3b8',
-              fontSize: 16, cursor: 'pointer', padding: '4px 7px',
+              fontSize: 16, cursor: 'pointer', padding: isMobile ? 8 : '4px 7px',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>✚</button>
             <button
+              type="button"
               onClick={() => { setHistTab('active'); void loadConvs(false); setShowHistory(true) }}
-              title="历史对话" style={{
+              title="历史对话" aria-label="历史对话" style={{
+                ...mobileTarget,
                 background: 'transparent', border: 0, color: '#94a3b8',
-                fontSize: 15, cursor: 'pointer', padding: '4px 7px',
+                fontSize: 15, cursor: 'pointer', padding: isMobile ? 8 : '4px 7px',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>🕘</button>
-            <button onClick={onClose} title="收起" style={{
+            <button type="button" onClick={onClose} title={isMobile ? '关闭' : '收起'} aria-label={isMobile ? '关闭聊天' : '收起聊天'} style={{
+              ...mobileTarget,
               background: 'transparent', border: 0, color: '#94a3b8',
-              fontSize: 18, cursor: 'pointer', padding: '4px 8px',
+              fontSize: 18, cursor: 'pointer', padding: isMobile ? 8 : '4px 8px',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>✕</button>
           </div>
         </div>
@@ -940,10 +966,12 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 {msg.trace && msg.trace.length > 0 && (
                   <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #334155' }}>
                     <button
+                      type="button"
                       onClick={() => setOpenTrace(openTrace === msg.id ? null : msg.id)}
                       style={{
+                        ...mobileTarget,
                         background: 'transparent', border: 0, color: '#38bdf8',
-                        fontSize: 12, cursor: 'pointer', padding: 0,
+                        fontSize: 12, cursor: 'pointer', padding: isMobile ? 8 : 0,
                         display: 'flex', alignItems: 'center', gap: 4,
                       }}
                     >
@@ -991,11 +1019,13 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               <div style={{ color: '#60a5fa', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>{busy ? `执行中 · ${elapsed}s` : '本次执行过程'}{queuedCount > 0 ? ` · 待处理 ${queuedCount}` : ''}</span>
                 <button
+                  type="button"
                   onClick={() => setReasoningOpen((v) => !v)}
                   aria-expanded={reasoningOpen}
                   style={{
+                    ...mobileTarget,
                     marginLeft: 'auto', background: 'transparent', border: 0,
-                    color: '#93c5fd', fontSize: 11, cursor: 'pointer', padding: '1px 4px',
+                    color: '#93c5fd', fontSize: 11, cursor: 'pointer', padding: isMobile ? 8 : '1px 4px',
                   }}
                 >
                   {reasoningOpen ? '▲ 收起' : '▼ 展开'}
@@ -1049,16 +1079,18 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         </div>
 
         {/* 快捷指令 */}
-        <div style={{ padding: '8px 16px', background: '#0f172a', borderTop: '1px solid #1e293b' }}>
-          <div style={{ fontSize: 11, color: '#64748b', marginBottom: 6 }}>
-            快捷指令 <span style={{ color: '#475569' }}>· 点击填入输入框可再编辑 · 蓝色为你从能力中心添加的</span>
+        <div data-testid="copilot-quick-commands" style={{ padding: isMobile ? '6px 10px' : '8px 16px', background: '#0f172a', borderTop: '1px solid #1e293b', flexShrink: 0 }}>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>
+            快捷指令 <span style={{ color: '#64748b', fontWeight: 400 }}>· 左右滑动，点选后可编辑</span>
           </div>
-          <div style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4 }}>
+          <div role="list" aria-label="快捷指令" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
             {starters.length === 0 && (
               <span style={{ fontSize: 11, color: '#475569' }}>正在读取可用工具…</span>
             )}
             {starters.map((s: any) => (
-              <span
+              <button
+                type="button"
+                role="listitem"
                 key={s.id}
                 onClick={() => {
                   setInput(s.prompt)
@@ -1066,10 +1098,11 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 }}
                 title={s.prompt}
                 style={{
+                  ...mobileTarget,
                   background: s.custom ? '#1e3a8a' : '#1e293b',
                   border: `1px solid ${s.custom ? '#3b82f6' : '#334155'}`,
                   borderRadius: 12, color: '#93c5fd', fontSize: 11,
-                  padding: '3px 8px 3px 10px', whiteSpace: 'nowrap',
+                  padding: isMobile ? '8px 11px' : '3px 8px 3px 10px', whiteSpace: 'nowrap',
                   cursor: 'pointer', flexShrink: 0,
                   display: 'inline-flex', alignItems: 'center', gap: 5,
                 }}
@@ -1077,32 +1110,43 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 {s.title}
                 {s.custom && (
                   <span
+                    role="button"
+                    tabIndex={0}
                     onClick={(e) => { e.stopPropagation(); qc.remove(s.id) }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault()
+                        event.stopPropagation()
+                        qc.remove(s.id)
+                      }
+                    }}
                     title="从快捷指令移除"
-                    style={{ color: '#64748b', fontSize: 12, lineHeight: 1 }}
+                    style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1, padding: isMobile ? 8 : 0, margin: isMobile ? '-8px -8px -8px 0' : 0 }}
                   >×</span>
                 )}
-              </span>
+              </button>
             ))}
           </div>
         </div>
 
         {/* 输入区 */}
-        <div style={{ padding: '12px 16px', background: '#1e293b', borderTop: '1px solid #334155' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={openContextPicker} style={{
+        <div style={{ padding: isMobile ? '8px 10px 10px' : '12px 16px', background: '#1e293b', borderTop: '1px solid #334155', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: isMobile ? 6 : 8, flexWrap: 'wrap' }}>
+            <button type="button" aria-label={`页面上下文 (${TAB_LABEL[activeTab] || activeTab})`} onClick={openContextPicker} style={{
+              ...mobileTarget,
               background: '#334155', border: 0, borderRadius: 4, color: '#38bdf8',
-              fontSize: 11, padding: '4px 10px', cursor: 'pointer', fontWeight: 500,
+              fontSize: 11, padding: isMobile ? '8px 10px' : '4px 10px', cursor: 'pointer', fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>
               📎 页面上下文 ({TAB_LABEL[activeTab] || activeTab})
             </button>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div aria-label="模型选择" style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: isMobile ? 'nowrap' : 'wrap', minWidth: 0, flex: isMobile ? '1 1 100%' : undefined }}>
               {busy && (
                 <select
                   aria-label="执行中指令方式"
                   value={busyInputMode}
                   onChange={(e) => setBusyInputMode(e.target.value as 'steer' | 'queue')}
-                  style={{ ...modelSelect, maxWidth: 118, borderColor: '#7c3aed' }}
+                  style={{ ...modelSelect, ...mobileSelect, maxWidth: 118, borderColor: '#7c3aed' }}
                   title="插入当前轮：下一次工具返回后生效；排队下一轮：当前回答结束后继续"
                 >
                   <option value="steer">插入当前轮</option>
@@ -1119,7 +1163,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                   setSelectedProvider(provider)
                   setSelectedModel(row?.models?.[0] || '')
                 }}
-                style={modelSelect}
+                style={{ ...modelSelect, ...mobileSelect, minWidth: isMobile ? 0 : undefined, flex: isMobile ? '1 1 0' : undefined }}
               >
                 {(modelOptions?.providers || []).map((p) => (
                   <option key={p.slug} value={p.slug}>{p.label}</option>
@@ -1130,7 +1174,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 value={selectedModel}
                 disabled={busy || !selectedProvider}
                 onChange={(e) => setSelectedModel(e.target.value)}
-                style={{ ...modelSelect, maxWidth: 180 }}
+                style={{ ...modelSelect, ...mobileSelect, maxWidth: 180, minWidth: isMobile ? 0 : undefined, flex: isMobile ? '1 1 0' : undefined }}
               >
                 {(modelOptions?.providers.find((p) => p.slug === selectedProvider)?.models || []).map((m) => (
                   <option key={m} value={m}>{m}</option>
@@ -1141,7 +1185,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 value={reasoningEffort}
                 disabled={busy || modelsLoading || !modelOptions || selectedReasoningEfforts.length <= 1}
                 onChange={(e) => setReasoningEffort(e.target.value)}
-                style={modelSelect}
+                style={{ ...modelSelect, ...mobileSelect, minWidth: isMobile ? 0 : undefined, flex: isMobile ? '0 1 auto' : undefined }}
                 title={
                   selectedReasoningEfforts.length > 1
                     ? `推理强度 · 来源 ${selectedCapability?.reasoning_source || 'unavailable'}`
@@ -1153,7 +1197,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 ))}
               </select>
             </div>
-            <span style={{ fontSize: 11, color: '#64748b' }}>Enter 发送 · Shift+Enter 换行</span>
+            {!isMobile && <span style={{ fontSize: 11, color: '#64748b' }}>Enter 发送 · Shift+Enter 换行</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <textarea
@@ -1167,15 +1211,18 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               }}
               style={{
                 flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 8,
-                color: '#f8fafc', padding: '8px 10px', fontSize: 12, lineHeight: 1.4,
+                color: '#f8fafc', padding: isMobile ? '10px' : '8px 10px', fontSize: 12, lineHeight: 1.4,
                 outline: 'none', resize: 'vertical', minHeight: 60, maxHeight: 280, boxSizing: 'border-box',
               }}
             />
             <button
+              type="button"
+              aria-label={busy ? (busyInputMode === 'steer' ? '插入当前轮' : '追加下一轮') : '发送'}
               onClick={() => send()}
               disabled={!input.trim()}
               style={{
-                height: 42, background: !input.trim() ? '#334155' : busy ? 'linear-gradient(135deg, #7c3aed, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+                ...mobileTarget,
+                height: isMobile ? 44 : 42, background: !input.trim() ? '#334155' : busy ? 'linear-gradient(135deg, #7c3aed, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
                 color: '#fff', border: 0, borderRadius: 8, padding: '0 16px',
                 fontWeight: 600, fontSize: 13,
                 cursor: !input.trim() ? 'not-allowed' : 'pointer',
@@ -1199,11 +1246,11 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         zIndex={100000}
         footer={(
           <>
-            <button onClick={() => setCtxPicked(Object.fromEntries(ctxItems.map((item) => [item.key, true])))} style={smallBtn}>全选</button>
-            <button onClick={() => setCtxPicked({})} style={smallBtn}>全不选</button>
+            <button type="button" onClick={() => setCtxPicked(Object.fromEntries(ctxItems.map((item) => [item.key, true])))} style={{ ...smallBtn, ...mobileTarget }}>全选</button>
+            <button type="button" onClick={() => setCtxPicked({})} style={{ ...smallBtn, ...mobileTarget }}>全不选</button>
             <span style={{ flex: 1 }} />
-            <button onClick={() => setShowCtx(false)} style={smallBtn}>取消</button>
-            <button onClick={applyContext} style={{ ...smallBtn, background: '#2563eb', color: '#fff' }}>
+            <button type="button" onClick={() => setShowCtx(false)} style={{ ...smallBtn, ...mobileTarget }}>取消</button>
+            <button type="button" onClick={applyContext} style={{ ...smallBtn, ...mobileTarget, background: '#2563eb', color: '#fff' }}>
               加入输入框 ({ctxItems.filter((item) => ctxPicked[item.key]).length} 项 ·{' '}
               {(() => {
                 const payload: Record<string, unknown> = {}
@@ -1222,14 +1269,14 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         )}
         {ctxItems.map((item) => (
           <label key={item.key} style={{
-            display: 'flex', alignItems: 'flex-start', gap: 8, padding: '7px 0',
+            display: 'flex', alignItems: 'flex-start', gap: 8, padding: isMobile ? '10px 0' : '7px 0', minHeight: isMobile ? 44 : undefined,
             borderBottom: '1px solid #1f2937', cursor: 'pointer',
           }}>
             <input
               type="checkbox"
               checked={!!ctxPicked[item.key]}
               onChange={(event) => setCtxPicked((current) => ({ ...current, [item.key]: event.target.checked }))}
-              style={{ marginTop: 3, accentColor: '#3b82f6', flexShrink: 0 }}
+              style={{ marginTop: 3, accentColor: '#3b82f6', flexShrink: 0, width: isMobile ? 24 : undefined, height: isMobile ? 24 : undefined }}
             />
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>{item.label}</div>

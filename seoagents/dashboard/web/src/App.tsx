@@ -39,14 +39,10 @@ export default function App() {
   const [summary, setSummary] = useState<MetricsSummary | null>(null)
   const [configData, setConfigData] = useState<any>(null)
   const [seonautEndpoint, setSeonautEndpoint] = useState<string>('')
-  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(window.innerWidth >= 1024)
+  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(window.innerWidth >= 820)
   const [copilotWidth, setCopilotWidth] = useState<number>(460)
-  const [isDesktop, setIsDesktop] = useState<boolean>(window.innerWidth >= 1024)
+  const [viewportHeight, setViewportHeight] = useState<number>(() => window.visualViewport?.height ?? window.innerHeight)
 
-  // 任务卡需要完整画布；进入该页时自动收起固定右侧助手，用户仍可用浮动按钮重新打开。
-  useEffect(() => {
-    if (activeTab === 'kanban') setIsCopilotOpen(false)
-  }, [activeTab])
 
   // Right-side Settings Dropdown state
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
@@ -82,9 +78,11 @@ export default function App() {
     const timer = setInterval(refresh, 30_000)
 
     const handleResize = () => {
-      setIsDesktop(window.innerWidth >= 1024)
+      setViewportHeight(window.visualViewport?.height ?? window.innerHeight)
     }
     window.addEventListener('resize', handleResize)
+    window.visualViewport?.addEventListener('resize', handleResize)
+    window.visualViewport?.addEventListener('scroll', handleResize)
 
     // Click outside to close settings dropdown
     const handleClickOutside = (event: MouseEvent) => {
@@ -97,37 +95,40 @@ export default function App() {
     return () => {
       clearInterval(timer)
       window.removeEventListener('resize', handleResize)
+      window.visualViewport?.removeEventListener('resize', handleResize)
+      window.visualViewport?.removeEventListener('scroll', handleResize)
       document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [])
 
-  const reserveCopilotSpace = isDesktop && isCopilotOpen && activeTab !== 'kanban'
+  // 与 useIsMobile(820) 同一个阈值：>=820 为 fixed 侧栏并让出等宽正文；<820 为全屏 overlay。
+  const reserveCopilotSpace = !isMobile && isCopilotOpen
 
   return (
-    <div style={{ height: '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+    <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
       {/* Header */}
       <header
         style={{
           background: 'var(--panel)',
           borderBottom: '1px solid var(--line)',
-          padding: '14px 24px',
+          padding: isMobile ? '8px 10px 6px' : '14px 24px',
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
-          gap: '12px',
+          gap: isMobile ? '8px' : '12px',
         }}
       >
         {/* Left: Brand Logo & Title */}
         <div
           onClick={() => setActiveTab('dashboard')}
-          style={{ display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer' }}
+          style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px', cursor: 'pointer', minWidth: 0 }}
           title="点击返回监控大屏"
         >
           <div
             style={{
-              width: '36px',
-              height: '36px',
+              width: isMobile ? '32px' : '36px',
+              height: isMobile ? '32px' : '36px',
               borderRadius: '8px',
               background: 'linear-gradient(135deg, var(--acc), var(--acc-2))',
               display: 'flex',
@@ -142,17 +143,17 @@ export default function App() {
             S
           </div>
           <div>
-            <h1 style={{ fontSize: '18px', fontWeight: '700', margin: 0, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              SEOAgents · 自进化智能体集群
+            <h1 style={{ fontSize: isMobile ? '15px' : '18px', fontWeight: '700', margin: 0, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+              {isMobile ? 'SEOAgents' : 'SEOAgents · 自进化智能体集群'}
             </h1>
-            <div style={{ fontSize: '12px', color: 'var(--ink-faint)', marginTop: '2px' }}>
+            <div style={{ display: isMobile ? 'none' : 'block', fontSize: '12px', color: 'var(--ink-faint)', marginTop: '2px' }}>
               {summary?.site || 'https://example.com'} · DojoAgents 七层架构
             </div>
           </div>
         </div>
 
         {/* Center Nav: Quick View Switcher */}
-        <nav style={{ display: 'flex', alignItems: 'center', gap: '6px', overflowX: 'auto', maxWidth: '100%', paddingBottom: '2px', scrollbarWidth: 'thin' }}>
+        <nav aria-label="主导航" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', overflowX: 'auto', width: isMobile ? '100%' : 'auto', maxWidth: '100%', order: isMobile ? 3 : 'initial', padding: isMobile ? '6px 0 2px' : '0 0 2px', borderTop: isMobile ? '1px solid var(--line)' : 'none', scrollbarWidth: 'thin' }}>
           {([
             ['dashboard', '📊 监控大屏'],
             ['gsc_overview', '📈 GSC 大屏'],
@@ -170,7 +171,9 @@ export default function App() {
                 color: activeTab === id ? 'var(--acc)' : 'var(--ink-dim)',
                 border: `1px solid activeTab === id ? 'var(--acc)' : 'transparent'}`,
                 borderRadius: '8px',
-                padding: isMobile ? '5px 9px' : '6px 12px',
+                padding: isMobile ? '9px 10px' : '6px 12px',
+                minHeight: isMobile ? 44 : undefined,
+                minWidth: isMobile ? 44 : undefined,
                 fontSize: isMobile ? '12px' : '13px',
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -183,7 +186,7 @@ export default function App() {
             </button>
           ))}
 
-          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'oklch(0.75 0.12 calc(var(--hue) + 70))', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '5px 9px' : '6px 12px', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
+          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'oklch(0.75 0.12 calc(var(--hue) + 70))', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '9px 10px' : '6px 12px', minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, display:'inline-flex', alignItems:'center', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
 
           {activeTab === 'config' && (
             <span
@@ -204,9 +207,10 @@ export default function App() {
 
 
         {/* Right Side Controls & Settings Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '10px', fontSize: '12px', marginLeft: isMobile ? 'auto' : 0 }}>
           <span
             style={{
+              display: isMobile ? 'none' : 'inline-flex',
               background: 'oklch(0.30 0.05 155)',
               color: 'var(--ok)',
               padding: '4px 10px',
@@ -228,7 +232,9 @@ export default function App() {
                 color: 'var(--ink)',
                 border: '1px solid var(--panel-2)',
                 borderRadius: '8px',
-                padding: '7px 14px',
+                padding: isMobile ? '8px 10px' : '7px 14px',
+                minWidth: isMobile ? 44 : undefined,
+                minHeight: isMobile ? 44 : undefined,
                 fontSize: '13px',
                 fontWeight: '600',
                 cursor: 'pointer',
@@ -239,8 +245,8 @@ export default function App() {
                 boxShadow: isSettingsOpen ? '0 0 0 2px rgba(59,130,246,0.4)' : 'none',
               }}
             >
-              <span>⚙️ 设置</span>
-              <span style={{ fontSize: '10px', transition: 'transform 0.2s', transform: isSettingsOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>
+              <span>{isMobile ? '⚙️' : '⚙️ 设置'}</span>
+              {!isMobile && <span style={{ fontSize: '10px', transition: 'transform 0.2s', transform: isSettingsOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>}
             </button>
 
             {/* Dropdown Menu Popup */}
@@ -479,8 +485,8 @@ export default function App() {
           overflowX: 'hidden',
           display: 'flex',
           flexDirection: 'column',
-          padding: isMobile ? '10px 12px' : '12px 20px',
-          paddingRight: reserveCopilotSpace ? `${copilotWidth + 20}px` : (isMobile ? '12px' : '20px'),
+          padding: isMobile ? '6px 8px' : '12px 20px',
+          paddingRight: reserveCopilotSpace ? `${copilotWidth + 20}px` : (isMobile ? '8px' : '20px'),
           width: '100%',
           maxWidth: '100%',
           margin: '0 auto',

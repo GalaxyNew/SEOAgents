@@ -8,16 +8,20 @@ from __future__ import annotations
 import asyncio
 import json
 import time
+from collections.abc import Mapping
 from contextvars import ContextVar
 from typing import Any
 
+from dojocore.agent.models import ToolCall, ToolResult
 from dojocore.logging import LOGGER
 from dojocore.quality import DataIntegrityError, validate_tool_output
-from dojocore.agent.models import ToolCall, ToolResult
 from dojocore.tools.base import ToolRegistry
 from dojocore.tools.environments.sandbox import SandboxPolicy, SandboxViolation
 
 active_session_id: ContextVar[str] = ContextVar("active_session_id", default="")
+active_runtime_metadata: ContextVar[Mapping[str, Any] | None] = ContextVar(
+    "active_runtime_metadata", default=None
+)
 
 
 class ToolExecutor:
@@ -39,7 +43,13 @@ class ToolExecutor:
         self.sandbox = sandbox
         self.enforce_data_status = enforce_data_status
 
-    async def execute_one(self, call: ToolCall, *, session_id: str = "") -> ToolResult:
+    async def execute_one(
+        self,
+        call: ToolCall,
+        *,
+        session_id: str = "",
+        runtime_metadata: Mapping[str, Any] | None = None,
+    ) -> ToolResult:
         spec = self.registry.get(call.name)
         if spec is None:
             LOGGER.error(f"Tool '{call.name}' is not registered")
@@ -49,6 +59,7 @@ class ToolExecutor:
             )
 
         token = active_session_id.set(session_id)
+        metadata_token = active_runtime_metadata.set(dict(runtime_metadata or {}))
         try:
             self.sandbox.check_tool(call.name)
             started_at = time.perf_counter()
@@ -79,6 +90,7 @@ class ToolExecutor:
             LOGGER.exception(f"Error executing tool '{call.name}' (call_id: {call.id})")
             return ToolResult(call_id=call.id, name=call.name, ok=False, error=str(exc))
         finally:
+            active_runtime_metadata.reset(metadata_token)
             active_session_id.reset(token)
 
     async def execute_many(self, calls: list[ToolCall], *, session_id: str = "") -> list[ToolResult]:
@@ -100,4 +112,4 @@ class ToolExecutor:
                           latency_ms=latency_ms)
 
 
-__all__ = ["ToolExecutor", "active_session_id"]
+__all__ = ["ToolExecutor", "active_runtime_metadata", "active_session_id"]

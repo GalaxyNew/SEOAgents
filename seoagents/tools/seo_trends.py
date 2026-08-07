@@ -97,6 +97,14 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                         "description": "每个维度最多返回的 API 行数",
                     },
                     "payload": {"type": "object", "description": "normalize/persist 使用的上游结构化结果"},
+                    "workflow_instance_id": {
+                        "type": "string",
+                        "description": "工作流 runtime 注入的实例 ID；仅确定性工作流路径信任",
+                    },
+                    "timeline_node_id": {
+                        "type": "string",
+                        "description": "工作流 context 注入的 Timeline 节点 ID",
+                    },
                 },
                 "required": ["action"],
             },
@@ -126,7 +134,11 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             )
 
         if action == "normalize_gsc_module":
-            return self._normalize_gsc_payload(dict(arguments.get("payload") or {}))
+            return self._normalize_gsc_payload(
+                dict(arguments.get("payload") or {}),
+                workflow_instance_id=str(arguments.get("workflow_instance_id") or ""),
+                timeline_node_id=str(arguments.get("timeline_node_id") or ""),
+            )
 
         if action == "persist_gsc_module":
             return self._persist_gsc_payload(dict(arguments.get("payload") or {}))
@@ -233,9 +245,51 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             return dict(data)
         return payload
 
-    def _normalize_gsc_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+    @staticmethod
+    def _trusted_workflow_lineage(
+        *,
+        workflow_instance_id: str,
+        timeline_node_id: str,
+    ) -> tuple[str, str] | None:
+        """Accept lineage only from the deterministic workflow execution seam.
+
+        Workflow API installs runtime metadata after resolving
+        ``runtime.instance_id`` from the persisted WorkflowInstance. Direct
+        MCP/API callers have no such metadata and cannot make an arbitrary ID
+        authoritative merely by placing it in payload or explicit arguments.
+        """
+        from dojocore.tools.executor import active_runtime_metadata
+
+        workflow_instance_id = workflow_instance_id.strip()
+        timeline_node_id = timeline_node_id.strip()
+        runtime = dict(active_runtime_metadata.get() or {})
+        if (
+            runtime.get("node_id") != "normalize"
+            or runtime.get("instance_id") != workflow_instance_id
+            or runtime.get("lineage_instance_id") != workflow_instance_id
+            or str(runtime.get("timeline_node_id") or "") != timeline_node_id
+            or str(runtime.get("lineage_timeline_node_id") or "") != timeline_node_id
+        ):
+            return None
+        return workflow_instance_id, timeline_node_id
+
+    def _normalize_gsc_payload(
+        self,
+        payload: dict[str, Any],
+        *,
+        workflow_instance_id: str = "",
+        timeline_node_id: str = "",
+    ) -> dict[str, Any]:
         """Convert one strict collector output into the persisted module contract."""
         payload = self._unwrap_envelope(payload)
+        trusted_lineage = self._trusted_workflow_lineage(
+            workflow_instance_id=workflow_instance_id,
+            timeline_node_id=timeline_node_id,
+        )
+        if trusted_lineage is None:
+            workflow_instance_id, timeline_node_id = "", ""
+        else:
+            workflow_instance_id, timeline_node_id = trusted_lineage
         status = str(payload.get("data_status") or "REAL")
         if status == "UNAVAILABLE":
             reason = str(
@@ -271,9 +325,8 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                 dimension_rows=dict(payload.get("dimension_rows") or {}),
                 dimension_windows=dict(payload.get("dimension_windows") or {}),
                 collected_at=str(payload.get("collected_at") or ""),
-                workflow_instance_id=str(payload.get("workflow_instance_id") or ""),
-                timeline_node_id=str(payload.get("timeline_node_id") or ""),
-                asset_id=str(payload.get("asset_id") or ""),
+                workflow_instance_id=workflow_instance_id,
+                timeline_node_id=timeline_node_id,
                 source_status=DataStatus(status),
                 reason=(str(payload.get("degraded_reason") or "") or None),
                 truncated_dimensions=list(payload.get("truncated_dimensions") or []),
