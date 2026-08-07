@@ -1472,7 +1472,7 @@ export const SeoControlTowerGridPanel: React.FC = () => {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, width: '100%', height: '100%', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0, minHeight: 0, width: '100%', height: '100%' }}>
       <style>{CSS}</style>
 
       {/* ── 顶部工具栏 ── */}
