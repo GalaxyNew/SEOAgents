@@ -10,7 +10,7 @@ from __future__ import annotations
 import datetime as dt
 import json
 import os
-import time
+import re
 import urllib.error
 import urllib.request
 import uuid
@@ -19,6 +19,7 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 
+from dojocore.agent.models import ToolCall
 from dojocore.logging import LOGGER
 from dojocore.workflow import (
     NODE_SPECS,
@@ -179,7 +180,7 @@ async def start_instance(body: StartBody) -> dict[str, Any]:
             inst = store.authorize_start(inst.instance_id)
         except WorkflowConflict as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-        runtime = _dispatch_ready_runs(store, inst, WorkflowEngine(tpl))
+        runtime = await _dispatch_ready_runs(store, inst, WorkflowEngine(tpl))
         return {**(store.instance(inst.instance_id) or inst).to_dict(), "runtime": runtime}
     return inst.to_dict()
 
@@ -242,6 +243,111 @@ def _hermes(method: str, path: str, body: dict[str, Any] | None = None) -> dict[
         raise HTTPException(status_code=502, detail=f"Hermes API {exc.code}: {detail[:300]}") from exc
 
 
+_TEMPLATE_VALUE = re.compile(r"^\{\{\s*([^{}]+?)\s*\}\}$")
+_TEMPLATE_INLINE = re.compile(r"\{\{\s*([^{}]+?)\s*\}\}")
+
+
+def _lookup_runtime_value(path: str, *, inst, deps: dict[str, Any]) -> Any:
+    parts = [part.strip() for part in path.split(".") if part.strip()]
+    if not parts:
+        return None
+    if parts[0] in {"input", "context"}:
+        value: Any = inst.context
+        parts = parts[1:]
+    else:
+        dep = parts[0]
+        if dep not in deps:
+            return None
+        value = deps[dep].get("runtime_output")
+        if isinstance(value, str):
+            try:
+                value = json.loads(value)
+            except json.JSONDecodeError:
+                return None
+        parts = parts[1:]
+    for part in parts:
+        if isinstance(value, dict) and part in value:
+            value = value[part]
+        else:
+            return None
+    return value
+
+
+def _resolve_runtime_templates(value: Any, *, inst, deps: dict[str, Any]) -> Any:
+    if isinstance(value, dict):
+        return {key: _resolve_runtime_templates(item, inst=inst, deps=deps) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_resolve_runtime_templates(item, inst=inst, deps=deps) for item in value]
+    if not isinstance(value, str):
+        return value
+    match = _TEMPLATE_VALUE.fullmatch(value.strip())
+    if match:
+        resolved = _lookup_runtime_value(match.group(1), inst=inst, deps=deps)
+        if resolved is None:
+            raise ValueError(f"无法解析工作流模板参数: {value}")
+        return resolved
+
+    def substitute(match: re.Match[str]) -> str:
+        resolved = _lookup_runtime_value(match.group(1), inst=inst, deps=deps)
+        if resolved is None:
+            raise ValueError(f"无法解析工作流模板参数: {match.group(0)}")
+        if isinstance(resolved, (dict, list)):
+            return json.dumps(resolved, ensure_ascii=False, separators=(",", ":"))
+        return str(resolved)
+
+    return _TEMPLATE_INLINE.sub(substitute, value)
+
+
+def _tool_call_arguments(inst, node) -> dict[str, Any]:
+    deps = {
+        dep: {
+            "evidence": inst.runs[dep].evidence,
+            "output_asset_ids": list(inst.runs[dep].output_asset_ids),
+            "runtime_output": inst.runs[dep].runtime_output,
+        }
+        for dep in node.depends_on
+    }
+    arguments = _resolve_runtime_templates(node.config.get("arguments") or {}, inst=inst, deps=deps)
+    if not isinstance(arguments, dict):
+        raise TypeError("tool_call arguments 必须解析为对象")
+    action = str(node.config.get("action") or "").strip()
+    if action:
+        arguments = {"action": action, **arguments}
+    return arguments
+
+
+async def _execute_tool_node(inst, node, run) -> tuple[bool, str, str]:
+    """Execute TOOL_CALL deterministically; no LLM may alter tool/action/arguments."""
+    from seoagents.agent.runtime import get_runtime
+
+    tool = str(node.config.get("tool") or "").strip()
+    if not tool:
+        return False, "", "tool_call 未配置 tool"
+    try:
+        arguments = _tool_call_arguments(inst, node)
+    except (TypeError, ValueError) as exc:
+        return False, "", str(exc)
+    call = ToolCall(
+        id=f"wf-{inst.instance_id}-{node.id}-{run.attempts}",
+        name=tool,
+        arguments=arguments,
+    )
+    result = await get_runtime().executor.execute_one(
+        call,
+        session_id=f"workflow:{inst.instance_id}:{node.id}:{run.attempts}",
+    )
+    if not result.ok:
+        return False, "", result.error or f"工具 {tool} 执行失败"
+    try:
+        decoded = json.loads(result.content)
+    except (TypeError, json.JSONDecodeError):
+        decoded = None
+    if isinstance(decoded, dict) and decoded.get("data_status") != "REAL":
+        reason = str(decoded.get("degraded_reason") or decoded.get("reason") or "工具返回非 REAL 状态")
+        return False, result.content, f"{tool}.{arguments.get('action', '')}: {decoded.get('data_status')} — {reason}"
+    return True, result.content, ""
+
+
 def _node_model_config(node) -> dict[str, Any]:
     """Resolve model/provider/reasoning_effort for an executable node.
 
@@ -280,14 +386,18 @@ def _node_instruction(inst, tpl, node) -> str:
     if node.type is NodeType.INPUT:
         task = (
             f"运行已有工作流 {config.get('workflow_id')} 并等待其完成"
-            if config.get("input_mode") == "workflow" else "接受实例输入参数"
+            if config.get("input_mode") == "workflow" else "确认实例输入参数并原样回写为结构化 JSON"
         )
     elif node.type is NodeType.AGENT_TASK:
         task = str(config.get("instruction") or "")
     elif node.type is NodeType.TOOL_CALL:
+        try:
+            arguments = _resolve_runtime_templates(config.get("arguments") or {}, inst=inst, deps=deps)
+        except ValueError as exc:
+            arguments = {"_template_error": str(exc)}
         task = (
             f"调用工具 {config.get('tool')} 执行 action={config.get('action', '')};"
-            f"参数={json.dumps(config.get('arguments') or {}, ensure_ascii=False)}"
+            f"参数={json.dumps(arguments, ensure_ascii=False)}"
         )
     elif node.type is NodeType.VERIFY:
         task = f"运行并核验以下验证命令，返回真实输出：\n{config.get('command', '')}"
@@ -309,7 +419,7 @@ def _node_instruction(inst, tpl, node) -> str:
             if sig is not None and str(sig).strip():
                 # Forward the configured signature hint so the agent computes
                 # the matching HMAC over the exact body it sends.
-                signature_clause = f"\n请求需带 X-Signature 头（HMAC-SHA256，密钥由 webhook_signature 派生）：已配置签名。"
+                signature_clause = "\n请求需带 X-Signature 头（HMAC-SHA256，密钥由 webhook_signature 派生）：已配置签名。"
             at_agents = config.get("at_agents") or []
             target_chat_id = config.get("target_chat_id") or ""
             notify_mode = config.get("notify_mode") or "group"
@@ -327,8 +437,8 @@ def _node_instruction(inst, tpl, node) -> str:
                     f'  - "at_agents": {json.dumps(at_agents)}\n'
                     f'  - "mode": "{notify_mode}"\n'
                     + (f'  - "chat_id": "{target_chat_id}"\n' if target_chat_id and notify_mode == "group" else '')
-                    + f"注意：选了通知 Agent 时不能直接 POST 到原始飞书 webhook，"
-                    f"必须 POST 到中转地址让后台用应用 API 发送。"
+                    + "注意：选了通知 Agent 时不能直接 POST 到原始飞书 webhook，"
+                    "必须 POST 到中转地址让后台用应用 API 发送。"
                 )
             else:
                 task = (
@@ -349,6 +459,8 @@ def _node_instruction(inst, tpl, node) -> str:
         f"Task: {task}\nAcceptance: {json.dumps(list(node.acceptance), ensure_ascii=False)}\n"
         f"Workflow context: {json.dumps(inst.context, ensure_ascii=False)}\n"
         f"Upstream: {json.dumps(deps, ensure_ascii=False)}\n\n"
+        "若 Task 指定调用某个工具，必须使用完全相同的工具、action 和已解析参数；"
+        "不得改用 mock、替代数据源或自行编造结果。\n"
         "完成后必须调用 platform_ops.workflow_complete_node 回写本节点："
         f"instance_id={inst.instance_id}, node_id={node.id}，"
         "acceptance_met 必须与验收项逐条对应，evidence 必须是真实工具输出，"
@@ -356,7 +468,7 @@ def _node_instruction(inst, tpl, node) -> str:
     )
 
 
-def _dispatch_ready_runs(store, inst, engine) -> dict[str, Any]:
+async def _dispatch_ready_runs(store, inst, engine) -> dict[str, Any]:
     """Dispatch dependency-ready nodes behind a persisted CAS claim.
 
     Direct start, auto-start, and Pulse converge here. A node is claimed in
@@ -429,7 +541,7 @@ def _dispatch_ready_runs(store, inst, engine) -> dict[str, Any]:
                     run.dispatch_token = ""
                     store.save_instance(inst)
                     child = store.authorize_start(child.instance_id)
-                    child_runtime = _dispatch_ready_runs(store, child, WorkflowEngine(child_tpl))
+                    child_runtime = await _dispatch_ready_runs(store, child, WorkflowEngine(child_tpl))
                     skipped.append({
                         "node": node.id, "reason": "child workflow",
                         "instance_id": child.instance_id,
@@ -493,15 +605,52 @@ def _dispatch_ready_runs(store, inst, engine) -> dict[str, Any]:
                 progressed = True
                 continue
 
+            if node.type is NodeType.TOOL_CALL:
+                engine.begin(inst, node.id)
+                ok, output, error = await _execute_tool_node(inst, node, run)
+                if not ok:
+                    engine.fail(inst, node.id, error=error)
+                    run.runtime_status = "FAILED"
+                    run.runtime_output = ""
+                    run.dispatch_token = ""
+                    store.save_instance(inst)
+                    errors.append({"node": node.id, "error": error})
+                    progressed = True
+                    continue
+                run.runtime_output = output
+                run.runtime_status = "COMPLETED"
+                try:
+                    engine.complete(
+                        inst,
+                        node.id,
+                        acceptance_met=[True] * len(node.acceptance),
+                        evidence=output,
+                        actor="deterministic-tool-runtime",
+                    )
+                except EngineError as exc:
+                    engine.fail(inst, node.id, error=str(exc))
+                    run.runtime_status = "FAILED"
+                    run.dispatch_token = ""
+                    store.save_instance(inst)
+                    errors.append({"node": node.id, "error": str(exc)})
+                    progressed = True
+                    continue
+                run.dispatch_token = ""
+                store.save_instance(inst)
+                skipped.append({"node": node.id, "reason": "deterministic tool completed"})
+                progressed = True
+                continue
+
             if node.type is NodeType.DEPT_REQUEST:
                 engine.begin(inst, node.id)
                 run.runtime_status = "BLOCKED_DEPENDENCY"
                 run.dispatch_token = ""
                 # ── B1: Create collab outbox record ──────────────────────
                 try:
-                    from dojocore.collab import get_collab_service, new_request_id
                     import datetime as _dt
                     import time as _time
+
+                    from dojocore.collab import get_collab_service, new_request_id
                     _svc = get_collab_service()
                     _seq = int(_time.time()) % 10000
                     _rid = new_request_id(dept=_svc.own_dept, seq=_seq)
@@ -540,7 +689,10 @@ def _dispatch_ready_runs(store, inst, engine) -> dict[str, Any]:
 
             # ── B6: Dispatch to Kanban (control plane record) ────────────
             try:
-                from seoagents.dashboard.routers.workflow_kanban_bridge import dispatch_to_kanban, DispatchBody
+                from seoagents.dashboard.routers.workflow_kanban_bridge import (
+                    DispatchBody,
+                    dispatch_to_kanban,
+                )
                 dispatch_to_kanban(inst.instance_id, DispatchBody(assignee="hm", only_ready=False))
             except Exception:
                 pass  # Kanban write failure must not block workflow execution
@@ -638,7 +790,7 @@ async def start_runtime(instance_id: str) -> dict[str, Any]:
         inst = store.authorize_start(instance_id)
     except WorkflowConflict as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
-    return {"ok": True, "instance_id": instance_id, **_dispatch_ready_runs(store, inst, engine)}
+    return {"ok": True, "instance_id": instance_id, **(await _dispatch_ready_runs(store, inst, engine))}
 
 
 @router.post("/instances/{instance_id}/pause")
@@ -669,7 +821,7 @@ async def resume_instance(instance_id: str) -> dict[str, Any]:
     inst.status = InstanceStatus.RUNNING
     inst.context["start_authorized"] = True
     store.save_instance(inst)
-    return {"ok": True, "instance_id": instance_id, **_dispatch_ready_runs(store, inst, engine)}
+    return {"ok": True, "instance_id": instance_id, **(await _dispatch_ready_runs(store, inst, engine))}
 
 
 @router.delete("/instances/{instance_id}")
@@ -744,7 +896,7 @@ async def approve_node(instance_id: str, node_id: str, body: ApprovalBody) -> di
     else:
         raise HTTPException(status_code=409, detail="该节点不是审批节点")
     store.save_instance(inst)
-    runtime = _dispatch_ready_runs(store, inst, engine)
+    runtime = await _dispatch_ready_runs(store, inst, engine)
     return {"ok": True, "instance": inst.to_dict(), "runtime": runtime}
 
 
@@ -919,7 +1071,7 @@ async def internal_tick(instance_id: str) -> dict[str, Any]:
             run.runtime_status = status or "UNKNOWN"
             errors.append({"node": node_id, "error": f"未识别的 Hermes 状态 {status or '(empty)'}，等待复核"})
     store.save_instance(inst)
-    runtime = _dispatch_ready_runs(store, inst, engine)
+    runtime = await _dispatch_ready_runs(store, inst, engine)
     return {"ok": True, "reconciled": reconciled, "errors": errors,
             "runtime": runtime, "instance": inst.to_dict()}
 
@@ -956,7 +1108,7 @@ async def runtime_update(instance_id: str, node_id: str, body: RuntimeUpdateBody
         # only reconcile the runtime handle and fan out the next layer.
         run.runtime_status = "COMPLETED"
         store.save_instance(inst)
-        runtime = _dispatch_ready_runs(store, inst, engine)
+        runtime = await _dispatch_ready_runs(store, inst, engine)
         return {"ok": True, "instance": inst.to_dict(), "runtime": runtime,
                 "next_ready": [n.id for n in engine.ready_nodes(inst)]}
     if status == "COMPLETED" and not run.state.settled:
@@ -985,7 +1137,7 @@ async def runtime_update(instance_id: str, node_id: str, body: RuntimeUpdateBody
     elif status in {"FAILED", "UNKNOWN", "CANCELLED"} and not run.state.settled:
         engine.fail(inst, node_id, error=body.error or body.output or status)
     store.save_instance(inst)
-    runtime = _dispatch_ready_runs(store, inst, engine)
+    runtime = await _dispatch_ready_runs(store, inst, engine)
     return {"ok": True, "instance": inst.to_dict(), "runtime": runtime,
             "next_ready": [n.id for n in engine.ready_nodes(inst)]}
 
@@ -1094,7 +1246,7 @@ async def sync_runtime(instance_id: str) -> dict[str, Any]:
             run.runtime_status = status or "UNKNOWN"
             errors.append({"node": node_id, "error": f"未识别的 Hermes 状态 {status or '(empty)'}，等待复核"})
     store.save_instance(inst)
-    runtime = _dispatch_ready_runs(store, inst, engine)
+    runtime = await _dispatch_ready_runs(store, inst, engine)
     return {"ok": True, "reconciled": reconciled, "errors": errors,
             "runtime": runtime, "instance": inst.to_dict()}
 

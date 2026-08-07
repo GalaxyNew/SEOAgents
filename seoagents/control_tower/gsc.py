@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from dojocore.quality import DataStatus
-from seoagents.control_tower.models import MetricPoint, ModuleFinding, ModuleRun
+from seoagents.control_tower.models import MetricPoint, ModuleFinding, ModuleRun, utc_now
 
 _PERIOD_KEYS = ("d0", "d1", "cur7", "prev7", "cur30", "prev30")
 _DIMENSION_KEYS = ("daily", "queries", "pages", "countries", "devices")
@@ -105,7 +105,7 @@ def build_gsc_module_run(
     period_rows: Mapping[str, Sequence[Mapping[str, Any]] | None],
     dimension_rows: Mapping[str, Sequence[Mapping[str, Any]]],
     dimension_windows: Mapping[str, Mapping[str, str]],
-    collected_at: str,
+    collected_at: str = "",
     workflow_instance_id: str = "",
     timeline_node_id: str = "",
     asset_id: str = "",
@@ -115,6 +115,7 @@ def build_gsc_module_run(
 ) -> tuple[ModuleRun, tuple[MetricPoint, ...]]:
     """从已采集的真实 GSC 行构造标准信封和扁平指标点。"""
     status = DataStatus(source_status)
+    collected_at = collected_at or utc_now()
     if status is DataStatus.UNAVAILABLE or not d0:
         unavailable_reason = reason or "GSC 未找到可用的完整数据日"
         run = ModuleRun(
@@ -138,6 +139,7 @@ def build_gsc_module_run(
         run.validate()
         return run, ()
 
+    assert d0 is not None
     windows = period_windows(d0)
     periods: dict[str, dict[str, float] | None] = {}
     points: list[MetricPoint] = []

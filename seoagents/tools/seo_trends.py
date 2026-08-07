@@ -15,9 +15,10 @@ from typing import Any
 import pandas as pd
 
 from dojocore.logging import LOGGER
-from dojocore.quality import real, unavailable, window_iso
+from dojocore.quality import DataStatus, real, unavailable, window_iso
 from seoagents.config.models import SeoAgentsConfig
-from seoagents.control_tower.gsc import period_windows
+from seoagents.control_tower.gsc import build_gsc_module_run, period_windows
+from seoagents.control_tower.models import MetricPoint, ModuleRun
 from seoagents.quant.frames import gsc_rows_to_frame
 from seoagents.storage.sqlite_store import SeoHistoryStore
 from seoagents.tools.base import BaseToolSpec
@@ -50,8 +51,8 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         return {
             "name": "google_seo_monitor",
             "description": (
-                "拉取 Google Search Console 真实的点击率、展现量和平均排名数据,"
-                "并交叉比对 Google Trends 的飙升词热度趋势。无密钥时返回确定性模拟数据。"
+                "拉取 Google Search Console 真实的点击率、展现量和加权平均位置数据，"
+                "或将已归档证据标准化并写入总控大屏历史库。"
             ),
             "parameters": {
                 "type": "object",
@@ -62,6 +63,8 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                             "query_gsc_performance",
                             "query_rising_keywords",
                             "collect_gsc_module",
+                            "normalize_gsc_module",
+                            "persist_gsc_module",
                         ],
                         "description": "具体获取指标动作",
                     },
@@ -93,6 +96,7 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                         "default": 25000,
                         "description": "每个维度最多返回的 API 行数",
                     },
+                    "payload": {"type": "object", "description": "normalize/persist 使用的上游结构化结果"},
                 },
                 "required": ["action"],
             },
@@ -120,6 +124,12 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                 probe_days=int(arguments.get("probe_days", 10)),
                 row_limit=int(arguments.get("row_limit", 25000)),
             )
+
+        if action == "normalize_gsc_module":
+            return self._normalize_gsc_payload(dict(arguments.get("payload") or {}))
+
+        if action == "persist_gsc_module":
+            return self._persist_gsc_payload(dict(arguments.get("payload") or {}))
 
         if action == "query_rising_keywords":
             return await self._query_rising_keywords(keywords)
@@ -215,6 +225,141 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
         }
         response = gsc.searchanalytics().query(siteUrl=target_site, body=request_body).execute()
         return response.get("rows", [])
+
+    @staticmethod
+    def _unwrap_envelope(payload: dict[str, Any]) -> dict[str, Any]:
+        data = payload.get("data")
+        if payload.get("data_status") and isinstance(data, dict):
+            return dict(data)
+        return payload
+
+    def _normalize_gsc_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Convert one strict collector output into the persisted module contract."""
+        payload = self._unwrap_envelope(payload)
+        status = str(payload.get("data_status") or "REAL")
+        if status == "UNAVAILABLE":
+            reason = str(
+                payload.get("reason")
+                or payload.get("degraded_reason")
+                or "上游 GSC 数据不可用"
+            )
+            return unavailable(
+                source="google_seo_monitor.normalize_gsc_module",
+                reason=reason,
+                site=payload.get("site"),
+                business_date=payload.get("business_date"),
+            )
+        if status not in {"REAL", "DEGRADED"}:
+            return unavailable(
+                source="google_seo_monitor.normalize_gsc_module",
+                reason=f"不支持的上游状态: {status}",
+            )
+        site = str(payload.get("site") or "").strip()
+        site_id = self._site_id_for_property(site)
+        if not site_id:
+            return unavailable(
+                source="google_seo_monitor.normalize_gsc_module",
+                reason="GSC property 不属于 monitored_sites，拒绝跨站标准化",
+                site=site,
+            )
+        try:
+            run, points = build_gsc_module_run(
+                site_id=site_id,
+                business_date=str(payload["business_date"]),
+                d0=str(payload.get("d0") or "") or None,
+                period_rows=dict(payload.get("period_rows") or {}),
+                dimension_rows=dict(payload.get("dimension_rows") or {}),
+                dimension_windows=dict(payload.get("dimension_windows") or {}),
+                collected_at=str(payload.get("collected_at") or ""),
+                workflow_instance_id=str(payload.get("workflow_instance_id") or ""),
+                timeline_node_id=str(payload.get("timeline_node_id") or ""),
+                asset_id=str(payload.get("asset_id") or ""),
+                source_status=DataStatus(status),
+                reason=(str(payload.get("degraded_reason") or "") or None),
+                truncated_dimensions=list(payload.get("truncated_dimensions") or []),
+            )
+        except (KeyError, TypeError, ValueError) as exc:
+            return unavailable(
+                source="google_seo_monitor.normalize_gsc_module",
+                reason=f"GSC 标准化失败: {exc}",
+                site=site,
+            )
+        return real(
+            {"run": run.to_dict(), "metric_points": [point.to_dict() for point in points]},
+            source="google_seo_monitor.normalize_gsc_module",
+            data_window=f"{run.data_window.get('prev30_start')}/{run.data_window.get('d0')}",
+        )
+
+    def _persist_gsc_payload(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Persist only an archived, normalized GSC result and read it back."""
+        from seoagents.control_tower import ControlTowerStore
+
+        payload = self._unwrap_envelope(payload)
+        normalized = dict(payload.get("normalized") or payload)
+        archived = dict(payload.get("archived") or {})
+        run_raw = dict(normalized.get("run") or {})
+        if not run_raw:
+            return unavailable(source="google_seo_monitor.persist_gsc_module", reason="缺少 normalized.run")
+        asset_key = str(
+            archived.get("key")
+            or (archived.get("data") or {}).get("key")
+            or run_raw.get("asset_id")
+            or ""
+        )
+        if not asset_key:
+            return unavailable(
+                source="google_seo_monitor.persist_gsc_module",
+                reason="Asset Hub 未返回 asset_id/key，拒绝先写数据库",
+            )
+        run_raw["asset_id"] = asset_key
+        if str(run_raw.get("data_status") or "") != "REAL":
+            return unavailable(
+                source="google_seo_monitor.persist_gsc_module",
+                reason="仅 REAL 模块结果允许进入生产历史库",
+                site=run_raw.get("site_id"),
+                business_date=run_raw.get("business_date"),
+            )
+        try:
+            run = ModuleRun.from_dict(run_raw)
+            points = [
+                MetricPoint(
+                    metric_key=str(point["metric_key"]),
+                    metric_label=str(point["metric_label"]),
+                    period_key=str(point["period_key"]),
+                    window_start=str(point["window_start"]),
+                    window_end=str(point["window_end"]),
+                    value_num=point.get("value_num"),
+                    value_text=point.get("value_text"),
+                    unit=str(point["unit"]),
+                    dimensions=dict(point.get("dimensions") or {}),
+                    data_status=DataStatus(str(point.get("data_status") or "REAL")),
+                )
+                for point in (normalized.get("metric_points") or [])
+            ]
+            store = ControlTowerStore(self.config.storage.data_dir)
+            saved = store.record_attempt(run, metric_points=points)
+            verified = store.by_business_date(run.site_id, run.module_id, run.business_date)
+        except (KeyError, TypeError, ValueError, OSError) as exc:
+            return unavailable(
+                source="google_seo_monitor.persist_gsc_module",
+                reason=f"GSC 持久化失败: {exc}",
+            )
+        if not verified or verified.get("asset_id") != asset_key:
+            return unavailable(
+                source="google_seo_monitor.persist_gsc_module",
+                reason="数据库回读未匹配 asset_id",
+            )
+        return real(
+            {"saved": saved, "verified": verified},
+            source="google_seo_monitor.persist_gsc_module",
+            data_window=run.business_date,
+        )
+
+    def _site_id_for_property(self, target_site: str) -> str:
+        for site in self.config.sites.monitored_sites:
+            if site.gsc_property == target_site:
+                return site.site_url.removeprefix("https://").removeprefix("http://").split("/", 1)[0].removeprefix("www.")
+        return ""
 
     @staticmethod
     def _row_to_contract(raw: dict[str, Any]) -> dict[str, Any]:
@@ -316,6 +461,8 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
             dimensions: dict[str, list[dict[str, Any]]] = {}
             dimension_windows: dict[str, dict[str, str]] = {}
             truncated: list[str] = []
+            dimensions_partial = False
+            dimensions_reason = ""
             for output_key, api_dimension in {
                 "daily": "date",
                 "queries": "query",
@@ -324,35 +471,53 @@ class GoogleSEOMonitorSpec(BaseToolSpec):
                 "devices": "device",
             }.items():
                 start, end = windows["cur30"].start, windows["cur30"].end
-                raw_rows = self._query_gsc_with_retry(
-                    target_site=target_site,
-                    start=start,
-                    end=end,
-                    dimensions=[api_dimension],
-                    row_limit=row_limit,
-                )
+                try:
+                    raw_rows = self._query_gsc_with_retry(
+                        target_site=target_site,
+                        start=start,
+                        end=end,
+                        dimensions=[api_dimension],
+                        row_limit=row_limit,
+                    )
+                except Exception as exc:  # noqa: BLE001 - partial first-party dimension
+                    dimensions_partial = True
+                    dimensions_reason = f"{output_key} 维度采集失败: {exc}"
+                    dimensions[output_key] = []
+                    dimension_windows[output_key] = {"start": start, "end": end}
+                    break
                 if len(raw_rows) >= row_limit:
                     truncated.append(output_key)
                 dimensions[output_key] = [self._row_to_contract(row) for row in raw_rows]
                 dimension_windows[output_key] = {"start": start, "end": end}
 
             collected_at = dt.datetime.now(dt.timezone.utc).isoformat()
+            payload = {
+                "site": target_site,
+                "business_date": business_date,
+                "d0": d0.isoformat(),
+                "period_rows": periods,
+                "dimension_rows": dimensions,
+                "dimension_windows": dimension_windows,
+                "truncated_dimensions": truncated,
+                "probe_evidence": probe_evidence,
+                "collected_at": collected_at,
+                "single_source_risk": True,
+                "cross_validation": "单源，未经外部 SERP 交叉验证",
+            }
+            data_window = f"{windows['prev30'].start}/{windows['d0'].end}"
+            if dimensions_partial:
+                from dojocore.quality import degraded
+
+                return degraded(
+                    payload,
+                    source=source,
+                    reason=dimensions_reason,
+                    data_window=data_window,
+                )
             return real(
-                {
-                    "site": target_site,
-                    "business_date": business_date,
-                    "d0": d0.isoformat(),
-                    "period_rows": periods,
-                    "dimension_rows": dimensions,
-                    "dimension_windows": dimension_windows,
-                    "truncated_dimensions": truncated,
-                    "probe_evidence": probe_evidence,
-                    "collected_at": collected_at,
-                    "single_source_risk": True,
-                    "cross_validation": "单源，未经外部 SERP 交叉验证",
-                },
+                payload,
                 source=source,
-                data_window=f"{windows['prev30'].start}/{windows['d0'].end}",
+                data_window=data_window,
             )
         except FileNotFoundError as exc:
             return unavailable(source=source, reason=f"GSC 凭证缺失: {exc}", site=target_site)

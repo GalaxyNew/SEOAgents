@@ -79,6 +79,30 @@ async def test_collect_gsc_module_never_falls_back_to_mock_without_credentials()
     assert "dimension_rows" not in result
 
 
+class PartialDimensionFailure(FakeGSC):
+    def query_gsc_raw(self, *args, **kwargs):
+        if tuple(kwargs.get("dimensions") or ()) == ("country",):
+            raise RuntimeError("country unavailable")
+        return super().query_gsc_raw(*args, **kwargs)
+
+
+@pytest.mark.asyncio
+async def test_partial_dimension_failure_is_degraded_not_unavailable(monkeypatch):
+    monkeypatch.setattr("seoagents.tools.seo_trends.time.sleep", lambda _seconds: None)
+    result = await PartialDimensionFailure().execute(
+        {
+            "action": "collect_gsc_module",
+            "target_site": "sc-domain:example.com",
+            "business_date": "2026-08-07",
+        },
+        "test-session",
+    )
+    assert result["data_status"] == DataStatus.DEGRADED.value
+    assert "countries" in result["degraded_reason"]
+    assert result["period_rows"]
+    assert result["dimension_rows"]["countries"] == []
+
+
 class RetryOnce(FakeGSC):
     def __init__(self):
         super().__init__()
@@ -111,3 +135,5 @@ def test_schema_exposes_strict_module_action():
     spec = GoogleSEOMonitorSpec(SeoAgentsConfig())
     actions = spec.get_schema()["parameters"]["properties"]["action"]["enum"]
     assert "collect_gsc_module" in actions
+    assert "normalize_gsc_module" in actions
+    assert "persist_gsc_module" in actions
