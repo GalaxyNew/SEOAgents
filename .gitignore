@@ -37,3 +37,11 @@ venv/
 !.env.example
 *.env
 .env.llm
+
+# 凭据目录 —— 2026-08-13 合并 PR#9 前发现未忽略（含 gsc-sa.json 私钥/
+# google-drive-token.json/pagespeed-api-key.txt）。红线：凭据不进版本库。
+credentials/
+*-sa.json
+*-oauth.json
+*-token.json
+*api-key*.txt
