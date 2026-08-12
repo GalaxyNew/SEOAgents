@@ -140,6 +140,28 @@ async def _call_tool(rt: Any, tool: str, args: dict[str, Any], *, site: str) -> 
     return text, (st or DataStatus.REAL).value
 
 
+def _snapshot_store(rt: Any) -> SnapshotStore:
+    """拿 G1-A 的 SnapshotStore。
+
+    ``rt.store`` 是既有的 SeoHistoryStore（audit_runs / serp_positions 等），
+    与 G1-A 新建的四张表分属两个 store。混用会在真跑时炸 AttributeError，
+    而 dry_run 路径又恰好被 try/except 掩盖——所以显式取，不猜。
+    """
+    st = getattr(rt, "snapshot_store", None)
+    if st is not None:
+        return st
+    return SnapshotStore(_snapshot_data_dir(rt))
+
+
+def _snapshot_data_dir(rt: Any) -> str:
+    import os
+    return (
+        os.environ.get("SEOAGENTS_DATA_DIR")
+        or getattr(getattr(rt, "config", None), "data_dir", None)
+        or "/data/seo-stack/seoagents-data"
+    )
+
+
 def _site_item(rt: Any, site: str) -> Any:
     """按 site_url 找到配置里的站点项；找不到抛错而不是猜。"""
     for item in rt.config.sites.monitored_sites:
@@ -453,11 +475,214 @@ async def _task_dead_link_fix(rt: Any, site: str, **kw: Any) -> dict[str, Any]:
 
 
 # ── 注册 ──────────────────────────────────────────────────────────────
+# ── Phase 1 关键词工序（G1-C）───────────────────────────────────────────
+#
+# 28 号文 §四 定位：关键词是产线的燃料。v1 的 keyword 来源是配置文件写死的
+# tracked_keywords，产线 strategy 节点因此空转（28a 审计结论）。本工序把
+# DataForSEO 的真实搜索量灌进 keyword_pool，产线改为查表不调 API。
+#
+# 为什么不走 _call_tool：keyword_discovery 是 L4 工具、面向"发现"场景
+# （GSC + ranked_keywords + keyword_ideas 三路合并，一次几十美分）。
+# 巡检要的是"给定词的量价刷新"——用 google_ads/search_volume/live 单点
+# 端点，按量计费便宜得多，且日频跑不炸预算。两者互补不是替代。
+
+
+async def _task_keyword_metrics(rt: Any, site: str, **kw: Any) -> dict[str, Any]:
+    """刷新 keyword_pool 的搜索量 / CPC / 竞争度（DataForSEO Google Ads）。
+
+    数据铁律：搜索量拿不到就是 ``None``，不补零、不推算。API 失败整体标
+    UNAVAILABLE 而不是写半张表——半真的池子比空池子更危险。
+
+    成本纪律（用户 2026-08-13 指令：DataForSEO 是收费工具，用在关键处）：
+      * 实测单价约 $0.09 / 请求，且按请求不按词 —— 4 个词与 700 个词同价。
+        正确用法是攒够一批再调一次，绝不逐词调用。
+      * cadence="weekly"：搜索量是月级指标，日频刷新纯属烧钱。
+      * dry_run=True（默认）只报告将请求什么、预估多少钱，不发请求。
+        真花钱必须显式 dry_run=false，让花钱成为自觉动作而非默认副作用。
+      * min_balance 余额下限护栏：低于阈值直接拒调，避免欠费中断产线。
+    """
+    import httpx
+
+    COST_PER_REQUEST = 0.09          # 实测 32.763266 -> 32.673266
+    dry_run = kw.get("dry_run", True)
+    min_balance = float(kw.get("min_balance", 5.0))
+
+    cfg = rt.config
+    key = (cfg.seo_credentials.dataforseo_api_key or "").strip()
+    if not key or key.startswith("${"):
+        return {
+            "data": {"reason": "DataForSEO 凭证未配置或未展开"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    item = _site_item(rt, site)
+    location = (getattr(cfg.sites, "serp_location_name", "") or "Spain").strip()
+    language = (kw.get("language_name") or "Spanish").strip()
+
+    # 词源：显式传入 > 站点追踪词 + 池中已有的活跃词（保持量价新鲜）
+    seeds = list(kw.get("keywords") or [])
+    if not seeds:
+        seeds = list(item.tracked_keywords or [])
+        try:
+            pooled = _snapshot_store(rt).query_keywords(
+                site=site, status="ACTIVE", limit=100
+            )
+            seeds += [r["keyword"] for r in pooled if r.get("keyword")]
+        except Exception:  # 池子读不出来不该阻断刷新
+            LOGGER.exception("keyword_pool 读取失败，仅用 tracked_keywords")
+
+    # 去重保序；DataForSEO 单次上限 1000，留余量取 700
+    seeds = [s for s in dict.fromkeys(x.strip() for x in seeds) if s][:700]
+    if not seeds:
+        return {
+            "data": {"reason": "无种子词：tracked_keywords 与 keyword_pool 均为空"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    base = cfg.seo_credentials.dataforseo_base_url.rstrip("/")
+    endpoint = "/v3/keywords_data/google_ads/search_volume/live"
+    payload = [{
+        "keywords": seeds,
+        "location_name": location,
+        "language_name": language,
+    }]
+
+    if dry_run:
+        return {
+            "data": {
+                "dry_run": True,
+                "would_request": len(seeds),
+                "estimated_cost_usd": COST_PER_REQUEST,
+                "location": location,
+                "language": language,
+                "endpoint": endpoint,
+                "sample_keywords": seeds[:10],
+                "note": "未发送请求。确认后用 dry_run=false 真跑。",
+            },
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    balance = None
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            bal_resp = await client.get(
+                base + "/v3/appendix/user_data",
+                headers={"Authorization": f"Basic {key}"},
+            )
+        balance = float(
+            bal_resp.json()["tasks"][0]["result"][0]["money"]["balance"]
+        )
+        if balance < min_balance:
+            return {
+                "data": {"reason": f"余额 ${balance:.2f} 低于下限 ${min_balance:.2f}，"
+                                   f"拒绝调用以免欠费中断产线",
+                         "balance": balance},
+                "data_status": DataStatus.UNAVAILABLE.value,
+            }
+    except Exception:
+        LOGGER.exception("余额检查失败，保守起见拒绝调用")
+        return {
+            "data": {"reason": "余额检查失败，保守拒绝调用（避免未知消费）"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                base + endpoint,
+                headers={"Authorization": f"Basic {key}",
+                         "Content-Type": "application/json"},
+                json=payload,
+            )
+        if resp.status_code != 200:
+            return {
+                "data": {"reason": f"HTTP {resp.status_code}",
+                         "detail": resp.text[:300]},
+                "data_status": DataStatus.UNAVAILABLE.value,
+            }
+        body = resp.json()
+    except Exception as exc:
+        LOGGER.exception("DataForSEO search_volume 调用失败")
+        return {
+            "data": {"reason": f"请求异常: {exc}"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    if body.get("status_code") != 20000:
+        return {
+            "data": {"reason": f"API {body.get('status_code')}: "
+                               f"{body.get('status_message')}"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    tasks = body.get("tasks") or []
+    if not tasks or tasks[0].get("status_code") != 20000:
+        msg = tasks[0].get("status_message") if tasks else "no tasks"
+        return {
+            "data": {"reason": f"task 失败: {msg}"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    rows: list[dict[str, Any]] = []
+    for r in (tasks[0].get("result") or []):
+        keyword = (r.get("keyword") or "").strip()
+        if not keyword:
+            continue
+        rows.append({
+            "keyword": keyword,
+            # search_volume 为 None = Google 未披露，保留 None（数据铁律）
+            "search_volume": r.get("search_volume"),
+            "cpc": r.get("cpc"),
+            "difficulty": r.get("competition_index"),
+        })
+
+    if not rows:
+        return {
+            "data": {"reason": "API 返回 0 条关键词", "requested": len(seeds)},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    written = 0
+    try:
+        stats = _snapshot_store(rt).upsert_keywords(
+            rows, site=site, data_status=DataStatus.REAL.value,
+            source="dataforseo_google_ads",
+        )
+        written = int(stats.get("written", 0))
+    except Exception as exc:
+        LOGGER.exception("keyword_pool upsert 失败")
+        return {
+            "data": {"reason": f"落库失败: {exc}", "fetched": len(rows)},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    with_volume = sum(1 for r in rows if r["search_volume"] is not None)
+    return {
+        "data": {
+            "requested": len(seeds),
+            "fetched": len(rows),
+            "written": written,
+            "with_volume": with_volume,
+            "location": location,
+            "language": language,
+            "endpoint": endpoint,
+            "cost_usd": COST_PER_REQUEST,
+            "balance_before": balance,
+            "top": sorted(
+                (r for r in rows if r["search_volume"] is not None),
+                key=lambda x: x["search_volume"], reverse=True,
+            )[:10],
+        },
+        "data_status": DataStatus.REAL.value,
+    }
+
+
 register_task(TaskSpec("seo.tech_crawl", "phase3", "全站技术审计（on-page 问题 + 死链）", _task_tech_crawl))
 register_task(TaskSpec("seo.cwv_measure", "phase3", "Core Web Vitals / Lighthouse 性能测量", _task_cwv_measure))
 register_task(TaskSpec("seo.dead_link_scan", "phase3", "死链扫描（复用当日 tech_crawl）", _task_dead_link_scan))
 register_task(TaskSpec("seo.index_status", "phase3", "GSC URL Inspection 真实收录率", _task_index_status))
 register_task(TaskSpec("seo.dead_link_fix", "phase3", "死链整改：301 + sitemap + 收录提交", _task_dead_link_fix, cadence="on_demand", cacheable=False))
+register_task(TaskSpec("seo.keyword_metrics", "phase1", "关键词量价刷新（DataForSEO Google Ads → keyword_pool）", _task_keyword_metrics, cadence="weekly"))
 register_task(TaskSpec("seo.gsc_performance", "phase6", "GSC 点击/展现/CTR/均位", _task_gsc_performance))
 register_task(TaskSpec("seo.serp_track", "phase6", "SERP 当日排名追踪", _task_serp_track))
 register_task(TaskSpec("seo.trend_rising", "phase6", "Google Trends 飙升词", _task_trend_rising))
