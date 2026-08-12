@@ -1,3 +1,4 @@
+from dojocore.federation_api import router as federation_router
 from dojocore.timeline.api import router as timeline_router
 from seoagents.dashboard.routers import (
     agent_jobs,
@@ -14,6 +15,7 @@ from seoagents.dashboard.routers import (
     keywords_api,
     metrics,
     public_seo_control_tower,
+    seo_tasks_api,
     skills_api,
     storage_api,
     timeline_cron_api,
@@ -22,6 +24,8 @@ from seoagents.dashboard.routers import (
 )
 
 all_routers = [
+    # 必须在 collab_api 之前：否则 /inbox/{request_id} 会吃掉 /inbox/summary
+    federation_router,
     metrics.router,
     audit.router,
     agentops.router,
@@ -39,6 +43,7 @@ all_routers = [
     storage_api.router,
     conversations.router,
     keywords_api.router,
+    seo_tasks_api.router,
     skills_api.router,
     # Must precede the legacy /api/timeline/{...} routes where paths overlap.
     timeline_cron_api.router,

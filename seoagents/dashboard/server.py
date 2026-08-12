@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from dojocore.federation_api import install_federation_meta
 from dojocore.logging import LOGGER
 from seoagents import __version__
 from seoagents.agent.runtime import get_runtime
@@ -47,6 +48,9 @@ def create_app() -> FastAPI:
     )
     # 鉴权中间件要在路由之前挂:它得看到每一个请求,包括 /docs 与 /openapi.json
     # —— 那两个页面能直接发 POST,漏掉它们等于门锁上了但窗户开着。
+    # 联邦节点身份：指挥中心靠 /api/v1/healthz 返回的 dept 字段识别本节点
+    install_federation_meta("seo", "SEO 部", __version__)
+
     app.add_middleware(AuthMiddleware)
     app.include_router(auth_router)
     for router in all_routers:
