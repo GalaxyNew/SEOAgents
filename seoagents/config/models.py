@@ -71,6 +71,7 @@ class SeoCredentialsConfig:
     # DataForSEO:Basic 认证串(base64 的 login:password),留空则不启用
     dataforseo_api_key: str = ""
     dataforseo_base_url: str = "https://api.dataforseo.com"
+    cms_publish_token: str = ""
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> SeoCredentialsConfig:
@@ -81,6 +82,7 @@ class SeoCredentialsConfig:
             seonaut_endpoint=str(_get(d, "seonaut_endpoint", cls.seonaut_endpoint)),
             dataforseo_api_key=str(_get(d, "dataforseo_api_key", "") or ""),
             dataforseo_base_url=str(_get(d, "dataforseo_base_url", cls.dataforseo_base_url)),
+            cms_publish_token=str(_get(d, "cms_publish_token", "") or ""),
         )
 
 

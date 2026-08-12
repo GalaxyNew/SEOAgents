@@ -9,6 +9,7 @@ from seoagents.tools.base import BaseToolSpec, ToolRegistry
 from seoagents.tools.environments.sandbox import SandboxPolicy
 from seoagents.tools.executor import ToolExecutor
 from seoagents.tools.indexing import IndexingOpsSpec
+from seoagents.tools.content_publisher import ContentPublisherSpec
 from seoagents.tools.keyword_discovery import KeywordDiscoverySpec
 from seoagents.tools.internal_linker import InternalLinkerSpec
 from seoagents.tools.lighthouse import LighthouseAuditSpec
@@ -37,6 +38,7 @@ def register_default_tools(
 
     registry.register(AeoVisibilitySpec(config, store, build_probes(config)))
     registry.register(IndexingOpsSpec(config, store))
+    registry.register(ContentPublisherSpec(config))
     registry.register(SystemOpsSpec())
     registry.register(KeywordDiscoverySpec(config, store))
     registry.register(AssetHubSpec(config, store))
