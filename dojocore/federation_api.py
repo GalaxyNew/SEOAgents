@@ -180,11 +180,16 @@ async def inbox_summary() -> dict[str, Any]:
         "data_status": "REAL",
         "inbox": s_in,
         "outbox": s_out,
-        # 顶层扁平字段：指挥中心宫格卡直接取用，免去客户端再拆一层
+        # 顶层扁平字段：指挥中心宫格卡直接取用，免去客户端再拆一层。
+        # 口径必须统一为 inbox 视角（本部门要干的活）——曾经把 stalled/blocked
+        # 写成 inbox+outbox 相加而 in_progress 只取 inbox，宫格上出现过
+        # 「停滞 2 > 在办 1」的自相矛盾读数（停滞本是在办的子集）。
+        # outbox 是本部门委托别人干的活，不计入「本部门在办」，
+        # 其明细仍保留在嵌套的 outbox 字段里供单独取用。
         "in_progress": s_in["active"],
-        "delivered_today": s_in["delivered_today"] + s_out["delivered_today"],
-        "stalled": s_in["stalled"] + s_out["stalled"],
-        "blocked": s_in["blocked"] + s_out["blocked"],
+        "delivered_today": s_in["delivered_today"],
+        "stalled": s_in["stalled"],
+        "blocked": s_in["blocked"],
         "ts": int(time.time()),
     }
 
