@@ -1,5 +1,36 @@
 # Changelog
 
+## v0.3.0 — G1 数据层 + 巡检分子化 + 联邦节点标准端点
+
+PR #9 合并到 main（2026-08-12T17:46:40Z）。
+
+### 新增
+- **G1-A 数据层**：`snapshot_store.py`（523 行）— 4 张新表 DDL + 读写层
+  - seo_daily_snapshot（每日快照，UNIQUE date+site+task_name 去重）
+  - keyword_pool（关键词池，产线查表不调 API）
+  - backlink_history（外链历史）
+  - cwv_history（Core Web Vitals 明细）
+- **G1-B 巡检分子化**：`seo_tasks.py`（568 行）+ `seo_tasks_api.py`（107 行）
+  - 10 个独立工序：tech_crawl/cwv_measure/dead_link_scan/dead_link_fix/index_status/gsc_performance/serp_track/trend_rising/aeo_probe/m_t_score
+  - 每工序独立 curl 触发，写入 snapshot，支持同日去重
+- **联邦节点标准三端点**：`dojocore/federation_api.py`（238 行）
+  - GET /healthz（健康灯 + 能力计数 + 子系统状态）
+  - GET /api/v1/inbox/summary（收发件箱摘要，data_status=REAL）
+  - GET /api/v1/timeline?limit=N（时间线事件）
+  - GET /api/v1/capabilities（能力目录）
+  - 指挥中心轮询契约统一，指挥中心只读聚合不持有状态
+
+### 删除
+- `seonaut_service.py`（185 行静态假数据 HTML 仪表盘，全项目零调用）
+
+### 安全
+- `.gitignore` 补 credentials/ + *-sa.json 防凭据泄露（合并前审计发现）
+
+### 验收
+- SnapshotStore 7/7 测试通过
+- 10 工序 API + 同日去重实测
+- 联邦三端点公网 200 + data_status=REAL + 真实 GSC 事件
+- hermes-mac.775767.xyz 公网 200
 ## v0.2.0 — 数据诚信、MCP 出站、工具目录
 
 上一版有 7 条路径会在数据拿不到时**静默产出看起来正常的数字**。本版把这些
