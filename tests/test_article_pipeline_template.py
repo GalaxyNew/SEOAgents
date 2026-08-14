@@ -54,7 +54,9 @@ class TestFederationContract:
         dr = {n.id: n.config for n in tpl.nodes if n.type.value == "dept_request"}
         assert set(dr) == {"intel_research", "draft", "localize"}
         assert dr["intel_research"]["dept"] == "intel"
-        assert dr["draft"]["dept"] == "content"
+        # 实测契约：creative.article_draft（ContentAgents /api/v1/capabilities 确认）
+        assert dr["draft"]["dept"] == "creative"
+        assert dr["draft"]["capability"] == "article_draft"
         assert dr["localize"]["dept"] == "localization"
         for nid, cfg in dr.items():
             assert cfg.get("capability"), f"{nid} 缺 capability —— dept_request 必填"

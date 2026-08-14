@@ -77,8 +77,8 @@ nodes:
       - 按 brief 的 H 结构组织，引用资讯包资产
       - 产物已 commit 资产中心且 derived_from 指向 brief 与资讯包
     config:
-      dept: content
-      capability: native_drafting
+      dept: creative
+      capability: article_draft
       timeout_hours: 72
       spec_template: "{{ nodes.brief.output_asset_ids[0] }}"
 
