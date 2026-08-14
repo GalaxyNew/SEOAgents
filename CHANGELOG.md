@@ -1,5 +1,30 @@
 # Changelog
 
+## v0.5.0 — G1-J 工作流 ↔ 任务卡自动挂钩
+
+PR #14。终结「工序与台账两张皮」：工作流跑工序、任务卡记台账，此前互不知情。
+
+### 诊断修正
+21 号文 §2.3 称工作流引擎需补三件，实测后确认**两件已实装**（暂停恢复 `workflow_api.py:833/853`、人审卡点 `HUMAN_GATE` + `engine.py:189` 禁自审），真缺口只有第三件。
+
+### 新增
+- **`dojocore/taskcard/workflow_bridge.py`** — 观察者式桥接
+  - `on_start` 工作流启动自动开卡（或挂母卡），回填 `WorkflowInstance.parent_task`
+  - `on_node_done` 节点完成写证据行，记名=节点执行者；input/output 控制节点不写
+  - `on_node_failed` / `on_human_gate` 卡进 BLOCKED 并说明卡点
+  - `on_finish` 完成→REVIEW，失败/取消→BLOCKED
+  - `reconcile` 报告实例与卡的状态分歧，供巡检抓漏事件漂移
+
+### 两条铁律（各有测试守护）
+- **桥接绝不自动 PASSED** — 自动化只能报告，验收必须他人签发，双验收位不可被工作流绕过
+- **桥接故障不得中断工作流** — 所有方法自吞异常；账本不可达时工序照跑完
+
+### 验收
+- `pytest tests/test_taskcard_workflow_bridge.py` → **24/24 通过**
+- `pytest tests/` → **241 passed**（G1-I 后基线 217，零回归）
+
+---
+
 ## v0.4.0 — G1-I 任务卡引擎（联邦任务系统核心）
 
 PR #11。替代 2026-08-12 废除的 Mac frontmatter markdown 任务账本，终结「无任务系统真空期」；G2/G4 的前置件。
