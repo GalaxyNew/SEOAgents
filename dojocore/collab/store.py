@@ -11,6 +11,8 @@ import json
 import os
 import sqlite3
 import threading
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any
 
@@ -64,11 +66,23 @@ class CollabStore:
         with self._conn() as conn:
             conn.executescript(_SCHEMA)
 
-    def _conn(self) -> sqlite3.Connection:
+    @contextmanager
+    def _conn(self) -> Iterator[sqlite3.Connection]:
+        """Open, commit, and — crucially — close.
+
+        ``sqlite3.Connection.__exit__`` commits but does not close. Relying on
+        it leaks a file descriptor per query; a few hundred operations later
+        SQLite refuses with "unable to open database file", which reads like
+        corruption and is not.
+        """
         conn = sqlite3.connect(self.db, timeout=15)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
-        return conn
+        try:
+            with conn:
+                yield conn
+        finally:
+            conn.close()
 
     # -- writes ------------------------------------------------------------
     def put(self, req: CollabRequest, *, box: str) -> tuple[CollabRequest, bool]:

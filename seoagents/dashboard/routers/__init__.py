@@ -1,4 +1,5 @@
 from dojocore.federation_api import router as federation_router
+from dojocore.taskcard.api import router as taskcard_router
 from dojocore.timeline.api import router as timeline_router
 from seoagents.dashboard.routers import (
     agent_jobs,
@@ -26,6 +27,8 @@ from seoagents.dashboard.routers import (
 all_routers = [
     # 必须在 collab_api 之前：否则 /inbox/{request_id} 会吃掉 /inbox/summary
     federation_router,
+    # 同理：静态路径 /summary /audit /stalled 在 api.py 内先于 /{card_id} 注册
+    taskcard_router,
     metrics.router,
     audit.router,
     agentops.router,
