@@ -330,6 +330,190 @@ async def _task_aeo_probe(rt: Any, site: str, **kw: Any) -> dict[str, Any]:
     }
 
 
+async def _task_backlink_monitor(rt: Any, site: str, **kw: Any) -> dict[str, Any]:
+    """外链档案采集（DataForSEO Backlinks → backlink_history）。
+
+    G1-A 建好了 ``backlink_history`` 表和 ``write_backlinks()`` 读写层，但一直
+    没有采集器往里写——修好了水管没接水源。这个工序是水源。
+
+    **新增/丢失外链靠比对得出**。DataForSEO 的 summary 端点给的是某一时刻的
+    存量（总外链数、引荐域名、域评分），不给增量。拿上一条快照与本次相减，
+    得到的才是"这周多了多少、掉了多少"——趋势比绝对值更能说明问题。首次
+    采集没有上一条，new/lost 记 ``None`` 而不是 0：没有比较基准和"没有变化"
+    是两回事。
+
+    数据铁律：拿不到就 ``UNAVAILABLE``，绝不补零。外链数补零会让趋势图显示
+    "外链归零"，那是比缺数据更危险的谎——会触发不存在的告警。
+
+    成本纪律（同 keyword_metrics）：
+      * 实测约 $0.09 / 请求，按请求计费，一个站点一次请求。
+      * ``cadence="weekly"``：外链是慢变量，日频刷新纯属烧钱。
+      * ``dry_run=True`` 默认，真花钱必须显式关掉。
+      * ``min_balance`` 余额下限护栏，低于阈值拒调。
+    """
+    import httpx
+
+    COST_PER_REQUEST = 0.09
+    dry_run = kw.get("dry_run", True)
+    min_balance = float(kw.get("min_balance", 5.0))
+
+    cfg = rt.config
+    key = (cfg.seo_credentials.dataforseo_api_key or "").strip()
+    if not key or key.startswith("${"):
+        return {
+            "data": {"reason": "DataForSEO 凭证未配置或未展开"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    # Backlinks API 要的是裸域名，不是 URL。sc-domain: 前缀是 GSC 的写法。
+    target = (kw.get("target") or site or "").strip()
+    for prefix in ("sc-domain:", "https://", "http://"):
+        if target.startswith(prefix):
+            target = target[len(prefix):]
+    target = target.rstrip("/").split("/")[0]
+    if not target:
+        return {
+            "data": {"reason": f"无法从 {site!r} 解析出目标域名"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    base = "https://api.dataforseo.com"
+    endpoint = "/v3/backlinks/summary/live"
+    payload = [{"target": target, "internal_list_limit": 10,
+                "backlinks_status_type": "live"}]
+
+    if dry_run:
+        return {
+            "data": {
+                "dry_run": True,
+                "target": target,
+                "estimated_cost_usd": COST_PER_REQUEST,
+                "endpoint": endpoint,
+                "note": "未发送请求。确认后用 dry_run=false 真跑。",
+            },
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            bal = await client.get(base + "/v3/appendix/user_data",
+                                   headers={"Authorization": f"Basic {key}"})
+        balance = float(bal.json()["tasks"][0]["result"][0]["money"]["balance"])
+        if balance < min_balance:
+            return {
+                "data": {"reason": f"余额 ${balance:.2f} 低于下限 ${min_balance:.2f}，"
+                                   f"拒绝调用以免欠费中断产线",
+                         "balance": balance},
+                "data_status": DataStatus.UNAVAILABLE.value,
+            }
+    except Exception:
+        LOGGER.exception("余额检查失败，保守起见拒绝调用")
+        return {
+            "data": {"reason": "余额检查失败，保守拒绝调用（避免未知消费）"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            resp = await client.post(
+                base + endpoint,
+                headers={"Authorization": f"Basic {key}",
+                         "Content-Type": "application/json"},
+                json=payload,
+            )
+        if resp.status_code != 200:
+            return {
+                "data": {"reason": f"HTTP {resp.status_code}",
+                         "detail": resp.text[:300]},
+                "data_status": DataStatus.UNAVAILABLE.value,
+            }
+        body = resp.json()
+    except Exception as exc:
+        LOGGER.exception("DataForSEO backlinks/summary 调用失败")
+        return {
+            "data": {"reason": f"请求异常: {exc}"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    try:
+        result = body["tasks"][0]["result"][0]
+    except (KeyError, IndexError, TypeError):
+        status_msg = ""
+        try:
+            status_msg = str(body["tasks"][0].get("status_message", ""))[:200]
+        except Exception:
+            status_msg = str(body)[:200]
+        return {
+            "data": {"reason": f"响应结构异常: {status_msg}"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    def _num(value: Any) -> Any:
+        """缺失保持 None——补零会把「没测到」说成「是零」。"""
+        return value if isinstance(value, (int, float)) else None
+
+    total = _num(result.get("backlinks"))
+    ref_domains = _num(result.get("referring_domains"))
+    rating = _num(result.get("rank"))
+
+    # 与上一条快照比对得出增减。没有上一条就是 None：首次采集没有基准，
+    # 报 0 会被读成「本周无变化」。
+    new_links = lost_links = None
+    previous: dict[str, Any] | None = None
+    try:
+        import datetime as _dt
+        today = _dt.date.today().isoformat()
+        history = _snapshot_store(rt).backlink_history(site=site, limit=2)
+        previous = next((h for h in history if h.get("date") != today), None)
+        if previous and total is not None:
+            prev_total = previous.get("total_backlinks")
+            if isinstance(prev_total, (int, float)):
+                delta = int(total) - int(prev_total)
+                new_links = delta if delta > 0 else 0
+                lost_links = -delta if delta < 0 else 0
+    except Exception:
+        LOGGER.exception("读取上一条外链快照失败，本次不计增减")
+
+    data = {
+        "target": target,
+        "total_backlinks": total,
+        "referring_domains": ref_domains,
+        "domain_rating": rating,
+        "new_links": new_links,
+        "lost_links": lost_links,
+        "broken_backlinks": _num(result.get("broken_backlinks")),
+        "referring_main_domains": _num(result.get("referring_main_domains")),
+        "compared_with": (previous or {}).get("date"),
+        "cost_usd": COST_PER_REQUEST,
+    }
+
+    # 核心指标全空说明这次实际上什么也没拿到，别把空壳写进历史表。
+    if total is None and ref_domains is None:
+        return {
+            "data": {**data, "reason": "响应中无外链核心指标"},
+            "data_status": DataStatus.UNAVAILABLE.value,
+        }
+
+    try:
+        _snapshot_store(rt).write_backlinks(
+            site=site,
+            total_backlinks=total,
+            referring_domains=ref_domains,
+            domain_rating=rating,
+            new_links=new_links,
+            lost_links=lost_links,
+            data=result,
+            data_status=DataStatus.REAL.value,
+        )
+        data["written"] = True
+    except Exception as exc:
+        LOGGER.exception("写入 backlink_history 失败")
+        data["written"] = False
+        data["write_error"] = str(exc)[:200]
+
+    return {"data": data, "data_status": DataStatus.REAL.value}
+
+
 async def _task_m_t_score(rt: Any, site: str, **kw: Any) -> dict[str, Any]:
     """汇总评分——**只读今天的快照表**，不再重复调用任何外部 API。
 
@@ -687,6 +871,7 @@ register_task(TaskSpec("seo.gsc_performance", "phase6", "GSC 点击/展现/CTR/�
 register_task(TaskSpec("seo.serp_track", "phase6", "SERP 当日排名追踪", _task_serp_track))
 register_task(TaskSpec("seo.trend_rising", "phase6", "Google Trends 飙升词", _task_trend_rising))
 register_task(TaskSpec("seo.aeo_probe", "phase5", "AI 引擎可见度探测", _task_aeo_probe, cadence="weekly"))
+register_task(TaskSpec("seo.backlink_monitor", "phase5", "外链档案采集（DataForSEO Backlinks → backlink_history）", _task_backlink_monitor, cadence="weekly"))
 register_task(TaskSpec("seo.m_t_score", "phase6", "M_t 综合评分（只读当日快照，不调 API）", _task_m_t_score, cacheable=False))
 
 
