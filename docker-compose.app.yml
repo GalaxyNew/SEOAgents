@@ -20,12 +20,13 @@
 
 services:
   seoagents-dashboard:
-    image: seoagents:lh2
+    image: seoagents:lh3
     container_name: seoagents-dashboard
     command: ["seoagents", "dashboard", "--host", "0.0.0.0", "--port", "8765"]
     # dojocore 在 /app 下,但它是通过 bind-mount 放进来的,没装进镜像。
     # `python -m` 会把 cwd 加进 sys.path,控制台脚本(/usr/local/bin/seoagents)
-    # 不会 —— 所以 dashboard 必须显式给 PYTHONPATH,否则起不来。
+    # 2026-08-14: dojocore 已随 Dockerfile 的 COPY 进镜像并被 editable
+    # 安装注册(issue #18)，PYTHONPATH 不再需要，已移除。
     working_dir: /app
     ports:
       - "127.0.0.1:8765:8765"
@@ -39,7 +40,6 @@ services:
       # hm 对话入口代理到当前 Hermes API；凭证独立保存，不进 git。
       - /data/seo-stack/seoagents-data/hermes-api.env
     environment:
-      - PYTHONPATH=/app
       - CHROME_PATH=/usr/bin/chromium
       - LIGHTHOUSE_CHROMIUM_PATH=/usr/bin/chromium
     volumes:
@@ -55,7 +55,7 @@ services:
     restart: unless-stopped
 
   seoagents-mcp:
-    image: seoagents:lh2
+    image: seoagents:lh3
     container_name: seoagents-mcp
     command: ["python", "-m", "seoagents.mcp_server",
               "--transport", "http", "--host", "0.0.0.0", "--port", "7801"]
@@ -66,7 +66,6 @@ services:
       - /data/seoagents/.env.llm
       - /data/seo-stack/seoagents-data/service.env
     environment:
-      - PYTHONPATH=/app
       - CHROME_PATH=/usr/bin/chromium
       - LIGHTHOUSE_CHROMIUM_PATH=/usr/bin/chromium
     volumes:
