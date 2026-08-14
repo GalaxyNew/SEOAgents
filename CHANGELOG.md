@@ -1,5 +1,27 @@
 # Changelog
 
+## v0.5.1 — G1-I2 任务卡接入联邦契约
+
+PR #16。G1-I 建成账本、G1-J 挂上工作流，但任务卡对联邦一直是隐形的——指挥中心聚合出的是「跨部门协作」视图，不是「部门在干什么」的全貌。
+
+### 新增
+- **healthz 子系统探针补 `taskcard`** — 只数在办卡不拉证据链（15 秒一轮，探针要轻）；账本不可用记 `degraded` 而非 `fail`（丢台账仍能干活，丢 collab 才是联邦失联）
+- **`inbox/summary` 增加 `taskcards` 计数** — total/active/stalled/blocked/review/audit_flagged，与既有 collab 口径并列互不干扰
+- **`GET /api/v1/taskcards/federation`** — 指挥中心聚合专用精简投影，不返回 evidence/meta/goal；审计状态给布尔而非清单
+
+### 修复
+- **`inbox/summary` 邻居故障连坐** — 原本 collab 抛异常就整体早退，任务卡数据健在也一起消失（「联邦看不见台账」换形式重现）。改为两个数据源各自独立降级，collab 挂着时台账仍返回 REAL。由端到端实测暴露，已补回归测试
+
+### 测试覆盖
+本次是 `/api/v1/inbox/summary` 的**首个测试覆盖**，此前该端点在生产运行但无任何测试。
+
+### 验收
+- `pytest tests/test_taskcard_federation_contract.py` → **18/18 通过**
+- `pytest tests/` → **259 passed**（G1-J 后基线 241，零回归）
+- 真实 HTTP 端到端：healthz 含 `taskcard ok:3`、summary 台账计数与实际一致、federation 投影字段精简且路由未被 `/{card_id}` 通配吃掉
+
+---
+
 ## v0.5.0 — G1-J 工作流 ↔ 任务卡自动挂钩
 
 PR #14。终结「工序与台账两张皮」：工作流跑工序、任务卡记台账，此前互不知情。
