@@ -1,5 +1,34 @@
 # Changelog
 
+## v0.4.0 — G1-I 任务卡引擎（联邦任务系统核心）
+
+PR #11。替代 2026-08-12 废除的 Mac frontmatter markdown 任务账本，终结「无任务系统真空期」；G2/G4 的前置件。
+
+### 新增
+- **G1-I taskcard 引擎**：`dojocore/taskcard/`（1140 行）
+  - `models.py` — TaskCard 数据模型 + 8 状态机 + 合法迁移图 + `audit_flags()` 假完成扫描
+  - `store.py` — SQLite 持久化，部门×日期自动分配卡号（TSEO20260814-01）
+  - `service.py` — 开卡/指派/流转/证据行/**真跑 verify_cmd**/双验收位门禁
+  - `api.py` — 11 个 REST 路由挂 `/api/v1/taskcards`
+- **三条硬门禁**（对旧账本三类失效的修复）
+  - 状态漂移 → 状态只能经 `transition()` 变更，非法边被拒；每次变更强制记名证据行
+  - 口头验收 → `verify()` 真跑子进程，exit code 入证据链；`approve()` 要求成功验证记录
+  - 自审 → `reviewed_by ≠ owner`；L3+ 额外要求 `reviewer_provider ≠ owner_provider`
+- **假完成扫描**：`GET /api/v1/taskcards/audit` 直接查出 PASSED 但无验证记录/无验收人/自审/同源评审/缺验收标准/在办无 owner
+
+### 修复
+- **三处 SQLite 文件描述符泄漏**（taskcard/timeline/collab store）
+  - `sqlite3.Connection.__exit__` 只提交不关闭，每次查询泄漏一个 fd
+  - 几百次操作后报 `unable to open database file`，表象像库损坏实则 fd 耗尽
+  - timeline 与 collab 正在生产运行，同样受影响，一并改为 contextmanager
+
+### 验收
+- `pytest tests/test_taskcard_engine.py` → **40/40 通过**
+- `pytest tests/` → **217 passed**（基线 177，零回归；既存 3 failed + 5 errors 经 git stash 对照确认与本改动无关）
+- 真实 HTTP 端到端：11 路由挂载，完整生命周期走通，三条门禁均返回 400 拦截，假完成诱饵卡被审计抓出
+
+---
+
 ## v0.3.0 — G1 数据层 + 巡检分子化 + 联邦节点标准端点
 
 PR #9 合并到 main（2026-08-12T17:46:40Z）。
