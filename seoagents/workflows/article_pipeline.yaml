@@ -1,0 +1,151 @@
+# 文章产线 — 联邦跨部门标准工序（21 号文 §6.3 定版）
+#
+# 与 blog_content_chain.yaml 的区别：后者是 SEO 部门内一条龙——撰文与本土化
+# 都由本部门 agent_task 消化。本产线按联邦设计定版：撰文交创作部、母语审校
+# 交本土化部，dept_request 只声明"要什么能力"，不绑死"谁来干"。对方部门
+# 不在线时请求在收发件箱排队，不阻塞产线定义。
+#
+# 教训继承自 blog_content_chain v1.0：曾按职能拆成五个 agent 并行，六篇文章
+# 写完而终审/发布/验收从未执行，任务却被标了 PASSED。所以本产线:
+#   * 依赖关系显式写在 depends_on，引擎禁止跳步
+#   * 终点必须过 human_gate 才能发布（自动化不得自动 PASSED）
+#   * verify 真跑命令，exit code 入证据链
+
+id: article_pipeline
+name: 文章产线（跨部门）
+version: "1.0"
+dept: seo
+description: 关键词到发布的联邦产线；撰文与本土化跨部门协作
+tags: [content, article, federation, pipeline]
+
+nodes:
+  - id: start
+    type: input
+    title: 产线入口
+    config:
+      input_mode: direct
+      fields:
+        - name: site
+          required: true
+        - name: target_url
+          required: true
+
+  # ── Phase 1: 选题（本部门）────────────────────────────────────────
+  - id: kw_strategy
+    depends_on: [start]
+    type: agent_task
+    title: 关键词选定
+    acceptance:
+      - 主词与长尾词均有 DataForSEO REAL 量价数据（data_status=REAL）
+      - 已说明与站点现有内容的差异点，非重复选题
+    config:
+      instruction: 依据关键词矩阵与 keyword_pool 的真实量价，确定本篇主词、长尾词与搜索意图分层
+
+  - id: brief
+    type: agent_task
+    title: 开卡 + Brief 资产
+    depends_on: [kw_strategy]
+    acceptance:
+      - brief 已落资产中心并拿到 asset_id（spec_asset）
+      - 含标题建议、H 结构、关键词布局、内链规划
+      - 已开任务卡并关联本产线实例
+    config:
+      instruction: 依据选型产出可直接交付撰稿的 brief，PUT 进资产中心，开卡关联
+
+  # ── Phase 2: 情报（跨部门：情报部）─────────────────────────────────
+  - id: intel_research
+    type: dept_request
+    title: 资讯包采集
+    depends_on: [brief]
+    acceptance:
+      - 资讯包含至少 3 个来源 URL 且逐条附可信度标注
+      - 每条引用含来源 URL 与采集日期
+      - 产物已 commit 资产中心
+    config:
+      dept: intel
+      capability: intel_package
+      timeout_hours: 48
+      spec_template: "{{ nodes.brief.output_asset_ids[0] }}"
+
+  # ── Phase 3: 撰文（跨部门：创作部）────────────────────────────────
+  - id: draft
+    type: dept_request
+    title: 西语原生撰文
+    depends_on: [brief, intel_research]
+    acceptance:
+      - 正文为西语原生表达，非翻译腔
+      - 按 brief 的 H 结构组织，引用资讯包资产
+      - 产物已 commit 资产中心且 derived_from 指向 brief 与资讯包
+    config:
+      dept: creative
+      capability: article_draft
+      timeout_hours: 72
+      spec_template: "{{ nodes.brief.output_asset_ids[0] }}"
+
+  # ── Phase 4: 审校（跨部门：本土化部）───────────────────────────────
+  - id: localize
+    type: dept_request
+    title: 母语审校
+    depends_on: [draft]
+    acceptance:
+      - 地区表达、货币、时间格式符合目标市场
+      - 无直译痕迹；修改处以 diff 形式交付
+      - 产物已 commit 资产中心
+    config:
+      dept: localization
+      capability: native_review
+      timeout_hours: 48
+      spec_template: "{{ nodes.draft.output_asset_ids[0] }}"
+
+  # ── Phase 5: SEO 加工（本部门）────────────────────────────────────
+  - id: seo_optimize
+    type: agent_task
+    title: TDK / 结构化数据 / 内链注入
+    depends_on: [localize]
+    acceptance:
+      - TDK 已按关键词布局注入
+      - JSON-LD 结构化数据经 schema_tools 验证通过
+      - 内链规划已落地
+    config:
+      instruction: 对定稿注入 TDK、结构化数据与内链，schema_tools 验证
+
+  # ── Phase 6: 发布（人审 + API）───────────────────────────────────
+  - id: approve_publish
+    type: human_gate
+    title: 发布前人工确认
+    depends_on: [seo_optimize]
+    config:
+      prompt: 确认可以发布？请核对标题、TDK、配图与落地页链接
+
+  - id: publish
+    type: tool_call
+    title: API 发布并提交收录
+    depends_on: [approve_publish]
+    acceptance:
+      - 使用了正确的模板 ID，渲染结果非 Markdown 直灌
+      - 发布接口返回成功且拿到线上 URL
+      - 已向 GSC 提交该 URL
+    config:
+      tool: content_publisher
+      action: publish
+
+  # ── Phase 7: 验收 ─────────────────────────────────────────────────
+  - id: verify
+    type: verify
+    title: 线上回读 + 收录跟踪
+    depends_on: [publish]
+    acceptance:
+      - 线上页面 HTTP 200 且渲染正确
+      - GSC URL Inspection 已发起
+      - 证据已写入任务卡（exit code 入证据链）
+    config:
+      command: |
+        curl -sS -o /tmp/art.html -w '%{http_code}' "$PUBLISHED_URL" | grep -q 200 &&
+        ! grep -qE '^\*\*|^## ' /tmp/art.html
+
+  - id: done
+    type: output
+    title: 产线收口
+    depends_on: [verify]
+    config:
+      output_mode: end
