@@ -80,6 +80,15 @@ def _probe_subsystems() -> tuple[str, dict[str, str]]:
     except Exception as exc:  # noqa: BLE001
         subs["capabilities"] = f"degraded:{type(exc).__name__}"
 
+    try:
+        # 只数在办卡，不拉证据链 —— 健康探针每 15 秒跑一次，必须轻。
+        # 账本不可用记 degraded 而非 fail：部门丢了台账仍能干活，
+        # 丢了 collab 才是联邦意义上的失联。
+        from dojocore.taskcard import get_taskcards
+        subs["taskcard"] = f"ok:{len(get_taskcards().store.active())}"
+    except Exception as exc:  # noqa: BLE001
+        subs["taskcard"] = f"degraded:{type(exc).__name__}"
+
     if subs.get("collab", "").startswith("fail"):
         light = "red"
     elif any(v.startswith(("fail", "degraded")) for v in subs.values()):
@@ -156,9 +165,38 @@ def _summarize(reqs: list[Any]) -> dict[str, int]:
             "stalled": stalled, "blocked": blocked}
 
 
+def _taskcard_summary() -> dict[str, Any]:
+    """本部门任务卡计数。账本不可用时如实说，绝不补零。
+
+    补零会让指挥中心把「账本挂了」显示成「今天没活」——那是数据铁律
+    要防的第一种谎。
+    """
+    try:
+        from dojocore.taskcard import get_taskcards
+        svc = get_taskcards()
+        counts = svc.store.counts_by_status()
+        return {
+            "data_status": "REAL",
+            "total": sum(counts.values()),
+            "active": len(svc.store.active()),
+            "stalled": len(svc.store.stalled()),
+            "blocked": counts.get("BLOCKED", 0),
+            "review": counts.get("REVIEW", 0),
+            "audit_flagged": len(svc.audit()),
+        }
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning(f"taskcard summary unavailable: {exc}")
+        return {
+            "data_status": "UNAVAILABLE",
+            "reason": f"{type(exc).__name__}: {exc}"[:200],
+        }
+
+
 @router.get("/inbox/summary")
 async def inbox_summary() -> dict[str, Any]:
     """指挥中心宫格卡用的聚合计数（6 项实时信息中的 4 项）。"""
+    # 两个数据源各自独立降级。曾经 collab 一抛异常就整体早退，
+    # 结果任务卡数据明明健在也一起消失 —— 邻居坏了不该让自己也隐形。
     try:
         from dojocore.collab import get_collab_service
         store = get_collab_service().store
@@ -170,6 +208,8 @@ async def inbox_summary() -> dict[str, Any]:
             "dept": _DEPT_META["dept"],
             "data_status": "UNAVAILABLE",
             "reason": f"{type(exc).__name__}: {exc}"[:200],
+            # collab 不可用不代表台账也不可用：这一半仍照常给。
+            "taskcards": _taskcard_summary(),
             "ts": int(time.time()),
         }
 
@@ -180,6 +220,10 @@ async def inbox_summary() -> dict[str, Any]:
         "data_status": "REAL",
         "inbox": s_in,
         "outbox": s_out,
+        # 本部门自己的台账。与 inbox/outbox 是不同的东西：收发件箱记跨部门
+        # 委托，任务卡记本部门在干什么。指挥中心此前只看得到前者，
+        # 于是「部门在干什么」的全貌一直缺一半。
+        "taskcards": _taskcard_summary(),
         # 顶层扁平字段：指挥中心宫格卡直接取用，免去客户端再拆一层。
         # 口径必须统一为 inbox 视角（本部门要干的活）——曾经把 stalled/blocked
         # 写成 inbox+outbox 相加而 in_progress 只取 inbox，宫格上出现过
@@ -236,6 +280,61 @@ async def federation_timeline(limit: int = Query(5, ge=1, le=50)) -> dict[str, A
         "reason": "" if events else "timeline 无事件（v1 遗留：0 行数据）",
         "count": len(events),
         "events": events,
+        "ts": int(time.time()),
+    }
+
+
+# ── 任务卡联邦投影 ────────────────────────────────────────────────────────
+@router.get("/taskcards/federation")
+async def federation_taskcards(
+    limit: int = Query(50, ge=1, le=200),
+    status: str = Query("active", description="active | all"),
+) -> dict[str, Any]:
+    """指挥中心聚合专用的精简投影。
+
+    刻意不返回 evidence 与 meta：指挥中心每 15 秒轮询 12 个节点，把完整
+    证据链拉过来只为在宫格上显示一行标题，是拿带宽换不需要的细节。
+    需要全文时客户端再单点取 ``/api/v1/taskcards/{card_id}``。
+    """
+    try:
+        from dojocore.taskcard import get_taskcards
+        svc = get_taskcards()
+        cards = svc.store.active() if status == "active" else svc.store.recent(limit=limit)
+    except Exception as exc:  # noqa: BLE001
+        LOGGER.warning(f"federation taskcards unavailable: {exc}")
+        return {
+            "dept": _DEPT_META["dept"],
+            "data_status": "UNAVAILABLE",
+            "reason": f"{type(exc).__name__}: {exc}"[:200],
+            "count": 0,
+            "cards": [],
+            "ts": int(time.time()),
+        }
+
+    projection = [
+        {
+            "card_id": c.card_id,
+            "title": c.title[:120],
+            "status": c.status.value,
+            "status_label": c.status.label,
+            "level": c.level.value,
+            "priority": c.priority.value,
+            "owner": c.owner,
+            "parent_card": c.parent_card,
+            "collab_req": c.collab_req,
+            "github_issue": c.github_issue,
+            "deadline": c.deadline,
+            "updated_at": c.updated_at,
+            # 布尔而非完整清单：宫格只需要知道该不该标红。
+            "has_audit_flags": bool(c.audit_flags()),
+        }
+        for c in cards[:limit]
+    ]
+    return {
+        "dept": _DEPT_META["dept"],
+        "data_status": "REAL",
+        "count": len(projection),
+        "cards": projection,
         "ts": int(time.time()),
     }
 
