@@ -136,29 +136,6 @@ export default function App() {
     }
   }, [])
 
-  // ── Ch.1: Pointer Aura — 鼠标跟随环境光 ──
-  useEffect(() => {
-    const aura = document.getElementById('aura')
-    if (!aura) return
-    let raf = 0
-    let tx = 0, ty = 0, cx = 0, cy = 0
-    const onMove = (e: MouseEvent) => {
-      tx = e.clientX; ty = e.clientY
-      if (!raf) raf = requestAnimationFrame(loop)
-    }
-    const loop = () => {
-      cx += (tx - cx) * 0.08
-      cy += (ty - cy) * 0.08
-      aura.style.left = cx + 'px'
-      aura.style.top = cy + 'px'
-      if (Math.abs(tx - cx) > 0.5 || Math.abs(ty - cy) > 0.5) {
-        raf = requestAnimationFrame(loop)
-      } else { raf = 0 }
-    }
-    window.addEventListener('mousemove', onMove)
-    return () => { window.removeEventListener('mousemove', onMove); if (raf) cancelAnimationFrame(raf) }
-  }, [])
-
   // ── Ch.5: View Transitions — Tab 切换动画 ──
   const switchTab = (tab: TabId) => {
     if (tab === activeTab) return
@@ -175,8 +152,6 @@ export default function App() {
 
   return (
     <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
-      {/* Ch.1: Pointer Aura */}
-      <div id="aura" />
       {/* Header */}
       <header
         style={{
