@@ -28,6 +28,7 @@ const WorkflowPanel = lazy(() => import('./components/WorkflowPanel').then(m => 
 const CapabilityPanel = lazy(() => import('./components/CapabilityPanel').then(m => ({ default: m.CapabilityPanel })))
 const StoragePanel = lazy(() => import('./components/StoragePanel').then(m => ({ default: m.StoragePanel })))
 const DepartmentPanel = lazy(() => import('./components/DepartmentPanel').then(m => ({ default: m.DepartmentPanel })))
+const KeywordPoolPanel = lazy(() => import('./components/KeywordPoolPanel').then(m => ({ default: m.KeywordPoolPanel })))
 
 /** 懒加载面板的占位骨架 —— 预留高度，避免 chunk 到达时撑开页面产生 CLS */
 const PanelFallback = () => (
@@ -36,11 +37,11 @@ const PanelFallback = () => (
   </div>
 )
 
-export type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
+export type TabId = 'dashboard' | 'gsc_overview' | 'keywords' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
 
 export default function App() {
   // tab 存进 URL hash:刷新后回到原页面,链接也能直接分享到具体页
-  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config']
+  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'keywords', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config']
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const h = (window.location.hash || '').replace(/^#\/?/, '') as TabId
     return VALID_TABS.includes(h) ? h : 'dashboard'
@@ -203,6 +204,7 @@ export default function App() {
           {([
             ['dashboard', '📊 监控大屏'],
             ['gsc_overview', '📈 GSC 大屏'],
+            ['keywords', '🔤 关键词池'],
             ['kanban', '📋 任务卡'],
             ['timeline', '🗓️ 时间规划'],
             ['workflow', '⚙️ 工作流'],
@@ -580,6 +582,8 @@ export default function App() {
         )}
 
         {activeTab === 'kanban' && <KanbanPanel />}
+
+        {activeTab === 'keywords' && <KeywordPoolPanel />}
 
         {activeTab === 'timeline' && <TimelinePanel />}
 

@@ -14,6 +14,7 @@ from seoagents.dashboard.routers import (
     gsc_api,
     kanban_api,
     keywords_api,
+    keywords_pool_api,
     metrics,
     public_seo_control_tower,
     seo_tasks_api,
@@ -46,6 +47,7 @@ all_routers = [
     storage_api.router,
     conversations.router,
     keywords_api.router,
+    keywords_pool_api.router,
     seo_tasks_api.router,
     skills_api.router,
     # Must precede the legacy /api/timeline/{...} routes where paths overlap.
