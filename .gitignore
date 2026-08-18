@@ -45,3 +45,9 @@ credentials/
 *-oauth.json
 *-token.json
 *api-key*.txt
+
+# 构建产物与运行时数据（每次构建/每日工作流都会变，跟踪它们会让服务器
+# 工作区永远"脏"，git pull 被拒、真实改动被噪声淹没 —— 2026-08-18 G1-F
+# 部署时就因此差点丢掉 G1-B/G1-H 只落在服务器的代码）
+seoagents/dashboard/static/app/index.html
+seoagents/dashboard/static/preview/seo-control-tower-sites.json
