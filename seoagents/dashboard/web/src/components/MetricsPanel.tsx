@@ -13,16 +13,16 @@ export interface MetricsSummary {
 }
 
 const card: React.CSSProperties = {
-  background: '#111826',
-  border: '1px solid #1e2a3c',
+  background: 'var(--surface)',
+  border: '1px solid var(--panel)',
   borderRadius: 12,
   padding: 16,
 }
 
 const Stat: React.FC<{ label: string; value: string; tone?: string }> = ({ label, value, tone }) => (
   <div style={{ ...card, flex: '1 1 140px', minWidth: 140 }}>
-    <div style={{ color: '#8ba0b8', fontSize: 12, marginBottom: 6 }}>{label}</div>
-    <div style={{ fontSize: 24, fontWeight: 700, color: tone ?? '#e6edf6' }}>{value}</div>
+    <div style={{ color: 'var(--dim)', fontSize: 12, marginBottom: 6 }}>{label}</div>
+    <div style={{ fontSize: 24, fontWeight: 700, color: tone ?? 'var(--text)' }}>{value}</div>
   </div>
 )
 
@@ -43,7 +43,7 @@ export const MetricsPanel: React.FC<{
   }
 
   if (!summary) return <div style={card}>加载中…</div>
-  const compiled = summary.skills.filter(s => !s.built_in).length
+  const compiled = (summary.skills || []).filter(s => !s.built_in).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -51,7 +51,7 @@ export const MetricsPanel: React.FC<{
         <Stat
           label="综合演化评分 M_t"
           value={summary.latest_m_t == null ? '–' : summary.latest_m_t.toFixed(2)}
-          tone={summary.latest_m_t != null && summary.latest_m_t > 100 ? '#34c98e' : '#f2b234'}
+          tone={summary.latest_m_t != null && summary.latest_m_t > 100 ? 'var(--ok)' : 'var(--warn)'}
         />
         <Stat
           label="AEO 品牌可见度 V_t"
@@ -60,7 +60,7 @@ export const MetricsPanel: React.FC<{
         <Stat
           label="未修复死链"
           value={String(summary.open_dead_links)}
-          tone={summary.open_dead_links > 0 ? '#f2606b' : '#34c98e'}
+          tone={summary.open_dead_links > 0 ? 'var(--bad)' : 'var(--ok)'}
         />
         <Stat label="已固化技能" value={String(compiled)} />
         <div style={{ ...card, flex: '1 1 200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -69,8 +69,8 @@ export const MetricsPanel: React.FC<{
             disabled={busy}
             style={{
               width: '100%',
-              background: '#4c8dff',
-              color: '#fff',
+              background: 'var(--accent)',
+              color: 'var(--text)',
               border: 0,
               borderRadius: 8,
               padding: '12px 18px',
@@ -85,23 +85,23 @@ export const MetricsPanel: React.FC<{
       </div>
 
       <div style={card}>
-        <div style={{ color: '#8ba0b8', fontSize: 12, marginBottom: 10 }}>关键词 SERP 排位</div>
+        <div style={{ color: 'var(--dim)', fontSize: 12, marginBottom: 10 }}>关键词 SERP 排位</div>
         <div className="table-responsive">
           <table style={{ width: '100%', fontSize: 13, borderCollapse: 'collapse', minWidth: '300px' }}>
             <tbody>
-              {summary.serp_positions.map(p => (
-                <tr key={p.keyword} style={{ borderBottom: '1px solid #1f2937' }}>
+              {(summary.serp_positions || []).map(p => (
+                <tr key={p.keyword} style={{ borderBottom: '1px solid var(--panel)' }}>
                   <td style={{ padding: '8px 10px' }}>{p.keyword}</td>
                   <td
                     style={{
                       padding: '8px 10px',
-                      color: p.position != null && p.position <= 10 ? '#34c98e' : '#f2606b',
+                      color: p.position != null && p.position <= 10 ? 'var(--ok)' : 'var(--bad)',
                       fontWeight: 'bold',
                     }}
                   >
                     {p.position == null ? '未上榜' : `#${p.position}`}
                   </td>
-                  <td style={{ padding: '8px 10px', color: '#8ba0b8' }}>{p.engine}</td>
+                  <td style={{ padding: '8px 10px', color: 'var(--dim)' }}>{p.engine}</td>
                 </tr>
               ))}
             </tbody>

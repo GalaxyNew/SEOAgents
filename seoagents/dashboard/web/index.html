@@ -1,15 +1,26 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-mode="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>SEOAgents Dashboard</title>
-    <!-- Ch.4: Variable Fonts (Fraunces + Space Grotesk + JetBrains Mono) -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght,SOFT,WONK@0,9..144,100..900,0..100,0..1&family=Space+Grotesk:wght@300..700&family=JetBrains+Mono:wght@400..700&display=swap" rel="stylesheet">
+    <!-- 字体由 dashboard-kit 本地分发（22 号文 §三），禁止外链 Google Fonts。
+         preload 由 vite 插件在构建期按实际 hash 文件名注入（见 vite.config.ts）。 -->
+    <script>
+      // 主题预应用：避免首帧闪烁（kit themes.js 在 App 挂载后接管）
+      try {
+        var h = localStorage.getItem('themeHue');
+        if (h !== null) document.documentElement.style.setProperty('--hue', String(parseInt(h, 10) || 160));
+        var m = localStorage.getItem('themeMode');
+        if (m !== 'dark' && m !== 'light') {
+          m = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+        }
+        document.documentElement.setAttribute('data-mode', m);
+        document.documentElement.style.colorScheme = m;
+      } catch (e) { /* 隐私模式 / file:// 下静默降级 */ }
+    </script>
   </head>
-  <body style="margin:0;background:var(--bg)">
+  <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

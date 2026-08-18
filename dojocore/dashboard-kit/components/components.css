@@ -1,0 +1,288 @@
+/* ============================================================
+   dashboard-kit · components/components.css
+   部门通用组件七件（22 号文 §四）
+     ① 宫格卡 KpiCard      ② 状态灯 StatusDot   ③ 时间线流 Timeline
+     ④ 任务卡表 TaskTable  ⑤ 收发件 InboxList   ⑥ 资产卡 AssetCard
+     ⑦ 图表壳 ChartShell
+
+   全部只引用 tokens.css 的变量，本文件 0 字面量色值。
+   ============================================================ */
+
+/* ── ① 宫格卡 KpiCard ── */
+.dk-kpi {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: var(--pad-panel);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  position: relative;
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.dk-kpi:hover { border-color: var(--accent-line); }
+.dk-kpi__label {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-label);
+  color: var(--dim);
+  letter-spacing: .02em;
+}
+.dk-kpi__value {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-kpi);
+  font-weight: var(--fw-kpi);
+  line-height: 1.1;
+  color: var(--text);
+}
+.dk-kpi__unit { font-size: var(--fs-md); color: var(--dim); margin-left: var(--sp-1); }
+.dk-kpi__delta { font-size: var(--fs-xs); font-family: var(--font-mono); }
+.dk-kpi__delta--up   { color: var(--ok); }
+.dk-kpi__delta--down { color: var(--bad); }
+.dk-kpi__delta--flat { color: var(--dim); }
+/* accent 主强调只占极小面积：左侧 2px 条 */
+.dk-kpi--accent::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: 2px; background: var(--accent);
+}
+
+/* ── ② 状态灯 StatusDot + 状态胶囊（全联邦统一语义，禁改）── */
+.dk-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: var(--r-pill);
+  background: var(--faint);
+  flex-shrink: 0;
+}
+.dk-dot--ok      { background: var(--ok); }
+.dk-dot--warn    { background: var(--warn); }
+.dk-dot--bad     { background: var(--bad); }
+.dk-dot--rev     { background: var(--rev); }
+.dk-dot--accent  { background: var(--accent); }
+.dk-dot--live    { background: var(--accent); animation: dk-pulse 2.2s var(--ease) infinite; }
+
+.dk-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-label);
+  line-height: 1.6;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+/* 状态语义映射（22 号文 §四，全联邦统一） */
+.dk-pill--in-progress { background: var(--accent-soft); color: var(--accent); border-color: var(--accent-line); animation: dk-pulse 2.2s var(--ease) infinite; }
+.dk-pill--assigned,
+.dk-pill--stale       { background: var(--warn-soft); color: var(--warn); }
+.dk-pill--blocked,
+.dk-pill--failed      { background: var(--bad-soft);  color: var(--bad); }
+.dk-pill--review      { background: var(--rev-soft);  color: var(--rev); }
+.dk-pill--passed,
+.dk-pill--fresh       { background: var(--ok-soft);   color: var(--ok); }
+.dk-pill--neutral     { background: var(--panel2);    color: var(--dim); }
+
+/* 数据新鲜度徽标（数据铁律） */
+.dk-badge-data {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .04em;
+  padding: 1px var(--sp-1);
+  border-radius: var(--r-ctrl);
+  text-transform: uppercase;
+}
+.dk-badge-data--real   { background: var(--ok-soft);   color: var(--ok); }
+.dk-badge-data--mock   { background: var(--warn-soft); color: var(--warn); }
+.dk-badge-data--stale  { background: var(--warn-soft); color: var(--warn); }
+.dk-badge-data--na     { background: var(--bad-soft);  color: var(--bad); }
+
+/* ── ③ 时间线流 Timeline ── */
+.dk-timeline { display: flex; flex-direction: column; gap: var(--sp-3); position: relative; }
+.dk-timeline__item {
+  display: grid;
+  grid-template-columns: 14px 1fr;
+  gap: var(--sp-3);
+  position: relative;
+}
+.dk-timeline__rail {
+  display: flex; flex-direction: column; align-items: center;
+}
+.dk-timeline__rail::after {
+  content: ""; flex: 1; width: 1px; background: var(--border); margin-top: var(--sp-1);
+}
+.dk-timeline__item:last-child .dk-timeline__rail::after { display: none; }
+.dk-timeline__body { padding-bottom: var(--sp-2); min-width: 0; }
+.dk-timeline__time {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--fs-xs);
+  color: var(--faint);
+}
+.dk-timeline__title { font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--text); }
+.dk-timeline__desc  { font-size: var(--fs-xs); color: var(--dim); }
+
+/* ── ④ 任务卡表 TaskTable ── */
+.dk-table { width: 100%; border-collapse: collapse; font-size: var(--fs-sm); }
+.dk-table th {
+  text-align: left;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-label);
+  color: var(--dim);
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0;
+  background: var(--panel);
+  z-index: 1;
+}
+.dk-table td {
+  padding: var(--sp-2) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.dk-table tbody tr { transition: background var(--dur-fast) var(--ease); }
+.dk-table tbody tr:hover { background: var(--panel2); }
+.dk-table__id { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--dim); }
+.dk-table__num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; text-align: right; }
+.dk-table-wrap { width: 100%; overflow: auto; }
+
+/* ── ⑤ 收发件 InboxList ── */
+.dk-inbox { display: flex; flex-direction: column; gap: var(--sp-2); }
+.dk-inbox__item {
+  display: flex; align-items: flex-start; gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-ctrl);
+  transition: border-color var(--dur-fast) var(--ease);
+}
+.dk-inbox__item:hover { border-color: var(--accent-line); }
+.dk-inbox__dir {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 1px var(--sp-1);
+  border-radius: var(--r-ctrl);
+  flex-shrink: 0;
+}
+.dk-inbox__dir--in  { background: var(--accent-soft); color: var(--accent); }
+.dk-inbox__dir--out { background: var(--rev-soft);    color: var(--rev); }
+.dk-inbox__main { min-width: 0; flex: 1; }
+.dk-inbox__subject { font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--text); }
+.dk-inbox__meta { font-size: var(--fs-xs); color: var(--faint); font-family: var(--font-mono); }
+
+/* ── ⑥ 资产卡 AssetCard ── */
+.dk-asset {
+  display: flex; flex-direction: column; gap: var(--sp-2);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: var(--sp-3);
+  overflow: hidden;
+}
+.dk-asset__thumb {
+  aspect-ratio: 16 / 9;
+  background: var(--surface);
+  border-radius: var(--r-ctrl);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--faint);
+  font-size: var(--fs-xs);
+  overflow: hidden;
+}
+.dk-asset__thumb img { width: 100%; height: 100%; object-fit: cover; }
+.dk-asset__name { font-size: var(--fs-sm); font-weight: var(--fw-label); color: var(--text);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dk-asset__meta { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--faint); }
+
+/* ── ⑦ 图表壳 ChartShell ── */
+.dk-chart {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: var(--pad-panel);
+  display: flex; flex-direction: column; gap: var(--sp-3);
+  min-height: 0;
+}
+.dk-chart__head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-2); }
+.dk-chart__title { font-size: var(--fs-sm); font-weight: var(--fw-title); color: var(--text); }
+.dk-chart__body { flex: 1 1 auto; min-height: 120px; position: relative; }
+.dk-chart__empty {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: var(--sp-2);
+  color: var(--faint); font-size: var(--fs-xs);
+}
+
+/* ── 通用面板与控件（组件共用底座）── */
+.dk-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--r-panel);
+  padding: var(--pad-panel);
+  min-height: 0;
+}
+.dk-panel__title {
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-title);
+  color: var(--text);
+  margin-bottom: var(--sp-3);
+}
+.dk-btn {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-label);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-ctrl);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease);
+}
+.dk-btn:hover { border-color: var(--accent-line); background: var(--panel2); }
+.dk-btn--primary {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent);
+}
+.dk-btn--primary:hover { background: var(--accent-soft); filter: brightness(1.15); }
+.dk-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.dk-input {
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-ctrl);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+.dk-input:focus { outline: none; border-color: var(--accent); }
+
+/* ── 栅格 ── */
+.dk-grid { display: grid; gap: var(--gap-grid); }
+.dk-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.dk-grid--3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.dk-grid--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+/* CLS 防抖（22 号文 §六 性能门禁）：
+   面板内容多为异步注入（fetch → 渲染），容器若无预留高度会在数据到达时
+   撑开并下推整页，Lighthouse CLS 直接爆掉（实测 0.589）。
+   给内容容器一个 min-height 占位，数据到达后只在占位内生长，不推动后续区块。 */
+.dk-timeline,
+.dk-inbox,
+.dk-table-wrap { min-height: 120px; }
+.dk-kpi { min-height: 96px; }
+.dk-asset__thumb { min-height: 72px; }
+/* 骨架占位：容器为空时保持高度，避免 0 高 → 有内容的跳变 */
+.dk-timeline:empty,
+.dk-inbox:empty { min-height: 160px; }
+@media (max-width: 1024px) {
+  .dk-grid--4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .dk-grid--3 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .dk-grid--2, .dk-grid--3, .dk-grid--4 { grid-template-columns: minmax(0, 1fr); }
+}

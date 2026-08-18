@@ -1,5 +1,53 @@
 # Changelog
 
+## v0.6.0 — G1-F 前端迁移 dashboard-kit（22 号文标准落地）
+
+G1 的最后一块缺口。此前 dashboard-kit 只存在于 21/22 号文的设计里，代码库中并不存在；SEOAgents 前端有 **1109 处硬编码色值**散落在 19 个文件中，"主题切换"实际只能改一个色相变量而底座会被一起染色。
+
+### 新增：dojocore/dashboard-kit（标准件七件套之⑦）
+
+联邦级前端标准件，新部门门户直接用它出壳：
+
+- **`tokens.css`** — design token 单一事实源。三组分层（22 号文 §2.1）：底座组中性恒定且**禁止引用 `--hue`**（彩度 ≤0.014）、强调组由单变量 `--hue` 驱动、语义组全局恒定；明暗双套 L 阶梯；4px 间距网格、字阶、圆角、动效四件
+- **`themes.js`** — 主题引擎。6 预设主题环（部门色映射）+ 任意自定义 hue + 明暗切换 + localStorage 持久化（全 try/catch，隐私模式/file:// 下静默降级）+ `storage` 事件跨页同步 + ECharts 黄金角 137.5° 同源着色
+- **`components/`** — 七件组件：KpiCard / StatusDot / Timeline / TaskTable / InboxList / AssetCard / ChartShell，附状态胶囊统一语义与数据新鲜度徽标（REAL/MOCK/STALE/N-A）；含 `preview.html` 演示页
+- **`layout/`** — 统一壳：顶栏 48px + 侧栏 + 部门门户三区骨架，满屏页各列独立滚动
+- **`fonts/`** — Inter Variable + JetBrains Mono 本地分发（替掉 Google Fonts 外链），含 `size-adjust` 回退字体度量对齐
+- **`audit.mjs`** — 发版门禁（22 号文 §六）六项检查，含自实现 OKLCH→sRGB→WCAG 对比度计算，零依赖
+
+### 迁移
+
+- 142 个唯一 hex + 39 种 rgba 按 HSL 明度阶梯映射到 token，**覆盖率 100%**；保留原视觉外观（用户纪律：换技术不重做视觉）
+- 旧 token 名（`--ink`/`--acc`/`--panel-2`/`--line`）统一收敛到 kit 标准名
+- 主题控件接入 kit：6 色板 + hue 滑杆 + 明暗切换，替代原先只有滑杆的实现
+
+### 修复
+
+- **全站白屏（既有缺陷，非本次引入）** — 15 处直接对 API 响应字段调用数组方法（`modelOptions?.providers.find()`、`summary.skills.filter()` 等），后端返回缺字段时抛 `Cannot read properties of undefined`，React 整棵树崩溃。**该崩溃在迁移前的 main 产物上同样可复现**。现全部加 `|| []` 兜底，实测所有 API 返回 `{}` 的最恶劣情况下页面仍正常渲染、零报错
+- **ChartShell 图表不可见** — `flex:1` 被 `min-height` 压塌，且 `dk-grow` 用 scaleX 使纵向柱子归零；新增 `dk-grow-y`
+- **TaskTable 表体溢出遮挡下方面板** — flex column 子项默认 `flex-shrink:1` 把面板压成 min-content，表格自然高度溢出到相邻区块之上
+- **CLS 0.589 → 0** — 异步注入容器无预留高度导致数据到达时下推整页；入场动画改用 `transform`（不参与布局）替代 `translate` 属性；回退字体度量对齐消除换字重排
+
+### 性能
+
+路由级懒加载 + chunk 拆分（recharts / react-grid-layout / React 运行时 / 杂项各自独立），Copilot 抽屉延到 `requestIdleCallback` 后挂载，字体 preload 由构建期插件按 hash 注入：
+
+| 指标 | 迁移前 | 迁移后 |
+|---|---|---|
+| 入口 JS (gzip) | 82.5 KB | **14.2 KB** |
+| audit 首屏口径 (gzip) | — | **19.7 KB**（红线 200） |
+| 首屏未使用 JS | 692 KB | 76 KB |
+| CLS | 0.589 | **0** |
+| TBT | — | **0 ms** |
+
+### 验收
+
+- **audit.mjs 6/6 PASS** — 硬编码色值 0 处；底座 hue 隔离；对比度 6 主题 × 明暗 48 项配对全达标；字体白名单；入口 19.7KB / 总量 287.6KB gzip；reduced-motion 全局覆盖
+- **浏览器实测 6 主题 × 明暗 = 12 组**，逐组 DOM 校验：底座值恒定 2 种、强调色 12 种互异、七件套（KPI 4 / 时间线 4 / 表格 5 行 / 收发件 3 / 资产 3）每组完整可见无遮挡、刷新持久化生效；12 张截图留证
+- **Lighthouse Performance**：模拟慢速 4G + 4×CPU 降速 **87**（CLS 0 / TBT 0 满分，三次复跑稳定）；真实宽带 `--throttling-method=provided` **100**。实测网络请求全部在 403ms 内完成、主线程 0.4s；剩余差距来自 React 19 生产版运行时 190KB 的框架下限
+
+---
+
 ## v0.5.1 — G1-I2 任务卡接入联邦契约
 
 PR #16。G1-I 建成账本、G1-J 挂上工作流，但任务卡对联邦一直是隐形的——指挥中心聚合出的是「跨部门协作」视图，不是「部门在干什么」的全貌。

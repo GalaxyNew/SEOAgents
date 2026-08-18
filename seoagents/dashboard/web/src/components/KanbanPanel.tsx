@@ -68,13 +68,13 @@ const DEFAULT_LAYOUT: LayoutItem[] = [
 const DEFAULT_BY_ID = new Map(DEFAULT_LAYOUT.map((item) => [item.i as ModuleId, item]))
 
 const MODULE_LABELS: Record<ModuleId, { icon: string; title: string; color: string; showHeader: boolean }> = {
-  stats:   { icon: '📊', title: '统计胶囊',     color: '#4f8cff', showHeader: false },
-  running: { icon: '⚡', title: '执行中',       color: '#4f8cff', showHeader: true },
-  pending: { icon: '⏳', title: '待办',         color: '#8b93a7', showHeader: true },
-  done:    { icon: '✅', title: '已完成',       color: '#3ecf8e', showHeader: true },
-  events:  { icon: '●',  title: '实时事件流',   color: '#8b93a7', showHeader: true },
-  collab:  { icon: '🔗', title: '跨部门协作流', color: '#dde3f0', showHeader: true },
-  depts:   { icon: '📈', title: '部门任务状态', color: '#8b93a7', showHeader: true },
+  stats:   { icon: '📊', title: '统计胶囊',     color: 'var(--accent)', showHeader: false },
+  running: { icon: '⚡', title: '执行中',       color: 'var(--accent)', showHeader: true },
+  pending: { icon: '⏳', title: '待办',         color: 'var(--dim)', showHeader: true },
+  done:    { icon: '✅', title: '已完成',       color: 'var(--ok)', showHeader: true },
+  events:  { icon: '●',  title: '实时事件流',   color: 'var(--dim)', showHeader: true },
+  collab:  { icon: '🔗', title: '跨部门协作流', color: 'var(--text)', showHeader: true },
+  depts:   { icon: '📈', title: '部门任务状态', color: 'var(--dim)', showHeader: true },
 }
 
 const LAYOUT_KEY = 'kp-layout-v8.2-20col'
@@ -286,9 +286,9 @@ function saveLayout(layout: LayoutItem[]) {
 
 // ── 主题 ──────────────────────────────────────────────────
 const T = {
-  bg: '#0b0e14', bg2: '#11151f', panel: '#161b28', panel2: '#1c2333',
-  line: '#252d40', txt: '#dde3f0', dim: '#8b93a7', faint: '#5a6275',
-  acc: '#4f8cff', ok: '#3ecf8e', warn: '#f5b83d', bad: '#f4655f', rev: '#b07cff',
+  bg: 'var(--bg)', bg2: 'var(--surface)', panel: 'var(--surface)', panel2: 'var(--panel)',
+  line: 'var(--panel)', txt: 'var(--text)', dim: 'var(--dim)', faint: 'var(--faint)',
+  acc: 'var(--accent)', ok: 'var(--ok)', warn: 'var(--warn)', bad: 'var(--bad)', rev: 'var(--rev)',
 }
 
 const ST: Record<string, { label: string; color: string }> = {
@@ -302,7 +302,7 @@ const ST: Record<string, { label: string; color: string }> = {
 const COLLAB_ST: Record<string,{color:string;label:string}> = {
   PENDING:{color:T.dim,label:'待处理'}, ACCEPTED:{color:T.acc,label:'已接收'},
   IN_PROGRESS:{color:T.acc,label:'执行中'}, BLOCKED:{color:T.warn,label:'阻塞'},
-  DELIVERED:{color:T.rev,label:'已交付'}, RETURNED:{color:'#f97316',label:'已退回'},
+  DELIVERED:{color:T.rev,label:'已交付'}, RETURNED:{color:'var(--warn)',label:'已退回'},
   REJECTED:{color:T.bad,label:'已拒绝'}, EXPIRED:{color:T.faint,label:'已过期'},
   ESCALATED:{color:T.bad,label:'已升级'}, CLOSED:{color:T.ok,label:'已关闭'},
 }
@@ -379,7 +379,7 @@ const CSS = `
   height: 10px !important;
 }
 .kp-rgl .react-grid-item.react-draggable-dragging {
-  box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  box-shadow: 0 8px 30px oklch(0% 0 0 / .5);
   z-index: 100;
   cursor: grabbing !important;
 }
@@ -924,7 +924,7 @@ export const KanbanPanel: React.FC = () => {
 
       {/* ═══ 详情弹窗 ═══ */}
       {detail && (
-        <div onClick={()=>setDetail(null)} style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.8)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:isMobile?0:20}}>
+        <div onClick={()=>setDetail(null)} style={{position:'fixed',inset:0,background:'oklch(0% 0 0 / .8)',zIndex:9999,display:'flex',alignItems:'center',justifyContent:'center',padding:isMobile?0:20}}>
           <div onClick={e=>e.stopPropagation()} style={{background:T.panel,border:`1px solid ${T.line}`,borderRadius:isMobile?0:10,padding:isMobile?14:16,width:'100%',maxWidth:isMobile?'none':560,height:isMobile?'100%':'auto',maxHeight:isMobile?'100%':'80vh',overflowY:'auto'}}>
             {detail.error ? <div style={{color:T.bad}}>{detail.error}</div> : (
               <>
@@ -933,7 +933,7 @@ export const KanbanPanel: React.FC = () => {
                 {detail.body && <div style={{color:T.txt,fontSize:12,marginTop:10,whiteSpace:'pre-wrap'}}>{detail.body}</div>}
                 {(detail.runs||[]).length>0 && (
                   <div style={{marginTop:10}}><div style={{fontSize:11,fontWeight:700,color:T.dim,marginBottom:4}}>执行记录</div>
-                    {detail.runs.map((r:any)=>(<div key={r.id} style={{background:T.bg2,borderRadius:5,padding:5,marginTop:3,fontSize:10,color:T.dim}}>#{r.id} {r.step_key} · {r.status} {r.error&&<span style={{color:T.bad}}>✗{r.error}</span>}</div>))}
+                    {(detail.runs || []).map((r:any)=>(<div key={r.id} style={{background:T.bg2,borderRadius:5,padding:5,marginTop:3,fontSize:10,color:T.dim}}>#{r.id} {r.step_key} · {r.status} {r.error&&<span style={{color:T.bad}}>✗{r.error}</span>}</div>))}
                   </div>
                 )}
                 <button className={isMobile?'kp-mobile-action':''} onClick={()=>setDetail(null)} style={{marginTop:12,padding:isMobile?'10px 16px':'5px 12px',minHeight:isMobile?44:undefined,fontSize:isMobile?13:11,borderRadius:6,border:`1px solid ${T.line}`,background:T.panel2,color:T.txt,cursor:'pointer'}}>关闭</button>

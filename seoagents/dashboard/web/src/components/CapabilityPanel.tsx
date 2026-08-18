@@ -112,7 +112,7 @@ type Selected =
   | null
 
 const card: React.CSSProperties = {
-  background: '#111827', border: '1px solid #1f2937', borderRadius: 10, padding: '12px 14px',
+  background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 10, padding: '12px 14px',
 }
 
 /** 从工具名反推它属于哪个 MCP 插件 */
@@ -168,8 +168,8 @@ export const CapabilityPanel: React.FC = () => {
 
   useEffect(() => { load() }, [])
 
-  if (loading) return <div style={{ ...card, color: '#9ca3af', textAlign: 'center' }}>🧭 正在载入能力目录…</div>
-  if (err) return <div style={{ ...card, borderColor: '#7f1d1d', color: '#f87171' }}>⚠️ {err}</div>
+  if (loading) return <div style={{ ...card, color: 'var(--dim)', textAlign: 'center' }}>🧭 正在载入能力目录…</div>
+  if (err) return <div style={{ ...card, borderColor: 'var(--bad-soft)', color: 'var(--bad)' }}>⚠️ {err}</div>
 
   // ── 搜索过滤 ────────────────────────────────────────────────
   const capList = Object.entries(caps)
@@ -217,9 +217,9 @@ export const CapabilityPanel: React.FC = () => {
       onClick={(e) => { e.stopPropagation(); quickToggle(cmd) }}
       title={qc.has(cmd.id) ? '已在快捷指令中,点击移除' : '加入 Copilot 快捷指令'}
       style={{
-        background: qc.has(cmd.id) ? '#1e3a8a' : 'transparent',
-        border: `1px solid ${qc.has(cmd.id) ? '#3b82f6' : '#334155'}`,
-        color: qc.has(cmd.id) ? '#93c5fd' : '#64748b',
+        background: qc.has(cmd.id) ? 'var(--accent-soft)' : 'transparent',
+        border: `1px solid ${qc.has(cmd.id) ? 'var(--accent)' : 'var(--border)'}`,
+        color: qc.has(cmd.id) ? 'var(--accent)' : 'var(--faint)',
         borderRadius: 5, padding: '2px 7px', fontSize: 10,
         cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap',
       }}
@@ -234,15 +234,15 @@ export const CapabilityPanel: React.FC = () => {
     title: React.ReactNode, sub: string, accent: string, right?: React.ReactNode,
   ) => (
     <div key={key} onClick={onClick} style={{
-      background: active ? '#1e293b' : '#0f172a',
-      border: `1px solid ${active ? '#3b82f6' : '#1e293b'}`,
+      background: active ? 'var(--panel)' : 'var(--surface)',
+      border: `1px solid ${active ? 'var(--accent)' : 'var(--panel)'}`,
       borderLeft: `3px solid ${accent}`,
       borderRadius: 7, padding: '8px 10px', cursor: 'pointer',
       display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
     }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{title}</div>
-        <div style={{ fontSize: 10, color: '#64748b', marginTop: 2, overflow: 'hidden',
+        <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>{title}</div>
+        <div style={{ fontSize: 10, color: 'var(--faint)', marginTop: 2, overflow: 'hidden',
                       textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub}</div>
       </div>
       {right}
@@ -256,12 +256,12 @@ export const CapabilityPanel: React.FC = () => {
       <div onClick={() => toggle(key)}
         style={{
           display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-          fontSize: 11, fontWeight: 700, color: '#94a3b8',
+          fontSize: 11, fontWeight: 700, color: 'var(--dim)',
           marginBottom: effectiveOpen[key] ? 7 : 0, userSelect: 'none',
         }}>
         <span style={{
           display: 'inline-block', width: 10, transition: 'transform .15s',
-          transform: effectiveOpen[key] ? 'rotate(90deg)' : 'none', color: '#64748b',
+          transform: effectiveOpen[key] ? 'rotate(90deg)' : 'none', color: 'var(--faint)',
         }}>▶</span>
         <span>{icon} {title}</span>
         <span style={{ flex: 1 }} />
@@ -282,13 +282,13 @@ export const CapabilityPanel: React.FC = () => {
           placeholder="🔍 搜索插件、能力、技能…"
           style={{
             width: '100%', boxSizing: 'border-box',
-            background: '#0f172a', color: '#e2e8f0',
-            border: '1px solid #334155', borderRadius: 6,
+            background: 'var(--surface)', color: 'var(--text)',
+            border: '1px solid var(--border)', borderRadius: 6,
             padding: '7px 10px', fontSize: 12, outline: 'none',
           }}
         />
         {q && (
-          <div style={{ fontSize: 10, color: '#64748b', marginTop: 5 }}>
+          <div style={{ fontSize: 10, color: 'var(--faint)', marginTop: 5 }}>
             {filteredCatalog.length + filteredCaps.length + filteredSkills.length} 个结果
           </div>
         )}
@@ -301,9 +301,9 @@ export const CapabilityPanel: React.FC = () => {
             return listItem(
               id, sel?.type === 'tool' && sel.id === id,
               () => setSel({ type: 'tool', id }),
-              <>{meta.label} <span style={{ fontFamily: 'monospace', fontSize: 9, color: '#475569' }}>{id}</span></>,
+              <>{meta.label} <span style={{ fontFamily: 'monospace', fontSize: 9, color: 'var(--border)' }}>{id}</span></>,
               meta.desc + (capLabel ? ` → ${capLabel}` : ''),
-              '#3b82f6',
+              'var(--accent)',
             )
           })}
         </div>
@@ -316,10 +316,10 @@ export const CapabilityPanel: React.FC = () => {
             return listItem(
               e.id, sel?.type === 'plugin' && sel.id === e.id,
               () => setSel({ type: 'plugin', id: e.id }),
-              <>{e.display_name}{e.installed && <span style={{ color: '#6ee7b7', marginLeft: 6, fontSize: 10 }}>已装</span>}</>,
+              <>{e.display_name}{e.installed && <span style={{ color: 'var(--ok)', marginLeft: 6, fontSize: 10 }}>已装</span>}</>,
               n > 0 ? `${n} 个已注册工具` : e.summary,
-              e.installed ? '#10b981' : '#475569',
-              n > 0 ? <span style={{ fontSize: 10, color: '#60a5fa', flexShrink: 0 }}>{n}</span> : undefined,
+              e.installed ? 'var(--ok)' : 'var(--border)',
+              n > 0 ? <span style={{ fontSize: 10, color: 'var(--accent)', flexShrink: 0 }}>{n}</span> : undefined,
             )
           })}
         </div>
@@ -327,8 +327,8 @@ export const CapabilityPanel: React.FC = () => {
 
       {section('capability', '🧭', `能力 (${filteredCaps.length}${q ? '/' + capList.length : ''})`, (
         <span style={{ fontWeight: 400, fontSize: 10 }}>
-          {uncovered.length > 0 && <span style={{ color: '#ef4444' }}>{uncovered.length} 未覆盖</span>}
-          {risky.length > 0 && <span style={{ color: '#f59e0b', marginLeft: 6 }}>{risky.length} 单源</span>}
+          {uncovered.length > 0 && <span style={{ color: 'var(--bad)' }}>{uncovered.length} 未覆盖</span>}
+          {risky.length > 0 && <span style={{ color: 'var(--warn)', marginLeft: 6 }}>{risky.length} 单源</span>}
         </span>
       ), (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
@@ -337,7 +337,7 @@ export const CapabilityPanel: React.FC = () => {
             () => setSel({ type: 'capability', id: k }),
             v.label,
             v.uncovered ? '未覆盖 —— 没有插件能提供' : v.installed.join(', ') || '未安装提供方',
-            v.uncovered ? '#ef4444' : v.single_source_risk ? '#f59e0b' : '#10b981',
+            v.uncovered ? 'var(--bad)' : v.single_source_risk ? 'var(--warn)' : 'var(--ok)',
           ))}
         </div>
       ))}
@@ -347,10 +347,10 @@ export const CapabilityPanel: React.FC = () => {
           {filteredSkills.map((s) => listItem(
             s.id, sel?.type === 'skill' && sel.id === s.id,
             () => setSel({ type: 'skill', id: s.id }),
-            s.id, s.description || s.kind, '#a855f7',
+            s.id, s.description || s.kind, 'var(--rev)',
           ))}
           {filteredSkills.length === 0 && (
-            <div style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '10px 0' }}>
+            <div style={{ color: 'var(--border)', fontSize: 11, textAlign: 'center', padding: '10px 0' }}>
               {q ? '没有匹配的技能' : '还没有沉淀出技能'}
             </div>
           )}
@@ -363,7 +363,7 @@ export const CapabilityPanel: React.FC = () => {
   const right = (() => {
     if (!sel) {
       return (
-        <div style={{ ...card, color: '#475569', fontSize: 12, textAlign: 'center', padding: '48px 20px', lineHeight: 1.9 }}>
+        <div style={{ ...card, color: 'var(--border)', fontSize: 12, textAlign: 'center', padding: '48px 20px', lineHeight: 1.9 }}>
           从左边选一项查看详情<br />
           <span style={{ fontSize: 11 }}>插件会列出它实际提供的每个 API,点开看用法</span>
         </div>
@@ -384,28 +384,28 @@ export const CapabilityPanel: React.FC = () => {
       return (
         <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f3f4f6' }}>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>
               {e.display_name}
-              {e.installed && <span style={{ background: '#064e3b', color: '#6ee7b7', borderRadius: 4, padding: '1px 6px', fontSize: 10, marginLeft: 8 }}>已装</span>}
+              {e.installed && <span style={{ background: 'var(--ok-soft)', color: 'var(--ok)', borderRadius: 4, padding: '1px 6px', fontSize: 10, marginLeft: 8 }}>已装</span>}
             </div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 5, lineHeight: 1.6 }}>{e.summary}</div>
-            {e.homepage && <div style={{ fontSize: 10, color: '#60a5fa', marginTop: 4, wordBreak: 'break-all' }}>{e.homepage}</div>}
+            <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 5, lineHeight: 1.6 }}>{e.summary}</div>
+            {e.homepage && <div style={{ fontSize: 10, color: 'var(--accent)', marginTop: 4, wordBreak: 'break-all' }}>{e.homepage}</div>}
           </div>
 
           <div>
-            <span style={{ fontSize: 10, color: '#64748b' }}>提供能力: </span>
+            <span style={{ fontSize: 10, color: 'var(--faint)' }}>提供能力: </span>
             {(e.capability_labels || e.capabilities || []).map((c) => (
-              <span key={c} style={{ background: '#1e293b', color: '#94a3b8', borderRadius: 3, padding: '1px 6px', fontSize: 9, marginRight: 4 }}>{c}</span>
+              <span key={c} style={{ background: 'var(--panel)', color: 'var(--dim)', borderRadius: 3, padding: '1px 6px', fontSize: 9, marginRight: 4 }}>{c}</span>
             ))}
           </div>
 
           {mine.length === 0 ? (
-            <div style={{ color: '#f59e0b', fontSize: 11 }}>
+            <div style={{ color: 'var(--warn)', fontSize: 11 }}>
               尚未注册任何工具 —— 这个插件还没接上,或者没有 MCP 端点
             </div>
           ) : (
             <>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
                 提供的 API / MCP 工具({mine.length})
               </div>
               {/* 每个分组一张小卡片。之前是 89 个 chip 平铺成一片,
@@ -416,17 +416,17 @@ export const CapabilityPanel: React.FC = () => {
               }}>
               {Object.entries(groups).sort((a, b) => b[1].length - a[1].length).map(([g, list]) => (
                 <div key={g} style={{
-                  border: '1px solid #1e293b', borderRadius: 8, padding: 10,
-                  background: '#0b1220',
+                  border: '1px solid var(--panel)', borderRadius: 8, padding: 10,
+                  background: 'var(--bg)',
                 }}>
                   <div style={{
                     display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6,
-                    fontSize: 11, color: '#a855f7', fontWeight: 700,
+                    fontSize: 11, color: 'var(--rev)', fontWeight: 700,
                   }}>
                     <span>{g}</span>
                     <span style={{
                       fontSize: 10, padding: '0 6px', borderRadius: 9,
-                      background: 'rgba(168,85,247,.18)', color: '#c4b5fd',
+                      background: 'var(--rev-soft)', color: 'var(--rev)',
                     }}>{list.length}</span>
                   </div>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
@@ -437,19 +437,19 @@ export const CapabilityPanel: React.FC = () => {
                           onClick={() => setDetail({
                             title: full,
                             body: (
-                              <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.8 }}>
-                                <div style={{ color: '#94a3b8', marginBottom: 8 }}>来自插件 <strong>{e.display_name}</strong></div>
-                                <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: 10, fontFamily: 'monospace', fontSize: 11, color: '#93c5fd', wordBreak: 'break-all' }}>
+                              <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.8 }}>
+                                <div style={{ color: 'var(--dim)', marginBottom: 8 }}>来自插件 <strong>{e.display_name}</strong></div>
+                                <div style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 6, padding: 10, fontFamily: 'monospace', fontSize: 11, color: 'var(--accent)', wordBreak: 'break-all' }}>
                                   {full}
                                 </div>
-                                <div style={{ marginTop: 12, fontWeight: 700, color: '#f3f4f6' }}>怎么用</div>
+                                <div style={{ marginTop: 12, fontWeight: 700, color: 'var(--text)' }}>怎么用</div>
                                 <div style={{ marginTop: 4 }}>
                                   在 Copilot 里直接跟 hm 说要做什么,它会自己选工具。也可以点名:
                                 </div>
-                                <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: 10, marginTop: 6, fontSize: 11, color: '#cbd5e1' }}>
+                                <div style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 6, padding: 10, marginTop: 6, fontSize: 11, color: 'var(--text)' }}>
                                   用 {full} 查…(记得说明地域:location_name=Spain, language_code=es)
                                 </div>
-                                <div style={{ marginTop: 12, color: '#f59e0b', fontSize: 11, lineHeight: 1.7 }}>
+                                <div style={{ marginTop: 12, color: 'var(--warn)', fontSize: 11, lineHeight: 1.7 }}>
                                   ⚠️ DataForSEO 的 location_name 默认是 United States。不显式传就是查美国,
                                   而且不会报错 —— 数据看着正常,国家却是错的。
                                 </div>
@@ -457,8 +457,8 @@ export const CapabilityPanel: React.FC = () => {
                             ),
                           })}
                           style={{
-                            background: '#0f172a', border: '1px solid #1e293b', borderRadius: 4,
-                            color: '#cbd5e1', fontSize: 10, padding: '2px 7px',
+                            background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 4,
+                            color: 'var(--text)', fontSize: 10, padding: '2px 7px',
                             cursor: 'pointer', fontFamily: 'monospace',
                           }}>{short}</span>
                       )
@@ -470,8 +470,8 @@ export const CapabilityPanel: React.FC = () => {
             </>
           )}
 
-          <div style={{ borderTop: '1px solid #1f2937', paddingTop: 9, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 10, color: '#64748b' }}>把这个插件的常用查询加进快捷指令</span>
+          <div style={{ borderTop: '1px solid var(--panel)', paddingTop: 9, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 10, color: 'var(--faint)' }}>把这个插件的常用查询加进快捷指令</span>
             <Star cmd={{
               id: `plugin:${e.id}`, origin: e.display_name,
               title: `🔌 ${e.display_name}`,
@@ -485,34 +485,34 @@ export const CapabilityPanel: React.FC = () => {
     if (sel.type === 'capability') {
       const v = caps[sel.id]
       if (!v) return null
-      const color = v.uncovered ? '#ef4444' : v.single_source_risk ? '#f59e0b' : '#10b981'
+      const color = v.uncovered ? 'var(--bad)' : v.single_source_risk ? 'var(--warn)' : 'var(--ok)'
       return (
         <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f3f4f6' }}>{v.label}</div>
-            <div style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace', marginTop: 2 }}>{sel.id}</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{v.label}</div>
+            <div style={{ fontSize: 10, color: 'var(--border)', fontFamily: 'monospace', marginTop: 2 }}>{sel.id}</div>
             <div style={{ color, fontSize: 12, fontWeight: 700, marginTop: 6 }}>
               {v.uncovered ? '● 未覆盖' : v.single_source_risk ? '● 单一数据源' : '● 已覆盖'}
             </div>
           </div>
           {v.uncovered && (
-            <div style={{ background: '#1f1315', border: '1px solid #7f1d1d', borderRadius: 6, padding: 9, fontSize: 11, color: '#fca5a5', lineHeight: 1.7 }}>
+            <div style={{ background: 'var(--bad-soft)', border: '1px solid var(--bad-soft)', borderRadius: 6, padding: 9, fontSize: 11, color: 'var(--bad)', lineHeight: 1.7 }}>
               目前没有任何已安装的插件能提供这项能力。用到它的流程会拿不到数据,
               评分引擎会因此拒绝出分(而不是给个估算值)。
             </div>
           )}
           {v.single_source_risk && (
-            <div style={{ background: '#1f1a10', border: '1px solid #78350f', borderRadius: 6, padding: 9, fontSize: 11, color: '#fcd34d', lineHeight: 1.7 }}>
+            <div style={{ background: 'var(--warn-soft)', border: '1px solid var(--warn-soft)', borderRadius: 6, padding: 9, fontSize: 11, color: 'var(--warn)', lineHeight: 1.7 }}>
               只有一个数据源,无法交叉验证。这个源出错时没有第二方能发现。
             </div>
           )}
           <div style={{ fontSize: 11, lineHeight: 2 }}>
-            <div><span style={{ color: '#64748b' }}>已安装提供方:</span> <span style={{ color: '#6ee7b7' }}>{v.installed.join(', ') || '无'}</span></div>
-            <div><span style={{ color: '#64748b' }}>可安装:</span> <span style={{ color: '#93c5fd' }}>{v.available_to_install.join(', ') || '无'}</span></div>
-            <div><span style={{ color: '#64748b' }}>不可用:</span> <span style={{ color: '#64748b' }}>{v.unavailable.join(', ') || '无'}</span></div>
-            <div><span style={{ color: '#64748b' }}>可交叉验证:</span> <span style={{ color: v.comparable ? '#a855f7' : '#64748b' }}>{v.comparable ? '是' : '否'}</span></div>
+            <div><span style={{ color: 'var(--faint)' }}>已安装提供方:</span> <span style={{ color: 'var(--ok)' }}>{v.installed.join(', ') || '无'}</span></div>
+            <div><span style={{ color: 'var(--faint)' }}>可安装:</span> <span style={{ color: 'var(--accent)' }}>{v.available_to_install.join(', ') || '无'}</span></div>
+            <div><span style={{ color: 'var(--faint)' }}>不可用:</span> <span style={{ color: 'var(--faint)' }}>{v.unavailable.join(', ') || '无'}</span></div>
+            <div><span style={{ color: 'var(--faint)' }}>可交叉验证:</span> <span style={{ color: v.comparable ? 'var(--rev)' : 'var(--faint)' }}>{v.comparable ? '是' : '否'}</span></div>
           </div>
-          <div style={{ borderTop: '1px solid #1f2937', paddingTop: 9, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ borderTop: '1px solid var(--panel)', paddingTop: 9, display: 'flex', justifyContent: 'flex-end' }}>
             <Star cmd={{
               id: `cap:${sel.id}`, origin: v.label,
               title: `🧭 ${v.label}`,
@@ -531,27 +531,27 @@ export const CapabilityPanel: React.FC = () => {
       return (
         <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div>
-            <div style={{ fontSize: 15, fontWeight: 700, color: '#f3f4f6' }}>{meta.label}</div>
-            <div style={{ fontSize: 10, color: '#475569', fontFamily: 'monospace', marginTop: 2 }}>{sel.id}</div>
-            <div style={{ color: '#3b82f6', fontSize: 12, fontWeight: 700, marginTop: 6 }}>● 已安装</div>
+            <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{meta.label}</div>
+            <div style={{ fontSize: 10, color: 'var(--border)', fontFamily: 'monospace', marginTop: 2 }}>{sel.id}</div>
+            <div style={{ color: 'var(--accent)', fontSize: 12, fontWeight: 700, marginTop: 6 }}>● 已安装</div>
           </div>
-          <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.7 }}>{meta.desc}</div>
+          <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7 }}>{meta.desc}</div>
 
           <div style={{ fontSize: 11, lineHeight: 2 }}>
             {capInfo && (
               <div>
-                <span style={{ color: '#64748b' }}>实现能力:</span>{' '}
-                <span style={{ color: '#60a5fa', cursor: 'pointer', textDecoration: 'underline' }}
+                <span style={{ color: 'var(--faint)' }}>实现能力:</span>{' '}
+                <span style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
                   onClick={() => setSel({ type: 'capability', id: meta.capability })}>
                   {capInfo.label}
                 </span>{' '}
-                {capInfo.single_source_risk && <span style={{ color: '#f59e0b', fontSize: 10 }}>⚠ 单源</span>}
+                {capInfo.single_source_risk && <span style={{ color: 'var(--warn)', fontSize: 10 }}>⚠ 单源</span>}
               </div>
             )}
             {catEntry && (
               <div>
-                <span style={{ color: '#64748b' }}>目录条目:</span>{' '}
-                <span style={{ color: '#93c5fd', cursor: 'pointer', textDecoration: 'underline' }}
+                <span style={{ color: 'var(--faint)' }}>目录条目:</span>{' '}
+                <span style={{ color: 'var(--accent)', cursor: 'pointer', textDecoration: 'underline' }}
                   onClick={() => setSel({ type: 'plugin', id: catEntry.id })}>
                   {catEntry.display_name}
                 </span>
@@ -559,18 +559,18 @@ export const CapabilityPanel: React.FC = () => {
             )}
             {!capInfo && !catEntry && (
               <div>
-                <span style={{ color: '#64748b' }}>说明:</span>{' '}
-                <span style={{ color: '#94a3b8' }}>平台内置工具,不映射到外部能力</span>
+                <span style={{ color: 'var(--faint)' }}>说明:</span>{' '}
+                <span style={{ color: 'var(--dim)' }}>平台内置工具,不映射到外部能力</span>
               </div>
             )}
           </div>
 
-          <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: 9, fontSize: 11, color: '#94a3b8', lineHeight: 1.7 }}>
-            <div style={{ color: '#64748b', marginBottom: 4 }}>用法示例</div>
-            <div style={{ fontFamily: 'monospace', color: '#93c5fd' }}>用 {sel.id}({meta.label})查一下…</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 6, padding: 9, fontSize: 11, color: 'var(--dim)', lineHeight: 1.7 }}>
+            <div style={{ color: 'var(--faint)', marginBottom: 4 }}>用法示例</div>
+            <div style={{ fontFamily: 'monospace', color: 'var(--accent)' }}>用 {sel.id}({meta.label})查一下…</div>
           </div>
 
-          <div style={{ borderTop: '1px solid #1f2937', paddingTop: 9, display: 'flex', justifyContent: 'flex-end' }}>
+          <div style={{ borderTop: '1px solid var(--panel)', paddingTop: 9, display: 'flex', justifyContent: 'flex-end' }}>
             <Star cmd={{
               id: `tool:${sel.id}`, origin: meta.label,
               title: `⚙️ ${meta.label}`,
@@ -586,14 +586,14 @@ export const CapabilityPanel: React.FC = () => {
     return (
       <div style={{ ...card, display: 'flex', flexDirection: 'column', gap: 10 }}>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: '#f3f4f6' }}>{s.id}</div>
-          <span style={{ background: '#1e293b', color: '#a855f7', borderRadius: 3, padding: '1px 6px', fontSize: 10 }}>{s.kind}</span>
+          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{s.id}</div>
+          <span style={{ background: 'var(--panel)', color: 'var(--rev)', borderRadius: 3, padding: '1px 6px', fontSize: 10 }}>{s.kind}</span>
         </div>
-        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.7 }}>{s.description}</div>
-        <pre style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: 9, fontSize: 10, color: '#94a3b8', maxHeight: 260, overflow: 'auto' }}>
+        <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7 }}>{s.description}</div>
+        <pre style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 6, padding: 9, fontSize: 10, color: 'var(--dim)', maxHeight: 260, overflow: 'auto' }}>
           {JSON.stringify(s, null, 2)}
         </pre>
-        <div style={{ borderTop: '1px solid #1f2937', paddingTop: 9, display: 'flex', justifyContent: 'space-between', gap: 7 }}>
+        <div style={{ borderTop: '1px solid var(--panel)', paddingTop: 9, display: 'flex', justifyContent: 'space-between', gap: 7 }}>
           <button onClick={async () => {
             setMsg(`正在重放 ${s.id}…`)
             const r = await fetch('/api/skills/replay', {
@@ -602,7 +602,7 @@ export const CapabilityPanel: React.FC = () => {
             })
             const j = await r.json().catch(() => ({}))
             setMsg(j.ok ? `${s.id} 重放完成` : `重放失败: ${j.error || j.detail || r.status}`)
-          }} style={btn('#334155')}>▶ 重放</button>
+          }} style={btn('var(--border)')}>▶ 重放</button>
           <Star cmd={{
             id: `skill:${s.id}`, origin: s.id,
             title: `🎓 ${s.id}`,
@@ -617,17 +617,17 @@ export const CapabilityPanel: React.FC = () => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       <div style={{ ...card, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
         <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11 }}>
-          <span style={{ color: '#64748b' }}>能力 <strong style={{ color: '#60a5fa' }}>{capList.length}</strong></span>
-          <span style={{ color: '#64748b' }}>未覆盖 <strong style={{ color: uncovered.length ? '#ef4444' : '#10b981' }}>{uncovered.length}</strong></span>
-          <span style={{ color: '#64748b' }}>单源风险 <strong style={{ color: risky.length ? '#f59e0b' : '#10b981' }}>{risky.length}</strong></span>
-          <span style={{ color: '#64748b' }}>插件 <strong style={{ color: '#a855f7' }}>{installedCount}/{catalog.length}</strong></span>
-          <span style={{ color: '#64748b' }}>工具 <strong style={{ color: '#e2e8f0' }}>{tools.length}</strong></span>
-          <span style={{ color: '#64748b' }}>快捷指令 <strong style={{ color: '#93c5fd' }}>{qc.cmds.length}</strong></span>
+          <span style={{ color: 'var(--faint)' }}>能力 <strong style={{ color: 'var(--accent)' }}>{capList.length}</strong></span>
+          <span style={{ color: 'var(--faint)' }}>未覆盖 <strong style={{ color: uncovered.length ? 'var(--bad)' : 'var(--ok)' }}>{uncovered.length}</strong></span>
+          <span style={{ color: 'var(--faint)' }}>单源风险 <strong style={{ color: risky.length ? 'var(--warn)' : 'var(--ok)' }}>{risky.length}</strong></span>
+          <span style={{ color: 'var(--faint)' }}>插件 <strong style={{ color: 'var(--rev)' }}>{installedCount}/{catalog.length}</strong></span>
+          <span style={{ color: 'var(--faint)' }}>工具 <strong style={{ color: 'var(--text)' }}>{tools.length}</strong></span>
+          <span style={{ color: 'var(--faint)' }}>快捷指令 <strong style={{ color: 'var(--accent)' }}>{qc.cmds.length}</strong></span>
         </div>
-        <button onClick={load} style={btn('#334155')}>↻ 刷新</button>
+        <button onClick={load} style={btn('var(--border)')}>↻ 刷新</button>
       </div>
 
-      {msg && <div style={{ ...card, fontSize: 11, color: msg.includes('失败') ? '#f87171' : '#6ee7b7' }}>{msg}</div>}
+      {msg && <div style={{ ...card, fontSize: 11, color: msg.includes('失败') ? 'var(--bad)' : 'var(--ok)' }}>{msg}</div>}
 
       <div style={{
         display: 'grid',

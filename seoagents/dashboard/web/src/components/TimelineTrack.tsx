@@ -27,8 +27,8 @@ type Node = {
 }
 
 const KIND_COLOR: Record<string, string> = {
-  START: '#3b82f6', CHECKPOINT: '#f59e0b', REPORT: '#8b5cf6',
-  DEADLINE: '#ef4444', RECURRING: '#14b8a6', REVIEW: '#22c55e',
+  START: 'var(--accent)', CHECKPOINT: 'var(--warn)', REPORT: 'var(--rev)',
+  DEADLINE: 'var(--bad)', RECURRING: 'var(--accent3)', REVIEW: 'var(--ok)',
 }
 const KIND_LABEL: Record<string, string> = {
   START: '开始', CHECKPOINT: '检查点', REPORT: '汇报',
@@ -42,9 +42,9 @@ const STATE_LABEL: Record<string, string> = {
 
 // 来源标识:Ag=Agent自主创建, Yh=用户手动创建, Ya=用户让Agent创建
 const SOURCE_TAG: Record<string, { label: string; color: string }> = {
-  ag: { label: 'Ag', color: '#22d3ee' },
-  yh: { label: 'Yh', color: '#fbbf24' },
-  ya: { label: 'Ya', color: '#a78bfa' },
+  ag: { label: 'Ag', color: 'var(--accent2)' },
+  yh: { label: 'Yh', color: 'var(--warn)' },
+  ya: { label: 'Ya', color: 'var(--rev)' },
 }
 const sourceTagOf = (createdBy?: string) => {
   if (!createdBy || createdBy === 'unknown') return null
@@ -196,31 +196,31 @@ export const TimelineTrack: React.FC<{
 
   return (
     <div style={{
-      background: '#111827', border: '1px solid #1f2937',
+      background: 'var(--surface)', border: '1px solid var(--panel)',
       borderRadius: 10, padding: '10px 0 12px', marginBottom: 14,
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '0 14px 8px', flexWrap: 'wrap',
       }}>
-        <strong style={{ fontSize: 13, color: '#e5e7eb' }}>时间轴</strong>
+        <strong style={{ fontSize: 13, color: 'var(--text)' }}>时间轴</strong>
         {/* 当前跨度实时显示 —— 缩放时人要知道自己看的是多长一段时间 */}
         <span style={{
-          fontSize: 11, color: '#22d3ee', fontFamily: 'ui-monospace, monospace',
-          background: '#0b1220', border: '1px solid #1e293b',
+          fontSize: 11, color: 'var(--accent2)', fontFamily: 'ui-monospace, monospace',
+          background: 'var(--bg)', border: '1px solid var(--panel)',
           borderRadius: 5, padding: '2px 8px',
         }}>
           视野 {fmtSpan(spanMs)}
         </span>
-        <span style={{ fontSize: 11, color: '#475569' }}>
+        <span style={{ fontSize: 11, color: 'var(--border)' }}>
           {fmtTime(centerMs - spanMs / 2)} ~ {fmtTime(centerMs + spanMs / 2)}
         </span>
-        <span style={{ fontSize: 11, color: '#64748b', marginLeft: 'auto' }}>
+        <span style={{ fontSize: 11, color: 'var(--faint)', marginLeft: 'auto' }}>
           拖动平移 · 滚轮缩放
         </span>
         {offsetMs !== 0 && (
           <button onClick={() => setOffsetMs(0)} style={{
-            background: '#2563eb', color: '#fff', border: 0,
+            background: 'var(--accent2)', color: 'var(--text)', border: 0,
             borderRadius: 6, padding: '3px 9px', fontSize: 11, cursor: 'pointer',
           }}>回到现在</button>
         )}
@@ -238,10 +238,10 @@ export const TimelineTrack: React.FC<{
           const x = (t - centerMs) / msPerPx + width / 2
           return (
             <div key={t} style={{ position: 'absolute', left: x, top: 0, bottom: 0 }}>
-              <div style={{ position: 'absolute', top: 0, bottom: 0, width: 1, background: '#1a2434' }} />
+              <div style={{ position: 'absolute', top: 0, bottom: 0, width: 1, background: 'var(--panel)' }} />
               <div style={{
                 position: 'absolute', top: H / 2 + 8, left: 4, fontSize: 10,
-                color: '#475569', whiteSpace: 'nowrap',
+                color: 'var(--border)', whiteSpace: 'nowrap',
                 fontFamily: 'ui-monospace, monospace',
               }}>{fmtTime(t)}</div>
             </div>
@@ -250,21 +250,21 @@ export const TimelineTrack: React.FC<{
 
         <div style={{
           position: 'absolute', left: 0, right: 0, top: H / 2, height: 2,
-          background: 'linear-gradient(90deg, #1f2937, #334155, #1f2937)',
+          background: 'linear-gradient(90deg, var(--panel), var(--border), var(--panel))',
         }} />
 
         <div style={{
           position: 'absolute', left: width / 2, top: 0, bottom: 0,
-          width: 2, background: '#ef4444', opacity: .85,
+          width: 2, background: 'var(--bad)', opacity: .85,
         }}>
           <div style={{
-            position: 'absolute', top: 2, left: 6, fontSize: 10, color: '#fca5a5',
+            position: 'absolute', top: 2, left: 6, fontSize: 10, color: 'var(--bad)',
             fontFamily: 'ui-monospace, monospace', whiteSpace: 'nowrap',
           }}>现在</div>
         </div>
 
         {visible.map(({ node: n, x, side, lane }) => {
-          const color = KIND_COLOR[n.kind] || '#64748b'
+          const color = KIND_COLOR[n.kind] || 'var(--faint)'
           const done = n.state === 'ACKED'
           const stalk = 24 + lane * LANE_H
           const cardTop = side < 0 ? H / 2 - stalk - 56 : H / 2 + stalk
@@ -279,7 +279,7 @@ export const TimelineTrack: React.FC<{
               <div style={{
                 position: 'absolute', left: x - 5, top: H / 2 - 5,
                 width: 10, height: 10, borderRadius: '50%',
-                background: done ? color : '#0b1220',
+                background: done ? color : 'var(--bg)',
                 border: `2px solid ${color}`,
                 boxShadow: isHover ? `0 0 10px ${color}` : 'none',
               }} />
@@ -290,7 +290,7 @@ export const TimelineTrack: React.FC<{
                 style={{
                   position: 'absolute', left: x - CARD_W / 2, top: cardTop,
                   width: CARD_W, height: 52, boxSizing: 'border-box',
-                  background: '#0f172a', border: `1px solid ${isHover ? color : '#1f2937'}`,
+                  background: 'var(--surface)', border: `1px solid ${isHover ? color : 'var(--panel)'}`,
                   borderLeft: `3px solid ${color}`, borderRadius: 6,
                   padding: '5px 8px', cursor: 'pointer', overflow: 'hidden',
                   transition: 'border-color .15s',
@@ -300,21 +300,21 @@ export const TimelineTrack: React.FC<{
                   <span style={{ fontSize: 9, color, fontWeight: 600 }}>
                     {KIND_LABEL[n.kind] || n.kind}
                   </span>
-                  <span style={{ fontSize: 9, color: done ? '#22c55e' : '#64748b' }}>
+                  <span style={{ fontSize: 9, color: done ? 'var(--ok)' : 'var(--faint)' }}>
                     {STATE_LABEL[n.state] || n.state}
                   </span>
                   {(() => { const st = sourceTagOf(n.created_by); return st ? (
-                    <span style={{ fontSize: 8, color: st.color, fontWeight: 700, background: '#0b1220', borderRadius: 3, padding: '1px 4px', marginLeft: 'auto' }} title={st.label === 'Ag' ? 'Agent自主创建' : st.label === 'Yh' ? '用户手动创建' : '用户让Agent创建'}>
+                    <span style={{ fontSize: 8, color: st.color, fontWeight: 700, background: 'var(--bg)', borderRadius: 3, padding: '1px 4px', marginLeft: 'auto' }} title={st.label === 'Ag' ? 'Agent自主创建' : st.label === 'Yh' ? '用户手动创建' : '用户让Agent创建'}>
                       {st.label}
                     </span>
                   ) : null })()}
                 </div>
                 <div style={{
-                  fontSize: 11, color: '#e2e8f0',
+                  fontSize: 11, color: 'var(--text)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{n.intent}</div>
                 <div style={{
-                  fontSize: 10, color: n.outcome ? '#94a3b8' : '#475569',
+                  fontSize: 10, color: n.outcome ? 'var(--dim)' : 'var(--border)',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                 }}>{n.outcome || fmtTime(n.scheduled_at)}</div>
               </div>
@@ -325,7 +325,7 @@ export const TimelineTrack: React.FC<{
         {visible.length === 0 && (
           <div style={{
             position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
-            color: '#475569', fontSize: 12,
+            color: 'var(--border)', fontSize: 12,
           }}>
             这段时间没有节点 —— 拖动或滚轮缩小看看
           </div>

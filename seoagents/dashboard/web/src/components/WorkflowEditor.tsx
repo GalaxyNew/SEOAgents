@@ -16,8 +16,8 @@ type PortDrag = { source: string; x: number; y: number }
 
 const NODE_W = 210, NODE_H = 112
 const NODE_COLOR: Record<string, string> = {
-  input: '#06b6d4', agent_task: '#3b82f6', tool_call: '#10b981', dept_request: '#a855f7',
-  human_gate: '#f59e0b', verify: '#ef4444', output: '#ec4899',
+  input: 'var(--accent2)', agent_task: 'var(--accent)', tool_call: 'var(--ok)', dept_request: 'var(--rev)',
+  human_gate: 'var(--warn)', verify: 'var(--bad)', output: 'var(--rev)',
 }
 
 // 已知模型的推理强度选项 —— 各品牌参数名不同
@@ -246,49 +246,49 @@ export const WorkflowEditor: React.FC<{
   // ---- 浮动提示（替代全屏模式下的底部固定块） ----
   const toast = (issues.length > 0 || okMsg)
     ? <div style={{ position: fullscreen ? 'fixed' : 'relative', ...(fullscreen ? { top: 8, right: 8, zIndex: 1001 } : { marginTop: 9 }),
-        minWidth: 280, maxWidth: 400, background: issues.length > 0 ? '#1f1315' : '#0f1f19',
-        border: `1px solid ${issues.length > 0 ? '#7f1d1d' : '#065f46'}`, borderRadius: 6, padding: 9 }}>
-      {issues.map((x, i) => <div key={i} style={{ color: '#fca5a5', fontSize: 11 }}>· {x}</div>)}
-      {okMsg && <div style={{ color: '#6ee7b7', fontSize: 11 }}>✓ {okMsg}</div>}
+        minWidth: 280, maxWidth: 400, background: issues.length > 0 ? 'var(--bad-soft)' : 'var(--ok-soft)',
+        border: `1px solid ${issues.length > 0 ? 'var(--bad-soft)' : 'var(--ok-soft)'}`, borderRadius: 6, padding: 9 }}>
+      {issues.map((x, i) => <div key={i} style={{ color: 'var(--bad)', fontSize: 11 }}>· {x}</div>)}
+      {okMsg && <div style={{ color: 'var(--ok)', fontSize: 11 }}>✓ {okMsg}</div>}
     </div>
     : null
 
   // ---- 全屏模式 ----
   if (fullscreen) return <>
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: '#07101f', display: 'flex', flexDirection: 'column' }}
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}
       onMouseDown={e => { if (e.button === 1) { e.preventDefault(); setPanning({ sx: e.clientX, sy: e.clientY, base: pan }) } }}>
       {/* 顶部工具栏 */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid #1e293b', flexShrink: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 10px', borderBottom: '1px solid var(--panel)', flexShrink: 0 }}>
         <div style={{ display: 'flex', gap: 5, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ color: '#94a3b8', fontSize: 10, marginRight: 8 }}>{meta.name || meta.id || '新模板'} · 中键拖动 · 滚轮缩放</span>
-          {nodeTypes.map(t => <button key={t.id} onClick={() => addNode(t.id)} style={btn(NODE_COLOR[t.id] || '#334155')}>＋ {t.label}</button>)}
-          <button onClick={autoLayout} style={btn('#334155')}>自动布局</button>
-          <button onClick={() => setZoom(z => Math.max(.3, +(z - .1).toFixed(1)))} style={btn('#334155')}>−</button>
-          <span style={{ color: '#94a3b8', fontSize: 10 }}>{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom(z => Math.min(2.5, +(z + .1).toFixed(1)))} style={btn('#334155')}>＋</button>
+          <span style={{ color: 'var(--dim)', fontSize: 10, marginRight: 8 }}>{meta.name || meta.id || '新模板'} · 中键拖动 · 滚轮缩放</span>
+          {nodeTypes.map(t => <button key={t.id} onClick={() => addNode(t.id)} style={btn(NODE_COLOR[t.id] || 'var(--border)')}>＋ {t.label}</button>)}
+          <button onClick={autoLayout} style={btn('var(--border)')}>自动布局</button>
+          <button onClick={() => setZoom(z => Math.max(.3, +(z - .1).toFixed(1)))} style={btn('var(--border)')}>−</button>
+          <span style={{ color: 'var(--dim)', fontSize: 10 }}>{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom(z => Math.min(2.5, +(z + .1).toFixed(1)))} style={btn('var(--border)')}>＋</button>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
-          <button onClick={validate} disabled={checking || nodeDirty} style={btn('#334155')}>{checking ? '校验中…' : '测试 DAG'}</button>
-          <button onClick={save} disabled={saving || checking || nodeDirty} style={btn('#2563eb')}>{saving ? '保存中…' : '保存'}</button>
-          <button onClick={() => setFullscreen(false)} style={btn('#334155')}>退出全屏</button>
+          <button onClick={validate} disabled={checking || nodeDirty} style={btn('var(--border)')}>{checking ? '校验中…' : '测试 DAG'}</button>
+          <button onClick={save} disabled={saving || checking || nodeDirty} style={btn('var(--accent2)')}>{saving ? '保存中…' : '保存'}</button>
+          <button onClick={() => setFullscreen(false)} style={btn('var(--border)')}>退出全屏</button>
         </div>
       </div>
       {/* 画布区 */}
       <div ref={canvasRef} style={{ position: 'relative', flex: 1, overflow: 'hidden' }} onWheel={handleWheel}>
         <div style={{ position: 'absolute', width: canvasW, height: canvasH, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0',
-          backgroundImage: 'radial-gradient(#263247 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+          backgroundImage: 'radial-gradient(var(--panel2) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
           <CanvasSVG edges={edges} positions={positions} line={line} portDrag={portDrag} disconnect={disconnect} />
           {nodes.map(n => <NodeCard key={n.id} n={n} active={active === n.id} spec={spec} positions={positions} nodes={nodes}
             portDrag={portDrag} onSelect={selectNode} onDrag={setDrag} onPortDown={setPortDrag} onPortUp={connect} onPatch={inlinePatch} />)}
         </div>
         {/* 右侧参数面板 — 垂直居中 */}
-        {panelOpen && draftNode && <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 320, maxHeight: '70vh', background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, padding: 12, overflowY: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,.5)' }}>
+        {panelOpen && draftNode && <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', width: 320, maxHeight: '70vh', background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 8, padding: 12, overflowY: 'auto', boxShadow: '0 8px 32px oklch(0% 0 0 / .5)' }}>
           <NodeEditor draftNode={draftNode} tab={tab} setTab={setTab} patchDraft={patchDraft} saveNode={saveNode} removeNode={removeNode} active={active}
             nodeTypes={nodeTypes} tools={tools} departments={departments} templates={templates} meta={meta} nodeDirty={nodeDirty} spec={spec} />
         </div>}
         {/* 折叠/展开按钮 — 垂直居中 */}
         <button onClick={() => setPanelOpen(v => !v)} style={{ position: 'absolute', right: panelOpen ? 338 : 0, top: '50%', transform: 'translateY(-50%)', zIndex: 1002,
-          width: 24, height: 48, borderRadius: '8px 0 0 8px', border: '1px solid #1e293b', borderRight: 0, background: '#0f172a', color: '#94a3b8',
+          width: 24, height: 48, borderRadius: '8px 0 0 8px', border: '1px solid var(--panel)', borderRight: 0, background: 'var(--surface)', color: 'var(--dim)',
           cursor: 'pointer', fontSize: 11, transition: 'right .2s' }} title={panelOpen ? '折叠参数面板' : '展开参数面板'}>
           {panelOpen ? '▶' : '◀'}
         </button>
@@ -302,10 +302,10 @@ export const WorkflowEditor: React.FC<{
       subtitle="拖动卡片 · 从输出端拖到输入端连线 · 点击连线删除 · 中键拖画布 · Alt+滚轮缩放"
       width={1500} onClose={tryClose} closeOnBackdrop={false} closeOnEscape={false}
       footer={<>
-        <span style={{ fontSize: 10, color: globalDirty ? '#fbbf24' : '#475569', marginRight: 'auto' }}>{globalDirty ? '● 有未保存修改' : ''}</span>
-        <button onClick={() => setFullscreen(v => !v)} style={btn('#334155')}>全屏</button>
-        <button onClick={validate} disabled={checking || nodeDirty} style={btn('#334155')}>{checking ? '校验中…' : '测试 DAG'}</button>
-        <button onClick={save} disabled={saving || checking || nodeDirty} style={btn(nodeDirty ? '#334155' : '#2563eb')}>{saving ? '保存中…' : editing ? '保存模板' : '创建模板'}</button>
+        <span style={{ fontSize: 10, color: globalDirty ? 'var(--warn)' : 'var(--border)', marginRight: 'auto' }}>{globalDirty ? '● 有未保存修改' : ''}</span>
+        <button onClick={() => setFullscreen(v => !v)} style={btn('var(--border)')}>全屏</button>
+        <button onClick={validate} disabled={checking || nodeDirty} style={btn('var(--border)')}>{checking ? '校验中…' : '测试 DAG'}</button>
+        <button onClick={save} disabled={saving || checking || nodeDirty} style={btn(nodeDirty ? 'var(--border)' : 'var(--accent2)')}>{saving ? '保存中…' : editing ? '保存模板' : '创建模板'}</button>
       </>}>
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr 130px', gap: 8 }}>
         <Field label="模板 ID" hint="系统自动生成"><input disabled value={meta.id || '正在生成…'} style={inputStyle} /></Field>
@@ -314,34 +314,34 @@ export const WorkflowEditor: React.FC<{
       </div>
       <Field label="说明"><input value={meta.description} onChange={e => { setMeta({ ...meta, description: e.target.value }); setGlobalDirty(true) }} style={inputStyle} /></Field>
       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', alignItems: 'center', marginBottom: 8 }}>
-        {nodeTypes.map(t => <button key={t.id} onClick={() => addNode(t.id)} style={btn(NODE_COLOR[t.id] || '#334155')}>＋ {t.label}</button>)}
-        <button onClick={autoLayout} style={btn('#334155')}>自动布局</button>
-        <button onClick={() => setZoom(z => Math.max(.4, +(z - .1).toFixed(1)))} style={btn('#334155')}>−</button>
-        <span style={{ color: '#94a3b8', fontSize: 10 }}>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom(z => Math.min(2, +(z + .1).toFixed(1)))} style={btn('#334155')}>＋</button>
-        <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} style={btn('#334155')}>重置</button>
-        {nodeDirty && <span style={{ color: '#fbbf24', fontSize: 10 }}>● 当前节点未保存</span>}
-        <span style={{ marginLeft: 'auto', color: '#64748b', fontSize: 10 }}>中键拖画布 · 滚轮缩放</span>
+        {nodeTypes.map(t => <button key={t.id} onClick={() => addNode(t.id)} style={btn(NODE_COLOR[t.id] || 'var(--border)')}>＋ {t.label}</button>)}
+        <button onClick={autoLayout} style={btn('var(--border)')}>自动布局</button>
+        <button onClick={() => setZoom(z => Math.max(.4, +(z - .1).toFixed(1)))} style={btn('var(--border)')}>−</button>
+        <span style={{ color: 'var(--dim)', fontSize: 10 }}>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom(z => Math.min(2, +(z + .1).toFixed(1)))} style={btn('var(--border)')}>＋</button>
+        <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} style={btn('var(--border)')}>重置</button>
+        {nodeDirty && <span style={{ color: 'var(--warn)', fontSize: 10 }}>● 当前节点未保存</span>}
+        <span style={{ marginLeft: 'auto', color: 'var(--faint)', fontSize: 10 }}>中键拖画布 · 滚轮缩放</span>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: panelOpen ? (isMobile ? '1fr' : 'minmax(0,1fr) 340px') : '1fr', gap: 10, transition: 'grid-template-columns .2s' }}>
-        <div ref={canvasRef} style={{ height: 640, overflow: 'hidden', background: '#07101f', border: '1px solid #1e293b', borderRadius: 8 }}
+        <div ref={canvasRef} style={{ height: 640, overflow: 'hidden', background: 'var(--bg)', border: '1px solid var(--panel)', borderRadius: 8 }}
           onMouseDown={e => { if (e.button === 1) { e.preventDefault(); setPanning({ sx: e.clientX, sy: e.clientY, base: pan }) } }} onWheel={handleWheel}>
           <div style={{ position: 'relative', width: canvasW, height: canvasH, transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`, transformOrigin: '0 0',
-            backgroundImage: 'radial-gradient(#263247 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+            backgroundImage: 'radial-gradient(var(--panel2) 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
             <CanvasSVG edges={edges} positions={positions} line={line} portDrag={portDrag} disconnect={disconnect} />
             {nodes.map(n => <NodeCard key={n.id} n={n} active={active === n.id} spec={spec} positions={positions} nodes={nodes}
               portDrag={portDrag} onSelect={selectNode} onDrag={setDrag} onPortDown={setPortDrag} onPortUp={connect} onPatch={inlinePatch} />)}
           </div>
         </div>
-        {panelOpen && <div style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, padding: 11, minHeight: 640, overflowY: 'auto', maxHeight: 640 }}>
-          {!draftNode ? <div style={{ color: '#64748b' }}>选择一个节点</div> :
+        {panelOpen && <div style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 8, padding: 11, minHeight: 640, overflowY: 'auto', maxHeight: 640 }}>
+          {!draftNode ? <div style={{ color: 'var(--faint)' }}>选择一个节点</div> :
             <NodeEditor draftNode={draftNode} tab={tab} setTab={setTab} patchDraft={patchDraft} saveNode={saveNode} removeNode={removeNode} active={active}
               nodeTypes={nodeTypes} tools={tools} departments={departments} templates={templates} meta={meta} nodeDirty={nodeDirty} spec={spec} />}
         </div>}
       </div>
       {/* 非全屏模式：inline 折叠/展开按钮 */}
       <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-        <button onClick={() => setPanelOpen(v => !v)} style={{ ...btn('#334155'), fontSize: 10 }}>
+        <button onClick={() => setPanelOpen(v => !v)} style={{ ...btn('var(--border)'), fontSize: 10 }}>
           {panelOpen ? '▶ 折叠参数面板' : '◀ 展开参数面板'}
         </button>
       </div>
@@ -349,14 +349,14 @@ export const WorkflowEditor: React.FC<{
 
       {/* 关闭确认 —— 有未保存改动时弹出 */}
       {confirmClose && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.6)', zIndex: 100001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        <div style={{ position: 'fixed', inset: 0, background: 'oklch(0% 0 0 / .6)', zIndex: 100001, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
           onClick={e => e.stopPropagation()}>
-          <div style={{ background: '#111827', border: '1px solid #334155', borderRadius: 10, padding: 20, maxWidth: 380 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#f3f4f6', marginBottom: 8 }}>有未保存的修改</div>
-            <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 16 }}>关闭将丢弃当前所有改动（节点位置、连线、参数等）。确定放弃吗？</div>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 20, maxWidth: 380 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>有未保存的修改</div>
+            <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 16 }}>关闭将丢弃当前所有改动（节点位置、连线、参数等）。确定放弃吗？</div>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-              <button onClick={() => setConfirmClose(false)} style={btn('#2563eb')}>继续编辑</button>
-              <button onClick={() => { setConfirmClose(false); setGlobalDirty(false); setNodeDirty(false); onClose() }} style={btn('#7f1d1d')}>放弃修改</button>
+              <button onClick={() => setConfirmClose(false)} style={btn('var(--accent2)')}>继续编辑</button>
+              <button onClick={() => { setConfirmClose(false); setGlobalDirty(false); setNodeDirty(false); onClose() }} style={btn('var(--bad-soft)')}>放弃修改</button>
             </div>
           </div>
         </div>
@@ -373,13 +373,13 @@ const CanvasSVG: React.FC<{
 }> = ({ edges, positions, line, portDrag, disconnect }) => (
   <svg width="100%" height="100%" style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
     {edges.map(e => <g key={`${e.source}-${e.target}`}>
-      <path d={line(e.source, e.target)} stroke="#64748b" strokeWidth="2" fill="none" />
+      <path d={line(e.source, e.target)} stroke="var(--faint)" strokeWidth="2" fill="none" />
       <path d={line(e.source, e.target)} stroke="transparent" strokeWidth="14" fill="none"
         style={{ pointerEvents: 'stroke', cursor: 'pointer' }} onClick={() => disconnect(e.source, e.target)} />
     </g>)}
     {portDrag && positions[portDrag.source] &&
       <path d={`M ${positions[portDrag.source].x + NODE_W} ${positions[portDrag.source].y + 56} L ${portDrag.x} ${portDrag.y}`}
-        stroke="#60a5fa" strokeWidth="2" strokeDasharray="5 4" fill="none" />}
+        stroke="var(--accent)" strokeWidth="2" strokeDasharray="5 4" fill="none" />}
   </svg>
 )
 
@@ -391,29 +391,29 @@ const NodeCard: React.FC<{
   onPortDown: (p: PortDrag) => void; onPortUp: (source: string, target: string) => void
   onPatch: (id: string, patch: Partial<DraftNode>) => void
 }> = ({ n, active, spec, positions, nodes, portDrag, onSelect, onDrag, onPortDown, onPortUp, onPatch }) => {
-  const p = positions[n.id] || { x: 50, y: 50 }, color = NODE_COLOR[n.type] || '#64748b'
+  const p = positions[n.id] || { x: 50, y: 50 }, color = NODE_COLOR[n.type] || 'var(--faint)'
   const [expanded, setExpanded] = useState(true)
   // 卡片内联可编辑的关键字段
   const reqConfig = spec(n.type)?.required_config || []
   return (
     <div onClick={() => onSelect(n.id)} style={{ position: 'absolute', left: p.x, top: p.y, width: NODE_W,
-      background: active ? '#13213a' : '#0f172a', border: `1px solid ${active ? color : '#334155'}`, borderTop: `3px solid ${color}`,
-      borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,.35)', boxSizing: 'border-box', userSelect: 'none' }}>
+      background: active ? 'var(--panel)' : 'var(--surface)', border: `1px solid ${active ? color : 'var(--border)'}`, borderTop: `3px solid ${color}`,
+      borderRadius: 8, boxShadow: '0 8px 24px oklch(0% 0 0 / .35)', boxSizing: 'border-box', userSelect: 'none' }}>
       <div onMouseDown={e => { e.stopPropagation(); onDrag({ id: n.id, sx: e.clientX, sy: e.clientY, base: p }) }}
         style={{ padding: '7px 10px 4px', cursor: 'grab', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <input value={n.title} onClick={e => e.stopPropagation()} onChange={e => onPatch(n.id, { title: e.target.value })}
-          style={{ background: 'transparent', border: 0, color: '#e2e8f0', fontSize: 11, fontWeight: 700, outline: 'none', width: 130, padding: 0 }} />
+          style={{ background: 'transparent', border: 0, color: 'var(--text)', fontSize: 11, fontWeight: 700, outline: 'none', width: 130, padding: 0 }} />
         <span style={{ color, fontSize: 8, flexShrink: 0 }}>{spec(n.type)?.label || n.type}</span>
       </div>
-      <div style={{ padding: '0 10px', color: '#64748b', fontSize: 9, fontFamily: 'monospace' }}>{n.id}</div>
-      <div style={{ padding: '3px 10px', color: '#94a3b8', fontSize: 9, display: 'flex', justifyContent: 'space-between' }}>
+      <div style={{ padding: '0 10px', color: 'var(--faint)', fontSize: 9, fontFamily: 'monospace' }}>{n.id}</div>
+      <div style={{ padding: '3px 10px', color: 'var(--dim)', fontSize: 9, display: 'flex', justifyContent: 'space-between' }}>
         <span>入 {n.depends_on.length} · 出 {nodes.filter(x => x.depends_on.includes(n.id)).length}</span>
-        {reqConfig.length > 0 && <button onClick={e => { e.stopPropagation(); setExpanded(v => !v) }} style={{ background: 'transparent', border: 0, color: expanded ? '#60a5fa' : '#64748b', cursor: 'pointer', fontSize: 9, padding: 0 }}>{expanded ? '▲ 收起' : '▼ 展开'}</button>}
+        {reqConfig.length > 0 && <button onClick={e => { e.stopPropagation(); setExpanded(v => !v) }} style={{ background: 'transparent', border: 0, color: expanded ? 'var(--accent)' : 'var(--faint)', cursor: 'pointer', fontSize: 9, padding: 0 }}>{expanded ? '▲ 收起' : '▼ 展开'}</button>}
       </div>
       {/* 内联必填字段 — 展开时直接显示 */}
-      {expanded && reqConfig.length > 0 && <div style={{ padding: '6px 10px', borderTop: '1px solid #1e2937', marginTop: 4 }} onClick={e => e.stopPropagation()}>
+      {expanded && reqConfig.length > 0 && <div style={{ padding: '6px 10px', borderTop: '1px solid var(--panel)', marginTop: 4 }} onClick={e => e.stopPropagation()}>
         {reqConfig.map((k: string) => <div key={k} style={{ marginBottom: 5 }}>
-          <span style={{ fontSize: 8, color: '#64748b', display: 'block', marginBottom: 2 }}>{k}</span>
+          <span style={{ fontSize: 8, color: 'var(--faint)', display: 'block', marginBottom: 2 }}>{k}</span>
           {k === 'tool' ? <select value={n.config[k] || ''} onChange={e => onPatch(n.id, { config: { ...n.config, [k]: e.target.value } })} style={{ ...inputStyle, fontSize: 9, padding: '3px 5px', width: '100%' }}><option value="">…</option></select>
           : k === 'dept' ? <select value={n.config[k] || ''} onChange={e => onPatch(n.id, { config: { ...n.config, [k]: e.target.value } })} style={{ ...inputStyle, fontSize: 9, padding: '3px 5px', width: '100%' }}><option value="">…</option><option value="seo">seo</option></select>
           : (k === 'instruction' || k === 'prompt' || k === 'command') ? <textarea rows={2} value={n.config[k] || ''} onChange={e => onPatch(n.id, { config: { ...n.config, [k]: e.target.value } })} style={{ ...inputStyle, fontSize: 9, padding: '3px 5px', resize: 'none', width: '100%' }} />
@@ -423,9 +423,9 @@ const NodeCard: React.FC<{
       {/* 收起时留底部间距 */}
       {!expanded && <div style={{ height: 6 }} />}
       {n.type !== 'input' && <button title="输入端：松开完成连线" onMouseUp={e => { e.stopPropagation(); if (portDrag) onPortUp(portDrag.source, n.id) }}
-        style={{ position: 'absolute', left: -8, top: 48, width: 16, height: 16, padding: 0, borderRadius: '50%', border: '2px solid #94a3b8', background: portDrag ? '#1d4ed8' : '#0f172a', cursor: 'crosshair' }} />}
+        style={{ position: 'absolute', left: -8, top: 48, width: 16, height: 16, padding: 0, borderRadius: '50%', border: '2px solid var(--dim)', background: portDrag ? 'var(--accent2)' : 'var(--surface)', cursor: 'crosshair' }} />}
       {n.type !== 'output' && <button title="输出端：按住拖动" onMouseDown={e => { e.stopPropagation(); onPortDown({ source: n.id, x: p.x + NODE_W, y: p.y + 56 }) }}
-        style={{ position: 'absolute', right: -8, top: 48, width: 16, height: 16, padding: 0, borderRadius: '50%', border: `2px solid ${color}`, background: portDrag?.source === n.id ? color : '#0f172a', cursor: 'crosshair' }} />}
+        style={{ position: 'absolute', right: -8, top: 48, width: 16, height: 16, padding: 0, borderRadius: '50%', border: `2px solid ${color}`, background: portDrag?.source === n.id ? color : 'var(--surface)', cursor: 'crosshair' }} />}
     </div>
   )
 }
@@ -443,8 +443,8 @@ const NodeEditor: React.FC<{
 
   return <>
     <div style={{ display: 'flex', gap: 5, marginBottom: 10 }}>
-      <button onClick={() => setTab('params')} style={btn(tab === 'params' ? '#2563eb' : '#334155')}>参数</button>
-      <button onClick={() => setTab('test')} style={btn(tab === 'test' ? '#2563eb' : '#334155')}>测试设置</button>
+      <button onClick={() => setTab('params')} style={btn(tab === 'params' ? 'var(--accent2)' : 'var(--border)')}>参数</button>
+      <button onClick={() => setTab('test')} style={btn(tab === 'test' ? 'var(--accent2)' : 'var(--border)')}>测试设置</button>
     </div>
 
     {tab === 'params' ? <>
@@ -500,8 +500,8 @@ const NodeEditor: React.FC<{
 
       {/* ---- 模型/推理强度选择（仅 agent_task 和 dept_request） ---- */}
       {(draftNode.type === 'agent_task' || draftNode.type === 'dept_request') && <>
-        <div style={{ borderTop: '1px solid #1e293b', margin: '10px 0 8px', paddingTop: 8 }}>
-          <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>模型配置（可选，留空用部门/系统默认）</span>
+        <div style={{ borderTop: '1px solid var(--panel)', margin: '10px 0 8px', paddingTop: 8 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--dim)' }}>模型配置（可选，留空用部门/系统默认）</span>
         </div>
         <Field label="Provider">
           <select value={draftNode.config.provider || ''} onChange={e => patchDraft({ config: { ...draftNode.config, provider: e.target.value, model: '', reasoning_effort: '' } })} style={inputStyle}>
@@ -513,7 +513,7 @@ const NodeEditor: React.FC<{
         </Field>}
         {draftNode.config.provider && <Field label="推理强度" hint={PROVIDER_MODELS[draftNode.config.provider]?.label || ''}>
           <select value={draftNode.config.reasoning_effort || ''} onChange={e => patchDraft({ config: { ...draftNode.config, reasoning_effort: e.target.value } })} style={inputStyle}>
-            {PROVIDER_MODELS[draftNode.config.provider]?.efforts.map(e => <option key={e.value} value={e.value}>{e.label}</option>) || <option value="">默认</option>}
+            {(PROVIDER_MODELS[draftNode.config.provider]?.efforts || []).map(e => <option key={e.value} value={e.value}>{e.label}</option>) || <option value="">默认</option>}
           </select>
         </Field>}
       </>}
@@ -521,9 +521,9 @@ const NodeEditor: React.FC<{
       <Field label="验收标准" hint={spec(draftNode.type)?.acceptance_required ? '必填' : '可选；设置后必须通过才能完成'}>
         {draftNode.acceptance.map((a, i) => <div key={i} style={{ display: 'flex', gap: 4, marginBottom: 4 }}>
           <input value={a} onChange={e => { const arr = [...draftNode.acceptance]; arr[i] = e.target.value; patchDraft({ acceptance: arr }) }} style={inputStyle} />
-          <button onClick={() => patchDraft({ acceptance: draftNode.acceptance.filter((_, k) => k !== i) })} style={btn('#7f1d1d')}>×</button>
+          <button onClick={() => patchDraft({ acceptance: draftNode.acceptance.filter((_, k) => k !== i) })} style={btn('var(--bad-soft)')}>×</button>
         </div>)}
-        <button onClick={() => patchDraft({ acceptance: [...draftNode.acceptance, ''] })} style={btn('#334155')}>＋ 添加验收</button>
+        <button onClick={() => patchDraft({ acceptance: [...draftNode.acceptance, ''] })} style={btn('var(--border)')}>＋ 添加验收</button>
       </Field>
       <Field label="失败处理">
         <select value={draftNode.on_failure} onChange={e => patchDraft({ on_failure: e.target.value })} style={inputStyle}>
@@ -533,9 +533,9 @@ const NodeEditor: React.FC<{
       <Field label="超时（小时）"><input type="number" min={1} value={draftNode.timeout_hours} onChange={e => patchDraft({ timeout_hours: Number(e.target.value) })} style={inputStyle} /></Field>
     </>}
 
-    <div style={{ borderTop: '1px solid #1e293b', marginTop: 12, paddingTop: 8 }}>
-      <button onClick={saveNode} disabled={!nodeDirty} style={{ ...btn(nodeDirty ? '#047857' : '#334155'), width: '100%' }}>保存节点</button>
-      <button onClick={() => removeNode(active)} style={{ ...btn('#7f1d1d'), marginTop: 6, width: '100%' }}>删除节点</button>
+    <div style={{ borderTop: '1px solid var(--panel)', marginTop: 12, paddingTop: 8 }}>
+      <button onClick={saveNode} disabled={!nodeDirty} style={{ ...btn(nodeDirty ? 'var(--ok)' : 'var(--border)'), width: '100%' }}>保存节点</button>
+      <button onClick={() => removeNode(active)} style={{ ...btn('var(--bad-soft)'), marginTop: 6, width: '100%' }}>删除节点</button>
     </div>
   </>
 }
@@ -611,11 +611,11 @@ const GroupPicker: React.FC<{
         {groups.map(g => <option key={g.chat_id} value={g.chat_id}>{g.name}</option>)}
       </select>
       <button onClick={() => setShowAdd(!showAdd)}
-        style={{ ...btn('#334155'), padding: '4px 8px', fontSize: 11, whiteSpace: 'nowrap' }}>
+        style={{ ...btn('var(--border)'), padding: '4px 8px', fontSize: 11, whiteSpace: 'nowrap' }}>
         {showAdd ? '取消' : '+ 新增'}
       </button>
     </div>
-    {showAdd && <div style={{ marginTop: 4, padding: 6, border: '1px solid #1e293b', borderRadius: 6 }}>
+    {showAdd && <div style={{ marginTop: 4, padding: 6, border: '1px solid var(--panel)', borderRadius: 6 }}>
       <input placeholder="群名称（如：内容部群）" value={newName}
         onChange={e => setNewName(e.target.value)}
         style={{ ...inputStyle, marginBottom: 4 }} />
@@ -629,14 +629,14 @@ const GroupPicker: React.FC<{
         onChange={e => setNewSig(e.target.value)}
         style={{ ...inputStyle, marginBottom: 4 }} />
       <button onClick={addGroup} disabled={!newName.trim() || !newId.trim()}
-        style={{ ...btn('#047857'), width: '100%', fontSize: 11 }}>
+        style={{ ...btn('var(--ok)'), width: '100%', fontSize: 11 }}>
         保存群
       </button>
     </div>}
-    {selectedGroup && <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+    {selectedGroup && <div style={{ fontSize: 10, color: 'var(--border)', marginTop: 2 }}>
       {selectedGroup.chat_id}
-      {selectedGroup.webhook_url && <span style={{ color: '#22c55e' }}> · 有 webhook</span>}
-      {selectedGroup.webhook_signature && <span style={{ color: '#22c55e' }}> · 有签名</span>}
+      {selectedGroup.webhook_url && <span style={{ color: 'var(--ok)' }}> · 有 webhook</span>}
+      {selectedGroup.webhook_signature && <span style={{ color: 'var(--ok)' }}> · 有签名</span>}
     </div>}
   </>
 }
@@ -676,10 +676,10 @@ const AgentContactPicker: React.FC<{
 
   return <>
     <div onClick={() => setOpen(!open)} style={{
-      padding: '6px 10px', border: '1px solid #334155', borderRadius: 6,
+      padding: '6px 10px', border: '1px solid var(--border)', borderRadius: 6,
       cursor: 'pointer', fontSize: 12, display: 'flex', flexWrap: 'wrap',
       gap: 4, minHeight: 34, alignItems: 'center',
-      background: selected.length ? 'rgba(37,99,235,.12)' : 'transparent',
+      background: selected.length ? 'var(--accent-soft)' : 'transparent',
     }}>
       {selected.length === 0
         ? <span style={{ opacity: .5 }}>点击选择要 @ 的 Agent（可多选）</span>
@@ -687,25 +687,25 @@ const AgentContactPicker: React.FC<{
             const c = AGENT_CONTACTS.find(x => x.id === id)
             return <span key={id} style={{
               padding: '2px 8px', borderRadius: 10, fontSize: 11,
-              background: 'rgba(37,99,235,.3)', whiteSpace: 'nowrap',
+              background: 'var(--accent-line)', whiteSpace: 'nowrap',
             }}>{c?.name || id}</span>
           })
       }
       <span style={{ marginLeft: 'auto', opacity: .5, fontSize: 11 }}>{open ? '▲' : '▼'}</span>
     </div>
     {open && <div style={{
-      marginTop: 4, border: '1px solid #262b36', borderRadius: 6,
-      maxHeight: 300, overflowY: 'auto', background: '#0d1117',
+      marginTop: 4, border: '1px solid var(--panel)', borderRadius: 6,
+      maxHeight: 300, overflowY: 'auto', background: 'var(--bg)',
     }}>
       <input placeholder="搜索 agent…" value={query}
         onChange={e => setQuery(e.target.value)}
         style={{ ...inputStyle, margin: 6, width: 'calc(100% - 16px)' }} />
       {selected.length > 0 && <button onClick={() => onChange([])}
-        style={{ ...btn('#7f1d1d'), margin: '0 6px 4px', padding: '2px 8px', fontSize: 11 }}>清空选择</button>}
+        style={{ ...btn('var(--bad-soft)'), margin: '0 6px 4px', padding: '2px 8px', fontSize: 11 }}>清空选择</button>}
       {depts.map(dept => <div key={dept}>
         <div style={{
           padding: '4px 10px', fontSize: 11, fontWeight: 600,
-          color: '#94a3b8', borderBottom: '1px solid #1e293b',
+          color: 'var(--dim)', borderBottom: '1px solid var(--panel)',
         }}>{dept}</div>
         {byDept[dept].map(c => {
           const on = selected.includes(c.id)
@@ -714,7 +714,7 @@ const AgentContactPicker: React.FC<{
             style={{
               padding: '5px 10px', cursor: 'pointer', fontSize: 12,
               display: 'flex', alignItems: 'center', gap: 8,
-              background: on ? 'rgba(37,99,235,.2)' : 'transparent',
+              background: on ? 'var(--accent-soft)' : 'transparent',
             }}>
             <span style={{ width: 14, textAlign: 'center' }}>{on ? '☑' : '☐'}</span>
             <span>{c.name}</span>
@@ -766,7 +766,7 @@ const WebhookFields: React.FC<{ draftNode: DraftNode; patchDraft: (p: Partial<Dr
         <button
           onClick={() => patchDraft({ config: { ...draftNode.config, notify_mode: 'group' } })}
           style={{
-            ...btn(draftNode.config.notify_mode === 'private' ? '#334155' : '#047857'),
+            ...btn(draftNode.config.notify_mode === 'private' ? 'var(--border)' : 'var(--ok)'),
             flex: 1, fontSize: 12,
           }}>
           群 @
@@ -774,7 +774,7 @@ const WebhookFields: React.FC<{ draftNode: DraftNode; patchDraft: (p: Partial<Dr
         <button
           onClick={() => patchDraft({ config: { ...draftNode.config, notify_mode: 'private' } })}
           style={{
-            ...btn(draftNode.config.notify_mode === 'private' ? '#047857' : '#334155'),
+            ...btn(draftNode.config.notify_mode === 'private' ? 'var(--ok)' : 'var(--border)'),
             flex: 1, fontSize: 12,
           }}>
           私聊
@@ -804,16 +804,16 @@ const WebhookFields: React.FC<{ draftNode: DraftNode; patchDraft: (p: Partial<Dr
     {presets.length > 0 && <div style={{ marginBottom: 6 }}>
       {presets.map(p => (
         <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 4, marginBottom: 3, fontSize: 9 }}>
-          <span style={{ color: '#60a5fa', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-          <span style={{ color: '#475569', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url}</span>
-          <button onClick={() => deletePreset(p.name)} style={miniBtnStyle('#7f1d1d', '#fca5a5')}>×</button>
+          <span style={{ color: 'var(--accent)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+          <span style={{ color: 'var(--border)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.url}</span>
+          <button onClick={() => deletePreset(p.name)} style={miniBtnStyle('var(--bad-soft)', 'var(--bad)')}>×</button>
         </div>
       ))}
     </div>}
     {/* 保存当前为预设 */}
     <div style={{ display: 'flex', gap: 4, marginTop: 4 }}>
       <input placeholder="预设名称" value={newPresetName} onChange={e => setNewPresetName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') savePreset(newPresetName) }} style={{ ...inputStyle, flex: 1 }} />
-      <button onClick={() => savePreset(newPresetName)} disabled={!draftNode.config.webhook_url} style={btn('#334155')}>存为预设</button>
+      <button onClick={() => savePreset(newPresetName)} disabled={!draftNode.config.webhook_url} style={btn('var(--border)')}>存为预设</button>
     </div>
     <Field label="Agent 协作输出" hint="可选；启用后 Agent 参与 Webhook 内容生成">
       <select value={draftNode.config.webhook_agent_enabled ? 'yes' : 'no'} onChange={e => patchDraft({ config: { ...draftNode.config, webhook_agent_enabled: e.target.value === 'yes' } })} style={inputStyle}>
@@ -845,23 +845,23 @@ const InputParamSchemaEditor: React.FC<{ draftNode: DraftNode; patchDraft: (p: P
   }
 
   return <>
-    <div style={{ borderTop: '1px solid #1e293b', margin: '8px 0 6px', paddingTop: 8 }}>
-      <span style={{ fontSize: 10, fontWeight: 700, color: '#94a3b8' }}>输入参数定义</span>
-      <span style={{ fontSize: 9, color: '#475569', marginLeft: 6 }}>创建实例时按此 schema 提供参数</span>
+    <div style={{ borderTop: '1px solid var(--panel)', margin: '8px 0 6px', paddingTop: 8 }}>
+      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--dim)' }}>输入参数定义</span>
+      <span style={{ fontSize: 9, color: 'var(--border)', marginLeft: 6 }}>创建实例时按此 schema 提供参数</span>
     </div>
-    {params.length === 0 && <div style={{ fontSize: 10, color: '#475569', padding: '6px 0' }}>暂无参数，点击下方添加</div>}
+    {params.length === 0 && <div style={{ fontSize: 10, color: 'var(--border)', padding: '6px 0' }}>暂无参数，点击下方添加</div>}
     {params.map((p, i) => (
-      <div key={i} style={{ background: '#080f1d', border: '1px solid #1e2937', borderRadius: 5, padding: 7, marginBottom: 6 }}>
+      <div key={i} style={{ background: 'var(--bg)', border: '1px solid var(--panel)', borderRadius: 5, padding: 7, marginBottom: 6 }}>
         <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
           <input value={p.name} onChange={e => updateParam(i, { name: e.target.value })} placeholder="参数名 (如 site_url)" style={{ ...inputStyle, fontSize: 10, flex: 1 }} />
           <select value={p.type} onChange={e => updateParam(i, { type: e.target.value })} style={{ ...inputStyle, fontSize: 10, width: 64 }}>
             {PARAM_TYPES.map(t => <option key={t} value={t}>{t}</option>)}
           </select>
-          <button onClick={() => removeParam(i)} style={miniBtnStyle('#7f1d1d', '#fca5a5')}>×</button>
+          <button onClick={() => removeParam(i)} style={miniBtnStyle('var(--bad-soft)', 'var(--bad)')}>×</button>
         </div>
         <input value={p.description} onChange={e => updateParam(i, { description: e.target.value })} placeholder="参数说明（必填时创建实例会提示）" style={{ ...inputStyle, fontSize: 9, marginTop: 4, width: '100%' }} />
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
-          <label style={{ fontSize: 9, color: '#64748b', display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
+          <label style={{ fontSize: 9, color: 'var(--faint)', display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
             <input type="checkbox" checked={p.required} onChange={e => updateParam(i, { required: e.target.checked })} style={{ width: 12, height: 12 }} />
             必填
           </label>
@@ -869,7 +869,7 @@ const InputParamSchemaEditor: React.FC<{ draftNode: DraftNode; patchDraft: (p: P
         </div>
       </div>
     ))}
-    <button onClick={addParam} style={{ ...btn('#334155'), width: '100%', fontSize: 10 }}>＋ 添加参数</button>
+    <button onClick={addParam} style={{ ...btn('var(--border)'), width: '100%', fontSize: 10 }}>＋ 添加参数</button>
   </>
 }
 
