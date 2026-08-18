@@ -16,7 +16,9 @@ export default defineConfig({
       name: 'inject-font-preload',
       enforce: 'post',
       transformIndexHtml(html, ctx) {
-        const fonts = Object.keys(ctx.bundle || {}).filter((f) => f.endsWith('.woff2'))
+        // 排序保证输出稳定：bundle 键顺序不固定，不排序会让每次构建的
+        // index.html 产生无意义 diff（生产上表现为「明明没改却总有未提交改动」）。
+        const fonts = Object.keys(ctx.bundle || {}).filter((f) => f.endsWith('.woff2')).sort()
         if (!fonts.length) return html
         const tags = fonts
           .map((f) => `    <link rel="preload" href="./${f}" as="font" type="font/woff2" crossorigin />`)
