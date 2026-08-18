@@ -21,7 +21,7 @@ COPY seoagents ./seoagents
 COPY dojocore ./dojocore
 COPY config ./config
 
-RUN pip install --no-cache-dir -e ".[google,trends]"
+RUN pip install --no-cache-dir -e ".[google,trends,mcp]"
 
 EXPOSE 8765
 CMD ["seoagents", "dashboard", "--host", "0.0.0.0", "--port", "8765"]

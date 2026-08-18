@@ -1,6 +1,12 @@
 # SEOAgents 外挂服务群 (L4 重型非对称服务)
-# 手册勘误: seonaut 官方镜像为 stjudewashere/seonaut (手册中拼写多了 "re"),
-# 且必须搭配独立 MySQL 服务; openserp 默认端口为 7000 而非 7070。
+#
+# 勘误留档: openserp 默认端口为 7000 而非手册所写的 7070。
+#
+# 2026-08-12 (G1-H, 卡 T20260812-09): 移除 seonaut + seonaut-db(MySQL 8.0)。
+# 理由不是"用不上"而是"从来没被用过": 全项目零行业务代码调用 seonaut,
+# 唯一那个 seonaut_service.py 返回的是写死的静态假数据 HTML —— 一个看起来
+# 有数据的仪表盘比没有仪表盘更危险。连带删掉它依赖的 MySQL 容器与数据卷。
+# 若将来真要接技术审计外挂,按真实 API 重新接入,不要复活这段。
 services:
   openserp:
     image: karust/openserp:latest
@@ -8,36 +14,3 @@ services:
     ports:
       - "127.0.0.1:7000:7000"
     restart: unless-stopped
-
-  seonaut-db:
-    image: mysql:8.0
-    environment:
-      - MYSQL_DATABASE=seonaut
-      - MYSQL_USER=seonaut
-      - MYSQL_PASSWORD=seonaut_pass
-      - MYSQL_ROOT_PASSWORD=seonaut_root_pass
-    volumes:
-      - seonaut_mysql:/var/lib/mysql
-    healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-pseonaut_root_pass"]
-      interval: 5s
-      timeout: 5s
-      retries: 20
-    restart: unless-stopped
-
-  seonaut:
-    image: stjudewashere/seonaut:latest
-    depends_on:
-      seonaut-db:
-        condition: service_healthy
-    ports:
-      - "127.0.0.1:9000:9000"
-    environment:
-      - SEONAUT_DB_HOST=seonaut-db
-      - SEONAUT_DB_USER=seonaut
-      - SEONAUT_DB_PASS=seonaut_pass
-      - SEONAUT_DB_NAME=seonaut
-    restart: unless-stopped
-
-volumes:
-  seonaut_mysql:

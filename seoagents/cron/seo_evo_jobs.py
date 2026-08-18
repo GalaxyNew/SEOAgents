@@ -355,6 +355,57 @@ def _record_on_timeline(rt: Any, summary: dict[str, Any]) -> None:
         LOGGER.warning(f"时间线留痕失败(不影响演化本身): {type(exc).__name__}: {exc}")
 
 
+async def run_evolution_for_site_molecular(rt: Runtime, site_item: Any) -> dict[str, Any]:
+    """分子化版单站演化 (G1-B)。
+
+    与 ``run_evolution_for_site`` 的产出结构一致，但**每一步都是可以单独重跑的
+    工序**：想只重测一次 CWV，不必把 GSC、SERP、AEO 连着再拉一遍；同日已跑过
+    的工序自动 skip，不重复消耗外部 API 配额。
+
+    v1 那个函数原样保留：它既是回滚路径，也是行为对照物。
+    """
+    from seoagents.cron.seo_tasks import run_daily_inspection
+
+    site = site_item.site_url
+    out = await run_daily_inspection(site=site, runtime=rt)
+    detail = out["sites"].get(site, {})
+    results = {r["task"]: r for r in detail.get("results", [])}
+
+    def _data(name: str) -> dict[str, Any]:
+        return (results.get(name) or {}).get("data") or {}
+
+    score = _data("seo.m_t_score")
+    tech = _data("seo.tech_crawl")
+    cwv = _data("seo.cwv_measure")
+    aeo = _data("seo.aeo_probe")
+
+    return {
+        "site": site,
+        "brand": site_item.brand_name,
+        "gsc_property": site_item.gsc_property,
+        "m_t": score.get("m_t"),
+        "score_status": score.get("score_status"),
+        "excluded_inputs": score.get("excluded_inputs") or [],
+        "data_sources": score.get("data_sources") or {},
+        "breakdown": score.get("breakdown") or {},
+        "clicks_total": score.get("clicks_total"),
+        "clicks_delta": score.get("clicks_delta"),
+        "crawl_success_ratio": score.get("crawl_success_ratio"),
+        "index_coverage_ratio": _data("seo.index_status").get("index_coverage_ratio"),
+        "performance": cwv.get("performance_score"),
+        "issues": len(tech.get("issues") or []),
+        "dead_links": len(tech.get("dead_links") or []),
+        "links_proposed": 0,
+        "links_fixed": 0,
+        "v_t": aeo.get("v_t"),
+        "compiled_skill": None,
+        "molecular_mode": True,
+        "tasks_ran": detail.get("ran", 0),
+        "tasks_skipped": detail.get("skipped", 0),
+        "tasks_failed": detail.get("failed", 0),
+    }
+
+
 async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dict[str, Any]:
     """遍历**全部**受监控站点,各跑一轮演化。
 
@@ -371,7 +422,13 @@ async def run_seo_self_evolution_pipeline(runtime: Runtime | None = None) -> dic
     results: list[dict[str, Any]] = []
     for item in sites:
         try:
-            results.append(await run_evolution_for_site(rt, item))
+            # 分子化模式（G1-B）为默认路径；置 SEO_MOLECULAR=0 回落 v1 整段流水线。
+            import os as _os
+
+            if _os.environ.get("SEO_MOLECULAR", "1") != "0":
+                results.append(await run_evolution_for_site_molecular(rt, item))
+            else:
+                results.append(await run_evolution_for_site(rt, item))
         except Exception as exc:  # noqa: BLE001 - 单站失败不能连累其他站
             LOGGER.exception(f"站点 {item.site_url} 演化失败")
             results.append({
@@ -488,6 +545,7 @@ def _parse_index_coverage(gsc_output: str) -> float | None:
 
 __all__ = [
     "EVOLUTION_JOB_ID",
+    "run_evolution_for_site_molecular",
     "FIX_SKILL_ID",
     "register_jobs",
     "run_evolution_for_site",
