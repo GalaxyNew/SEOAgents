@@ -39,8 +39,8 @@ export const SeoAuditPanel: React.FC<{ seonautEndpoint: string }> = ({ seonautEn
   if (!seonautEndpoint) return null
 
   const shell: React.CSSProperties = {
-    padding: 16, background: '#111826', borderRadius: 12,
-    border: '1px solid #1e2a3c', marginTop: 14,
+    padding: 16, background: 'var(--surface)', borderRadius: 12,
+    border: '1px solid var(--panel)', marginTop: 14,
   }
 
   const badge = (text: string, bg: string, fg: string) => (
@@ -52,41 +52,41 @@ export const SeoAuditPanel: React.FC<{ seonautEndpoint: string }> = ({ seonautEn
   return (
     <div className="seo-audit-container" style={shell}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-        <h2 style={{ fontSize: 15, fontWeight: 700, color: '#fff', margin: 0 }}>
+        <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
           Seonaut 专业技术审计面板
         </h2>
-        {state === 'ok' && badge('已接入', '#34c98e', '#04140d')}
-        {state === 'checking' && badge('探测中…', '#334155', '#cbd5e1')}
-        {state === 'local-only' && badge('未部署', '#78350f', '#fcd34d')}
-        {state === 'unreachable' && badge('不可达', '#7f1d1d', '#fca5a5')}
+        {state === 'ok' && badge('已接入', 'var(--ok)', 'var(--ok-soft)')}
+        {state === 'checking' && badge('探测中…', 'var(--border)', 'var(--text)')}
+        {state === 'local-only' && badge('未部署', 'var(--warn-soft)', 'var(--warn)')}
+        {state === 'unreachable' && badge('不可达', 'var(--bad-soft)', 'var(--bad)')}
       </div>
 
       {state === 'ok' && (
-        <div style={{ width: '100%', height: 600, borderRadius: 8, border: '1px solid #1e2a3c', overflow: 'hidden' }}>
+        <div style={{ width: '100%', height: 600, borderRadius: 8, border: '1px solid var(--panel)', overflow: 'hidden' }}>
           <iframe
             src={seonautEndpoint}
             title="Seonaut Integration Dashboard"
-            style={{ width: '100%', height: '100%', border: 0, background: '#fff' }}
+            style={{ width: '100%', height: '100%', border: 0, background: 'var(--text)' }}
             sandbox="allow-scripts allow-same-origin"
           />
         </div>
       )}
 
       {state === 'checking' && (
-        <div style={{ color: '#64748b', fontSize: 12, padding: '24px 0', textAlign: 'center' }}>
+        <div style={{ color: 'var(--faint)', fontSize: 12, padding: '24px 0', textAlign: 'center' }}>
           正在探测 {seonautEndpoint} …
         </div>
       )}
 
       {state === 'local-only' && (
-        <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.8, padding: '8px 0' }}>
-          <div style={{ color: '#fcd34d', fontWeight: 600, marginBottom: 6 }}>
+        <div style={{ color: 'var(--dim)', fontSize: 12, lineHeight: 1.8, padding: '8px 0' }}>
+          <div style={{ color: 'var(--warn)', fontWeight: 600, marginBottom: 6 }}>
             Seonaut 尚未部署,当前配置指向服务器本机
           </div>
-          配置值是 <code style={{ color: '#60a5fa' }}>{seonautEndpoint}</code>。
+          配置值是 <code style={{ color: 'var(--accent)' }}>{seonautEndpoint}</code>。
           这个 <code>localhost</code> 指的是<strong>服务器自己</strong>,而页面在你的浏览器里跑,
           所以浏览器会去连<strong>你这台电脑</strong>的端口 —— 这就是「localhost 拒绝了连接请求」的来源。
-          <div style={{ marginTop: 8, color: '#64748b' }}>
+          <div style={{ marginTop: 8, color: 'var(--faint)' }}>
             按方案 14 号文,Seonaut 是<strong>主动挂起</strong>的:它结果不带 data_status、不进 Asset Hub、
             不参与交叉验证,装上会是个信息孤岛。而 site_audit 能力已有内置爬虫覆盖。
             <br />
@@ -96,8 +96,8 @@ export const SeoAuditPanel: React.FC<{ seonautEndpoint: string }> = ({ seonautEn
       )}
 
       {state === 'unreachable' && (
-        <div style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1.8, padding: '8px 0' }}>
-          <div style={{ color: '#fca5a5', fontWeight: 600, marginBottom: 6 }}>
+        <div style={{ color: 'var(--dim)', fontSize: 12, lineHeight: 1.8, padding: '8px 0' }}>
+          <div style={{ color: 'var(--bad)', fontWeight: 600, marginBottom: 6 }}>
             无法连接 {seonautEndpoint}
           </div>
           服务可能未启动,或该地址从浏览器所在网络不可达。不显示空白 iframe,免得看起来像「面板坏了」。

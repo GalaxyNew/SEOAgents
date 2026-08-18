@@ -44,24 +44,24 @@ type Instance = Record<string, any>
 type ParamSchemaItem = { name: string; type: string; description: string; required: boolean; default: string }
 
 const card: React.CSSProperties = {
-  background: '#111827', border: '1px solid #1f2937', borderRadius: 10, padding: '12px 14px',
+  background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 10, padding: '12px 14px',
 }
 
 const NODE_COLOR: Record<string, string> = {
-  input: '#06b6d4',
-  agent_task: '#3b82f6',
-  tool_call: '#10b981',
-  dept_request: '#a855f7',
-  human_gate: '#f59e0b',
-  verify: '#ef4444',
-  output: '#ec4899',
+  input: 'var(--accent2)',
+  agent_task: 'var(--accent)',
+  tool_call: 'var(--ok)',
+  dept_request: 'var(--rev)',
+  human_gate: 'var(--warn)',
+  verify: 'var(--bad)',
+  output: 'var(--rev)',
 }
 
 const STATE_COLOR: Record<string, string> = {
-  pending: '#64748b', ready: '#38bdf8', running: '#3b82f6', in_progress: '#3b82f6',
-  done: '#10b981', completed: '#10b981', failed: '#ef4444', blocked: '#f59e0b',
-  waiting: '#a855f7', cancelled: '#475569',
-  paused: '#f59e0b',
+  pending: 'var(--faint)', ready: 'var(--accent2)', running: 'var(--accent)', in_progress: 'var(--accent)',
+  done: 'var(--ok)', completed: 'var(--ok)', failed: 'var(--bad)', blocked: 'var(--warn)',
+  waiting: 'var(--rev)', cancelled: 'var(--border)',
+  paused: 'var(--warn)',
 }
 
 export const WorkflowPanel: React.FC = () => {
@@ -234,7 +234,7 @@ export const WorkflowPanel: React.FC = () => {
     }
   }
 
-  if (loading) return <div style={{ ...card, color: '#9ca3af', textAlign: 'center' }}>⚙️ 正在载入工作流...</div>
+  if (loading) return <div style={{ ...card, color: 'var(--dim)', textAlign: 'center' }}>⚙️ 正在载入工作流...</div>
   if (err) return <Alert tone="error" title="工作流服务不可用">{err}</Alert>
 
   return (
@@ -242,13 +242,13 @@ export const WorkflowPanel: React.FC = () => {
       {/* 概览 */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
         {[
-          ['📐 模板', templates.length, '#60a5fa'],
-          ['▶ 运行实例', instances.length, '#10b981'],
-          ['🧩 节点类型', nodeTypes.length, '#a855f7'],
-          ['🏢 已注册部门', departments.length, departments.length ? '#e2e8f0' : '#f59e0b'],
+          ['📐 模板', templates.length, 'var(--accent)'],
+          ['▶ 运行实例', instances.length, 'var(--ok)'],
+          ['🧩 节点类型', nodeTypes.length, 'var(--rev)'],
+          ['🏢 已注册部门', departments.length, departments.length ? 'var(--text)' : 'var(--warn)'],
         ].map(([label, val, color]: any) => (
           <div key={label} style={card}>
-            <div style={{ fontSize: 10, color: '#64748b' }}>{label}</div>
+            <div style={{ fontSize: 10, color: 'var(--faint)' }}>{label}</div>
             <div style={{ fontSize: 22, fontWeight: 700, color }}>{val}</div>
           </div>
         ))}
@@ -256,18 +256,18 @@ export const WorkflowPanel: React.FC = () => {
 
       {/* 节点类型图例 */}
       <div style={card}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6', marginBottom: 8 }}>🧩 节点类型</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>🧩 节点类型</div>
         <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(230px, 1fr))', gap: 8 }}>
           {nodeTypes.map((nt) => (
-            <div key={nt.id} style={{ background: '#0f172a', border: `1px solid ${NODE_COLOR[nt.id] || '#1e293b'}`, borderRadius: 6, padding: '7px 9px' }}>
+            <div key={nt.id} style={{ background: 'var(--surface)', border: `1px solid ${NODE_COLOR[nt.id] || 'var(--panel)'}`, borderRadius: 6, padding: '7px 9px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: NODE_COLOR[nt.id] || '#e2e8f0', fontSize: 11, fontWeight: 700 }}>{nt.label}</span>
-                <span style={{ fontSize: 9, color: '#475569' }}>
+                <span style={{ color: NODE_COLOR[nt.id] || 'var(--text)', fontSize: 11, fontWeight: 700 }}>{nt.label}</span>
+                <span style={{ fontSize: 9, color: 'var(--border)' }}>
                   {nt.runs_externally ? '跨部门' : '本部门'}{nt.acceptance_required ? ' · 需验收' : ''}
                 </span>
               </div>
-              <div style={{ fontSize: 9, color: '#64748b', marginTop: 3 }}>{nt.hint}</div>
-              <div style={{ fontSize: 9, color: '#475569', marginTop: 2, fontFamily: 'monospace' }}>
+              <div style={{ fontSize: 9, color: 'var(--faint)', marginTop: 3 }}>{nt.hint}</div>
+              <div style={{ fontSize: 9, color: 'var(--border)', marginTop: 2, fontFamily: 'monospace' }}>
                 必填: {nt.required_config.join(', ')}
               </div>
             </div>
@@ -278,44 +278,44 @@ export const WorkflowPanel: React.FC = () => {
       {/* 模板库 */}
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6' }}>📐 模板库 ({templates.length})</span>
-          <button onClick={() => { setEditingTemplate(null); setShowEditor(true) }} style={btn('#2563eb')}>＋ 新建模板</button>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>📐 模板库 ({templates.length})</span>
+          <button onClick={() => { setEditingTemplate(null); setShowEditor(true) }} style={btn('var(--accent2)')}>＋ 新建模板</button>
         </div>
         {templates.length === 0 ? (
-          <div style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '18px 0', lineHeight: 1.9 }}>
+          <div style={{ color: 'var(--border)', fontSize: 11, textAlign: 'center', padding: '18px 0', lineHeight: 1.9 }}>
             还没有工作流模板<br />
-            <button onClick={() => { setEditingTemplate(null); setShowEditor(true) }} style={{ ...btn('#2563eb'), marginTop: 6 }}>
+            <button onClick={() => { setEditingTemplate(null); setShowEditor(true) }} style={{ ...btn('var(--accent2)'), marginTop: 6 }}>
               ＋ 建第一个
             </button>
           </div>
         ) : (
           <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fit, minmax(280px, 1fr))', gap: 8 }}>
             {templates.map((t) => (
-              <div key={t.id} style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 8, padding: '9px 11px' }}>
+              <div key={t.id} style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 8, padding: '9px 11px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 6 }}>
                   <div>
-                    <div style={{ color: '#e2e8f0', fontSize: 12, fontWeight: 700 }}>{t.name}</div>
-                    <div style={{ color: '#475569', fontSize: 9, fontFamily: 'monospace' }}>{t.id} · v{t.version} · {t.dept}</div>
+                    <div style={{ color: 'var(--text)', fontSize: 12, fontWeight: 700 }}>{t.name}</div>
+                    <div style={{ color: 'var(--border)', fontSize: 9, fontFamily: 'monospace' }}>{t.id} · v{t.version} · {t.dept}</div>
                   </div>
-                  <span style={{ flexShrink: 0, background: '#1e293b', color: '#60a5fa', borderRadius: 3, padding: '1px 5px', fontSize: 9 }}>
+                  <span style={{ flexShrink: 0, background: 'var(--panel)', color: 'var(--accent)', borderRadius: 3, padding: '1px 5px', fontSize: 9 }}>
                     {t.node_count} 节点
                   </span>
                 </div>
-                <div style={{ color: '#94a3b8', fontSize: 10, marginTop: 5, lineHeight: 1.4 }}>{t.description}</div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 9, color: '#64748b', flexWrap: 'wrap' }}>
+                <div style={{ color: 'var(--dim)', fontSize: 10, marginTop: 5, lineHeight: 1.4 }}>{t.description}</div>
+                <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 9, color: 'var(--faint)', flexWrap: 'wrap' }}>
                   <span>📊 {t.layer_count} 层</span>
                   <span>⇉ 并行 {t.max_parallel}</span>
-                  {t.human_gates.length > 0 && <span style={{ color: '#f59e0b' }}>🚦 {t.human_gates.length} 个人工闸门</span>}
-                  {t.external_deps.length > 0 && <span style={{ color: '#a855f7' }}>🔗 {t.external_deps.length} 个跨部门依赖</span>}
+                  {t.human_gates.length > 0 && <span style={{ color: 'var(--warn)' }}>🚦 {t.human_gates.length} 个人工闸门</span>}
+                  {t.external_deps.length > 0 && <span style={{ color: 'var(--rev)' }}>🔗 {t.external_deps.length} 个跨部门依赖</span>}
                 </div>
-                {t.external_deps.map((d, i) => (
-                  <div key={i} style={{ fontSize: 9, color: '#a855f7', marginTop: 3, fontFamily: 'monospace' }}>
+                {(t.external_deps || []).map((d, i) => (
+                  <div key={i} style={{ fontSize: 9, color: 'var(--rev)', marginTop: 3, fontFamily: 'monospace' }}>
                     ↗ {d.node} → {d.dept}.{d.capability}
                   </div>
                 ))}
                 <div style={{ display: 'flex', gap: 5, marginTop: 8 }}>
-                  <button onClick={() => openTemplate(t.id)} style={btn('#334155')}>查看 DAG</button>
-                  <button onClick={() => editTemplate(t.id)} style={btn('#475569')}>编辑</button>
+                  <button onClick={() => openTemplate(t.id)} style={btn('var(--border)')}>查看 DAG</button>
+                  <button onClick={() => editTemplate(t.id)} style={btn('var(--border)')}>编辑</button>
                   <button onClick={async () => {
                     // 获取完整模板，提取 input 节点的参数 schema
                     let schema: ParamSchemaItem[] = []
@@ -334,7 +334,7 @@ export const WorkflowPanel: React.FC = () => {
                     schema.forEach((p) => { if (p.default) defaults[p.name] = p.default })
                     setInputParams(defaults)
                     setShowInputPrompt({ templateId: t.id, templateName: t.name, paramSchema: schema })
-                  }} style={btn('#2563eb')}>＋ 创建实例</button>
+                  }} style={btn('var(--accent2)')}>＋ 创建实例</button>
                 </div>
               </div>
             ))}
@@ -345,34 +345,34 @@ export const WorkflowPanel: React.FC = () => {
       {/* 实例看板 */}
       <div style={card}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6' }}>▶ 运行实例 ({instances.length})</span>
-          <button onClick={() => load(true)} style={btn('#334155')}>↻ 刷新</button>
+          <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>▶ 运行实例 ({instances.length})</span>
+          <button onClick={() => load(true)} style={btn('var(--border)')}>↻ 刷新</button>
         </div>
         {instances.length === 0 ? (
-          <div style={{ color: '#475569', fontSize: 11, textAlign: 'center', padding: '14px 0' }}>
+          <div style={{ color: 'var(--border)', fontSize: 11, textAlign: 'center', padding: '14px 0' }}>
             当前没有运行中的工作流实例 —— 上面挑个模板起一个
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {instances.map((ins) => (
               <div key={ins.instance_id || ins.id}
-                style={{ background: '#0f172a', border: '1px solid #1e293b', borderRadius: 6, padding: '8px 10px' }}>
+                style={{ background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 6, padding: '8px 10px' }}>
                 <div onClick={() => openInstance(ins.instance_id || ins.id)} style={{ cursor: 'pointer' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                    <span style={{ color: '#e2e8f0' }}>{ins.title || ins.template_id || ins.name}</span>
-                    <span style={{ color: STATE_COLOR[(ins.state || ins.status || '').toLowerCase()] || '#64748b', fontWeight: 600 }}>
+                    <span style={{ color: 'var(--text)' }}>{ins.title || ins.template_id || ins.name}</span>
+                    <span style={{ color: STATE_COLOR[(ins.state || ins.status || '').toLowerCase()] || 'var(--faint)', fontWeight: 600 }}>
                       {ins.state || ins.status}
                     </span>
                   </div>
-                  <div style={{ fontSize: 9, color: '#475569', marginTop: 2, fontFamily: 'monospace' }}>
+                  <div style={{ fontSize: 9, color: 'var(--border)', marginTop: 2, fontFamily: 'monospace' }}>
                     {ins.instance_id || ins.id} · {ins.progress?.percent ?? 0}% · 创建于 {ins.created_at || '—'}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 5, marginTop: 7 }}>
-                  {(['PENDING', 'BLOCKED', 'CREATED'] as string[]).includes(ins.status) && <button onClick={() => instanceAction(ins.instance_id, 'start')} style={btn('#2563eb')}>▶ 运行</button>}
-                  {ins.status === 'RUNNING' && <><button onClick={() => instanceAction(ins.instance_id, 'pause')} style={btn('#92400e')}>⏸ 暂停</button><button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('#7f1d1d')}>⏹ 停止</button></>}
-                  {ins.status === 'PAUSED' && <><button onClick={() => instanceAction(ins.instance_id, 'resume')} style={btn('#047857')}>▶ 恢复</button><button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('#7f1d1d')}>⏹ 停止</button></>}
-                  {['DONE', 'FAILED', 'CANCELLED'].includes(ins.status) && <button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('#7f1d1d')}>删除</button>}
+                  {(['PENDING', 'BLOCKED', 'CREATED'] as string[]).includes(ins.status) && <button onClick={() => instanceAction(ins.instance_id, 'start')} style={btn('var(--accent2)')}>▶ 运行</button>}
+                  {ins.status === 'RUNNING' && <><button onClick={() => instanceAction(ins.instance_id, 'pause')} style={btn('var(--warn-soft)')}>⏸ 暂停</button><button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('var(--bad-soft)')}>⏹ 停止</button></>}
+                  {ins.status === 'PAUSED' && <><button onClick={() => instanceAction(ins.instance_id, 'resume')} style={btn('var(--ok)')}>▶ 恢复</button><button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('var(--bad-soft)')}>⏹ 停止</button></>}
+                  {['DONE', 'FAILED', 'CANCELLED'].includes(ins.status) && <button onClick={() => instanceAction(ins.instance_id, 'delete')} style={btn('var(--bad-soft)')}>删除</button>}
                   {ins.status === 'RUNNING' && <span style={{ marginLeft: 4, display: 'inline-flex', verticalAlign: 'middle' }}><RunningSpinner /></span>}
                 </div>
               </div>
@@ -383,8 +383,8 @@ export const WorkflowPanel: React.FC = () => {
 
       {/* 部门 */}
       {departments.length === 0 && (
-        <div style={{ ...card, borderColor: '#78350f' }}>
-          <div style={{ fontSize: 11, color: '#fcd34d' }}>
+        <div style={{ ...card, borderColor: 'var(--warn-soft)' }}>
+          <div style={{ fontSize: 11, color: 'var(--warn)' }}>
             ⚠️ 本实例尚未在 dojocore 里注册本地部门画像(这与上方的「已知部门」目录是两回事:
             那里登记的是别的实例,这里说的是本实例自己的能力声明)。
           </div>
@@ -401,32 +401,32 @@ export const WorkflowPanel: React.FC = () => {
         onClose={() => { setShowInputPrompt(null); setInputParams({}) }}
         footer={showInputPrompt ? (
           <>
-            <button onClick={() => { setShowInputPrompt(null); setInputParams({}) }} style={btn('#334155')}>取消</button>
+            <button onClick={() => { setShowInputPrompt(null); setInputParams({}) }} style={btn('var(--border)')}>取消</button>
             <button onClick={() => {
               const missing = showInputPrompt.paramSchema.filter((p) => p.required && !(inputParams[p.name] || p.default)?.trim())
               if (missing.length) { toast.warning(`缺少必填参数：${missing.map((item) => item.name).join('、')}`); return }
               void startInstance(showInputPrompt.templateId, inputParams, false)
               setShowInputPrompt(null)
               setInputParams({})
-            }} style={btn('#047857')}>创建实例</button>
+            }} style={btn('var(--ok)')}>创建实例</button>
             <button onClick={() => {
               const missing = showInputPrompt.paramSchema.filter((p) => p.required && !(inputParams[p.name] || p.default)?.trim())
               if (missing.length) { toast.warning(`缺少必填参数：${missing.map((item) => item.name).join('、')}`); return }
               void startInstance(showInputPrompt.templateId, inputParams, true)
               setShowInputPrompt(null)
               setInputParams({})
-            }} style={btn('#2563eb')}>创建并运行</button>
+            }} style={btn('var(--accent2)')}>创建并运行</button>
           </>
         ) : undefined}
       >
         {showInputPrompt && (showInputPrompt.paramSchema.length > 0 ? showInputPrompt.paramSchema.map((p, index) => (
           <div key={p.name} style={{ marginBottom: 10 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 3 }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: '#e2e8f0' }}>{p.name}</span>
-              <span style={{ fontSize: 9, background: '#1e293b', color: '#60a5fa', borderRadius: 3, padding: '1px 5px' }}>{p.type}</span>
-              {p.required && <span style={{ fontSize: 9, color: '#ef4444' }}>*必填</span>}
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)' }}>{p.name}</span>
+              <span style={{ fontSize: 9, background: 'var(--panel)', color: 'var(--accent)', borderRadius: 3, padding: '1px 5px' }}>{p.type}</span>
+              {p.required && <span style={{ fontSize: 9, color: 'var(--bad)' }}>*必填</span>}
             </div>
-            {p.description && <div style={{ fontSize: 9, color: '#64748b', marginBottom: 3 }}>{p.description}</div>}
+            {p.description && <div style={{ fontSize: 9, color: 'var(--faint)', marginBottom: 3 }}>{p.description}</div>}
             <input
               data-autofocus={index === 0 ? 'true' : undefined}
               value={inputParams[p.name] || ''}
@@ -457,20 +457,20 @@ export const WorkflowPanel: React.FC = () => {
         width={720}
         closeOnBackdrop={false}
         onClose={() => setTplDetail(null)}
-        footer={<button onClick={() => setTplDetail(null)} style={btn('#334155')}>关闭</button>}
+        footer={<button onClick={() => setTplDetail(null)} style={btn('var(--border)')}>关闭</button>}
       >
         {tplDetail?.error ? <Alert tone="error">{tplDetail.error}</Alert> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {(tplDetail?.nodes || []).map((node: any, index: number) => (
               <div key={node.id || index} style={{
-                display: 'flex', alignItems: 'center', gap: 8, background: '#0f172a',
-                borderLeft: `3px solid ${NODE_COLOR[node.type] || '#334155'}`, borderRadius: 4, padding: '6px 9px',
+                display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)',
+                borderLeft: `3px solid ${NODE_COLOR[node.type] || 'var(--border)'}`, borderRadius: 4, padding: '6px 9px',
               }}>
-                <span style={{ color: '#475569', fontSize: 9, width: 20 }}>{index + 1}</span>
-                <span style={{ color: NODE_COLOR[node.type] || '#94a3b8', fontSize: 9, width: 66 }}>{node.type}</span>
-                <span style={{ flex: 1, color: '#e2e8f0', fontSize: 11 }}>{node.label || node.id}</span>
+                <span style={{ color: 'var(--border)', fontSize: 9, width: 20 }}>{index + 1}</span>
+                <span style={{ color: NODE_COLOR[node.type] || 'var(--dim)', fontSize: 9, width: 66 }}>{node.type}</span>
+                <span style={{ flex: 1, color: 'var(--text)', fontSize: 11 }}>{node.label || node.id}</span>
                 {node.depends_on?.length > 0 && (
-                  <span style={{ color: '#475569', fontSize: 9, fontFamily: 'monospace' }}>← {node.depends_on.join(',')}</span>
+                  <span style={{ color: 'var(--border)', fontSize: 9, fontFamily: 'monospace' }}>← {node.depends_on.join(',')}</span>
                 )}
               </div>
             ))}
@@ -486,30 +486,30 @@ export const WorkflowPanel: React.FC = () => {
         width={760}
         closeOnBackdrop={false}
         onClose={() => setDetail(null)}
-        footer={<button onClick={() => setDetail(null)} style={btn('#334155')}>关闭</button>}
+        footer={<button onClick={() => setDetail(null)} style={btn('var(--border)')}>关闭</button>}
       >
         {detail?.error ? <Alert tone="error">{detail.error}</Alert> : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             {detail?.state && (
-              <div style={{ marginBottom: 7, fontSize: 11, color: STATE_COLOR[String(detail.state).toLowerCase()] || '#64748b' }}>
+              <div style={{ marginBottom: 7, fontSize: 11, color: STATE_COLOR[String(detail.state).toLowerCase()] || 'var(--faint)' }}>
                 当前状态：{detail.state}
               </div>
             )}
             {(detail?.nodes || []).map((node: any) => (
               <div key={node.node_id || node.id} style={{
-                display: 'flex', alignItems: 'center', gap: 8, background: '#0f172a',
-                borderLeft: `3px solid ${STATE_COLOR[String(node.state || '').toLowerCase()] || '#334155'}`, borderRadius: 4, padding: '6px 9px',
+                display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)',
+                borderLeft: `3px solid ${STATE_COLOR[String(node.state || '').toLowerCase()] || 'var(--border)'}`, borderRadius: 4, padding: '6px 9px',
               }}>
-                <span style={{ flex: 1, color: '#e2e8f0', fontSize: 11 }}>{node.title || node.label || node.node_id || node.id}</span>
-                <span style={{ color: STATE_COLOR[String(node.state || '').toLowerCase()] || '#64748b', fontSize: 10, width: 110 }}>{node.state}{node.runtime_status ? ` · ${node.runtime_status}` : ''}</span>
+                <span style={{ flex: 1, color: 'var(--text)', fontSize: 11 }}>{node.title || node.label || node.node_id || node.id}</span>
+                <span style={{ color: STATE_COLOR[String(node.state || '').toLowerCase()] || 'var(--faint)', fontSize: 10, width: 110 }}>{node.state}{node.runtime_status ? ` · ${node.runtime_status}` : ''}</span>
                 <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap' }}>
                   {(node.state === 'WAITING_HUMAN' || node.runtime_status === 'BLOCKED_APPROVAL') && (
-                    <button onClick={() => approveNode(detail.instance_id, node.node_id || node.id)} style={miniBtn('#92400e', '#fde68a')}>具名批准</button>
+                    <button onClick={() => approveNode(detail.instance_id, node.node_id || node.id)} style={miniBtn('var(--warn-soft)', 'var(--warn)')}>具名批准</button>
                   )}
                   {!['WAITING_HUMAN'].includes(node.state) && ['begin', 'complete', 'fail'].map((action) => (
                     <button key={action} onClick={() => nodeAction(detail.instance_id, node.node_id || node.id, action)}
-                      style={miniBtn(action === 'fail' ? '#7f1d1d' : action === 'complete' ? '#064e3b' : '#1e3a8a',
-                        action === 'fail' ? '#fca5a5' : action === 'complete' ? '#6ee7b7' : '#93c5fd')}>
+                      style={miniBtn(action === 'fail' ? 'var(--bad-soft)' : action === 'complete' ? 'var(--ok-soft)' : 'var(--accent-soft)',
+                        action === 'fail' ? 'var(--bad)' : action === 'complete' ? 'var(--ok)' : 'var(--accent)')}>
                       {action === 'begin' ? '开始' : action === 'complete' ? '完成' : '失败'}
                     </button>
                   ))}
@@ -533,11 +533,11 @@ const RunningSpinner: React.FC = () => (
   <svg width="14" height="14" viewBox="0 0 50 50" style={{ animation: 'wf-spin 1.2s linear infinite' }}>
     <defs>
       <linearGradient id="wf-spinner-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor="#3b82f6" />
-        <stop offset="100%" stopColor="#06b6d4" />
+        <stop offset="0%" stopColor="var(--accent)" />
+        <stop offset="100%" stopColor="var(--accent2)" />
       </linearGradient>
     </defs>
-    <circle cx="25" cy="25" r="20" fill="none" stroke="#1e293b" strokeWidth="5" strokeLinecap="round" />
+    <circle cx="25" cy="25" r="20" fill="none" stroke="var(--panel)" strokeWidth="5" strokeLinecap="round" />
     <circle cx="25" cy="25" r="20" fill="none" stroke="url(#wf-spinner-grad)" strokeWidth="5" strokeLinecap="round"
       strokeDasharray="31.4 125.6" />
   </svg>

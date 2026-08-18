@@ -28,7 +28,7 @@ type Dept = {
 type SelfInfo = { dept: string; display_name: string; endpoint: string; note: string }
 
 const card: React.CSSProperties = {
-  background: '#111827', border: '1px solid #1f2937', borderRadius: 10, padding: '12px 14px',
+  background: 'var(--surface)', border: '1px solid var(--panel)', borderRadius: 10, padding: '12px 14px',
 }
 
 const fmtTime = (ts?: number) =>
@@ -132,99 +132,99 @@ export const DepartmentPanel: React.FC = () => {
   }
 
   if (loading) {
-    return <div style={{ ...card, color: '#9ca3af', textAlign: 'center' }}>🏢 正在载入部门目录…</div>
+    return <div style={{ ...card, color: 'var(--dim)', textAlign: 'center' }}>🏢 正在载入部门目录…</div>
   }
 
   const reachable = items.filter((d) => d.reachable).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ ...card, borderColor: '#1e3a8a' }}>
+      <div style={{ ...card, borderColor: 'var(--accent-soft)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
           <div>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#60a5fa' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--accent)' }}>
               🏠 本实例 · {self?.display_name}
-              <span style={{ color: '#475569', fontWeight: 400 }}> ({self?.dept})</span>
+              <span style={{ color: 'var(--border)', fontWeight: 400 }}> ({self?.dept})</span>
             </div>
-            <div style={{ fontSize: 10, color: '#64748b', marginTop: 3, fontFamily: 'monospace' }}>
+            <div style={{ fontSize: 10, color: 'var(--faint)', marginTop: 3, fontFamily: 'monospace' }}>
               对外端点: {self?.endpoint}
             </div>
-            <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>{self?.note}</div>
+            <div style={{ fontSize: 10, color: 'var(--border)', marginTop: 2 }}>{self?.note}</div>
           </div>
           <div style={{ display: 'flex', gap: 6 }}>
-            <button onClick={openNew} style={btn('#2563eb')}>＋ 新建部门</button>
+            <button onClick={openNew} style={btn('var(--accent2)')}>＋ 新建部门</button>
             <button onClick={probeAll} disabled={probing === '*' || items.length === 0}
-              style={btn('#334155')}>{probing === '*' ? '探测中…' : '↻ 全部探测'}</button>
+              style={btn('var(--border)')}>{probing === '*' ? '探测中…' : '↻ 全部探测'}</button>
           </div>
         </div>
       </div>
 
-      {msg && <div style={{ ...card, borderColor: '#7f1d1d', color: '#f87171', fontSize: 11 }}>{msg}</div>}
+      {msg && <div style={{ ...card, borderColor: 'var(--bad-soft)', color: 'var(--bad)', fontSize: 11 }}>{msg}</div>}
 
       <div style={card}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6', marginBottom: 8 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>
           🏢 已知部门 ({items.length})
           {items.length > 0 && (
-            <span style={{ fontWeight: 400, color: reachable === items.length ? '#10b981' : '#f59e0b', marginLeft: 8 }}>
+            <span style={{ fontWeight: 400, color: reachable === items.length ? 'var(--ok)' : 'var(--warn)', marginLeft: 8 }}>
               {reachable}/{items.length} 可达
             </span>
           )}
         </div>
 
         {items.length === 0 ? (
-          <div style={{ color: '#475569', fontSize: 11, padding: '16px 0', textAlign: 'center', lineHeight: 1.7 }}>
+          <div style={{ color: 'var(--border)', fontSize: 11, padding: '16px 0', textAlign: 'center', lineHeight: 1.7 }}>
             还没有登记任何其他部门。<br />
-            工作流里的跨部门节点(如向 <code style={{ color: '#a855f7' }}>intel</code> 要配图)
+            工作流里的跨部门节点(如向 <code style={{ color: 'var(--rev)' }}>intel</code> 要配图)
             会因为找不到对方而无法执行。
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {items.map((d) => (
               <div key={d.id} style={{
-                background: '#0f172a',
-                border: `1px solid ${d.reachable ? '#065f46' : '#7f1d1d'}`,
-                borderLeft: `3px solid ${d.reachable ? '#10b981' : '#ef4444'}`,
+                background: 'var(--surface)',
+                border: `1px solid ${d.reachable ? 'var(--ok-soft)' : 'var(--bad-soft)'}`,
+                borderLeft: `3px solid ${d.reachable ? 'var(--ok)' : 'var(--bad)'}`,
                 borderRadius: 8, padding: '9px 11px', opacity: d.enabled ? 1 : 0.5,
               }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: '#e2e8f0' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
                       {d.display_name || d.id}
-                      <span style={{ color: '#475569', fontWeight: 400, marginLeft: 6, fontFamily: 'monospace' }}>{d.id}</span>
-                      {!d.enabled && <span style={{ color: '#f59e0b', fontSize: 10, marginLeft: 6 }}>已停用</span>}
+                      <span style={{ color: 'var(--border)', fontWeight: 400, marginLeft: 6, fontFamily: 'monospace' }}>{d.id}</span>
+                      {!d.enabled && <span style={{ color: 'var(--warn)', fontSize: 10, marginLeft: 6 }}>已停用</span>}
                     </div>
-                    <div style={{ fontSize: 10, color: '#64748b', fontFamily: 'monospace', marginTop: 2, wordBreak: 'break-all' }}>
+                    <div style={{ fontSize: 10, color: 'var(--faint)', fontFamily: 'monospace', marginTop: 2, wordBreak: 'break-all' }}>
                       {d.endpoint || '(未配置端点)'}
                     </div>
-                    {d.description && <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>{d.description}</div>}
+                    {d.description && <div style={{ fontSize: 10, color: 'var(--dim)', marginTop: 3 }}>{d.description}</div>}
                   </div>
                   <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                    <button onClick={() => probe(d.id)} disabled={probing === d.id} style={btn('#334155')}>
+                    <button onClick={() => probe(d.id)} disabled={probing === d.id} style={btn('var(--border)')}>
                       {probing === d.id ? '…' : '探测'}
                     </button>
-                    <button onClick={() => openEdit(d)} style={btn('#334155')}>编辑</button>
-                    <button onClick={() => toggle(d)} style={btn('#334155')}>{d.enabled ? '停用' : '启用'}</button>
-                    <button onClick={() => setConfirmDel(d)} style={btn('#7f1d1d')}>删除</button>
+                    <button onClick={() => openEdit(d)} style={btn('var(--border)')}>编辑</button>
+                    <button onClick={() => toggle(d)} style={btn('var(--border)')}>{d.enabled ? '停用' : '启用'}</button>
+                    <button onClick={() => setConfirmDel(d)} style={btn('var(--bad-soft)')}>删除</button>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 7, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: d.reachable ? '#6ee7b7' : '#fca5a5' }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: d.reachable ? 'var(--ok)' : 'var(--bad)' }}>
                     {d.reachable ? `● 可达 ${d.latency_ms ?? '?'}ms` : '● 不可达'}
                   </span>
-                  {!d.reachable && d.reason && <span style={{ fontSize: 10, color: '#f87171' }}>{d.reason}</span>}
-                  <span style={{ fontSize: 10, color: '#475569' }}>探测于 {fmtTime(d.last_probe_at)}</span>
+                  {!d.reachable && d.reason && <span style={{ fontSize: 10, color: 'var(--bad)' }}>{d.reason}</span>}
+                  <span style={{ fontSize: 10, color: 'var(--border)' }}>探测于 {fmtTime(d.last_probe_at)}</span>
                 </div>
 
                 {d.reachable && (
                   <div style={{ marginTop: 5 }}>
-                    <span style={{ fontSize: 10, color: '#64748b' }}>对方声明的能力: </span>
+                    <span style={{ fontSize: 10, color: 'var(--faint)' }}>对方声明的能力: </span>
                     {(d.capabilities || []).length === 0 ? (
-                      <span style={{ fontSize: 10, color: '#f59e0b' }}>未声明任何能力 —— 无法承接跨部门节点</span>
+                      <span style={{ fontSize: 10, color: 'var(--warn)' }}>未声明任何能力 —— 无法承接跨部门节点</span>
                     ) : (
                       (d.capabilities || []).map((c) => (
                         <span key={c} style={{
-                          background: '#1e293b', color: '#a855f7', borderRadius: 3,
+                          background: 'var(--panel)', color: 'var(--rev)', borderRadius: 3,
                           padding: '1px 6px', fontSize: 9, marginRight: 4, display: 'inline-block',
                         }}>{c}</span>
                       ))
@@ -245,9 +245,9 @@ export const DepartmentPanel: React.FC = () => {
         onClose={() => setEditing(null)}
         footer={
           <>
-            <button onClick={() => setEditing(null)} style={btn('#334155')}>取消</button>
+            <button onClick={() => setEditing(null)} style={btn('var(--border)')}>取消</button>
             <button onClick={save} disabled={!form.id.trim() || saving}
-              style={btn(form.id.trim() && !saving ? '#2563eb' : '#334155')}>
+              style={btn(form.id.trim() && !saving ? 'var(--accent2)' : 'var(--border)')}>
               {saving ? '保存中…' : isNew ? '创建并探测' : '保存'}
             </button>
           </>
@@ -286,14 +286,14 @@ export const DepartmentPanel: React.FC = () => {
         onClose={() => setConfirmDel(null)}
         footer={
           <>
-            <button onClick={() => setConfirmDel(null)} style={btn('#334155')}>取消</button>
-            <button onClick={doDelete} style={btn('#dc2626')}>确认删除</button>
+            <button onClick={() => setConfirmDel(null)} style={btn('var(--border)')}>取消</button>
+            <button onClick={doDelete} style={btn('var(--bad)')}>确认删除</button>
           </>
         }
       >
-        <div style={{ fontSize: 12, color: '#cbd5e1', lineHeight: 1.7 }}>
-          确定删除 <strong style={{ color: '#f3f4f6' }}>{confirmDel?.display_name || confirmDel?.id}</strong> 吗?
-          <div style={{ color: '#f59e0b', fontSize: 11, marginTop: 8 }}>
+        <div style={{ fontSize: 12, color: 'var(--text)', lineHeight: 1.7 }}>
+          确定删除 <strong style={{ color: 'var(--text)' }}>{confirmDel?.display_name || confirmDel?.id}</strong> 吗?
+          <div style={{ color: 'var(--warn)', fontSize: 11, marginTop: 8 }}>
             引用了该部门的工作流节点会因为找不到对方而无法执行。
             只是暂时不用的话,建议用「停用」而不是删除。
           </div>

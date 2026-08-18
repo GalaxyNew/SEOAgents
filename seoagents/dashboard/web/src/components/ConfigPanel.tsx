@@ -6,19 +6,19 @@ export interface ConfigPanelProps {
 }
 
 const cardStyle: React.CSSProperties = {
-  background: '#111827',
-  border: '1px solid #1f2937',
+  background: 'var(--surface)',
+  border: '1px solid var(--panel)',
   borderRadius: '12px',
   padding: '20px',
   marginBottom: '20px',
-  boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+  boxShadow: '0 4px 12px oklch(0% 0 0 / .2)',
 }
 
 const sectionHeaderStyle: React.CSSProperties = {
   fontSize: '15px',
   fontWeight: '600',
-  color: '#60a5fa',
-  borderBottom: '1px solid #1f2937',
+  color: 'var(--accent)',
+  borderBottom: '1px solid var(--panel)',
   paddingBottom: '8px',
   marginBottom: '16px',
   display: 'flex',
@@ -30,17 +30,17 @@ const labelStyle: React.CSSProperties = {
   display: 'block',
   fontSize: '13px',
   fontWeight: '500',
-  color: '#9ca3af',
+  color: 'var(--dim)',
   marginBottom: '6px',
 }
 
 const inputStyle: React.CSSProperties = {
   width: '100%',
-  background: '#1f2937',
-  border: '1px solid #374151',
+  background: 'var(--panel)',
+  border: '1px solid var(--border)',
   borderRadius: '8px',
   padding: '10px 12px',
-  color: '#f3f4f6',
+  color: 'var(--text)',
   fontSize: '14px',
   outline: 'none',
   boxSizing: 'border-box',
@@ -243,7 +243,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
   }
 
   if (loading) {
-    return <div style={{ ...cardStyle, color: '#9ca3af', textAlign: 'center' }}>⚙️ 正在载入系统配置...</div>
+    return <div style={{ ...cardStyle, color: 'var(--dim)', textAlign: 'center' }}>⚙️ 正在载入系统配置...</div>
   }
 
   return (
@@ -258,10 +258,10 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
             padding: '8px 14px',
             borderRadius: '8px',
             fontSize: '13px',
-            background: message.type === 'success' ? '#064e3b' : '#7f1d1d',
-            color: message.type === 'success' ? '#6ee7b7' : '#fca5a5',
-            border: `1px solid ${message.type === 'success' ? '#059669' : '#dc2626'}`,
-            boxShadow: '0 8px 24px rgba(0,0,0,.4)',
+            background: message.type === 'success' ? 'var(--ok-soft)' : 'var(--bad-soft)',
+            color: message.type === 'success' ? 'var(--ok)' : 'var(--bad)',
+            border: `1px solid ${message.type === 'success' ? 'var(--ok)' : 'var(--bad)'}`,
+            boxShadow: '0 8px 24px oklch(0% 0 0 / .4)',
             maxWidth: 'calc(100vw - 32px)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
@@ -280,8 +280,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
             type="button"
             onClick={handleAddNewSiteClick}
             style={{
-              background: '#2563eb',
-              color: '#fff',
+              background: 'var(--accent2)',
+              color: 'var(--text)',
               border: 0,
               borderRadius: '6px',
               padding: '6px 14px',
@@ -308,18 +308,18 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
                   key={idx}
                   onClick={() => handleSelectSiteAsPrimary(s)}
                   style={{
-                    background: isSelected ? '#1e293b' : '#1f2937',
-                    border: `1.5px solid ${isSelected ? '#3b82f6' : '#374151'}`,
+                    background: isSelected ? 'var(--panel)' : 'var(--panel)',
+                    border: `1.5px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}`,
                     borderRadius: '10px',
                     padding: '12px 14px',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     position: 'relative',
-                    boxShadow: isSelected ? '0 0 12px rgba(59,130,246,0.25)' : 'none',
+                    boxShadow: isSelected ? '0 0 12px var(--accent-soft)' : 'none',
                   }}
                 >
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-                    <span style={{ fontSize: '11px', fontWeight: '700', color: isSelected ? '#60a5fa' : '#9ca3af' }}>
+                    <span style={{ fontSize: '11px', fontWeight: '700', color: isSelected ? 'var(--accent)' : 'var(--dim)' }}>
                       {isSelected ? '★ 当前激活主站' : `站点 ${idx + 1}`}
                     </span>
                     {monitoredSites.length > 1 && (
@@ -331,7 +331,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
                         }}
                         style={{
                           background: 'transparent',
-                          color: '#ef4444',
+                          color: 'var(--bad)',
                           border: 0,
                           fontSize: '13px',
                           cursor: 'pointer',
@@ -344,13 +344,13 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
                     )}
                   </div>
 
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: '#f3f4f6', marginBottom: '4px', wordBreak: 'break-all' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text)', marginBottom: '4px', wordBreak: 'break-all' }}>
                     {s.site_url}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#9ca3af' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--dim)' }}>
                     GSC: {s.gsc_property}
                   </div>
-                  <div style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--dim)', marginTop: '2px' }}>
                     品牌: {s.brand_name || '未设'} | 词库: {s.tracked_keywords?.length || 0} 个
                   </div>
                 </div>
@@ -360,10 +360,10 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
         </div>
 
         {/* 当前选中站点的配置编辑表单 */}
-        <div style={{ background: '#182232', border: '1px solid #283548', borderRadius: '10px', padding: '16px', marginTop: '14px' }}>
-          <div style={{ fontSize: '14px', fontWeight: '700', color: '#60a5fa', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+        <div style={{ background: 'var(--panel)', border: '1px solid var(--panel2)', borderRadius: '10px', padding: '16px', marginTop: '14px' }}>
+          <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--accent)', marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span>✏️ 编辑站点配置：</span>
-            <span style={{ color: '#f3f4f6', fontFamily: 'monospace' }}>{siteUrl}</span>
+            <span style={{ color: 'var(--text)', fontFamily: 'monospace' }}>{siteUrl}</span>
           </div>
 
           <div className="grid-2-col" style={{ marginBottom: '16px' }}>
@@ -420,8 +420,8 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
                 type="button"
                 onClick={handleAddKeyword}
                 style={{
-                  background: '#2563eb',
-                  color: '#fff',
+                  background: 'var(--accent2)',
+                  color: 'var(--text)',
                   border: 0,
                   borderRadius: '8px',
                   padding: '0 20px',
@@ -439,9 +439,9 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
                 <span
                   key={i}
                   style={{
-                    background: '#1e293b',
-                    color: '#60a5fa',
-                    border: '1px solid #3b82f6',
+                    background: 'var(--panel)',
+                    color: 'var(--accent)',
+                    border: '1px solid var(--accent)',
                     borderRadius: '16px',
                     padding: '4px 12px',
                     fontSize: '13px',
@@ -454,7 +454,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
                   <button
                     type="button"
                     onClick={() => handleRemoveKeyword(kw)}
-                    style={{ background: 'transparent', color: '#9ca3af', border: 0, cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                    style={{ background: 'transparent', color: 'var(--dim)', border: 0, cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
                   >
                     ×
                   </button>
@@ -534,7 +534,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
       {/* M_t 量化公式打分权重 */}
       <div style={cardStyle}>
         <div style={sectionHeaderStyle}>🧮 Self-Evolution 自进化打分权重 ($M_t$)</div>
-        <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '-8px', marginBottom: '16px' }}>
+        <p style={{ fontSize: '12px', color: 'var(--dim)', marginTop: '-8px', marginBottom: '16px' }}>
           公式：M_t = α·C_t + β·I_t + γ·Σ(W_i / R_it) - δ·E_t
         </p>
 
@@ -591,7 +591,7 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
               onChange={e => setThreshold(parseFloat(e.target.value) || 150)}
               style={{ ...numInputStyle, maxWidth: '200px' }}
             />
-            <span style={{ fontSize: '12px', color: '#6b7280' }}>
+            <span style={{ fontSize: '12px', color: 'var(--faint)' }}>
               当演化得分低于该阈值时触发自动重写与内链优化修复
             </span>
           </div>
@@ -644,15 +644,15 @@ export const ConfigPanel: React.FC<ConfigPanelProps> = ({ onConfigSaved }) => {
           style={{
             width: '100%',
             maxWidth: '300px',
-            background: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-            color: '#fff',
+            background: 'linear-gradient(135deg, var(--accent2), var(--accent2))',
+            color: 'var(--text)',
             border: 0,
             borderRadius: '8px',
             padding: '14px 32px',
             fontSize: '15px',
             fontWeight: '600',
             cursor: saving ? 'wait' : 'pointer',
-            boxShadow: '0 4px 14px rgba(37,99,235,0.4)',
+            boxShadow: '0 4px 14px var(--accent-line)',
           }}
         >
           {saving ? '⏳ 保存应用中...' : '💾 保存并实时应用配置'}

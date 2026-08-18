@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-mode="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>dashboard-kit 组件预览 · 22 号文标准</title>
+<link rel="stylesheet" href="../fonts/fonts.css">
+<link rel="stylesheet" href="../tokens.css">
+<link rel="stylesheet" href="./components.css">
+<link rel="stylesheet" href="../layout/layout.css">
+</head>
+<body>
+<div class="dk-shell">
+  <header class="dk-topbar">
+    <div class="dk-topbar__brand">
+      <span class="dk-dot dk-dot--live"></span>
+      dashboard-kit 预览
+    </div>
+    <nav class="dk-topbar__nav" id="tabs">
+      <button class="dk-tab" aria-selected="true">战况</button>
+      <button class="dk-tab" aria-selected="false">任务</button>
+      <button class="dk-tab" aria-selected="false">协作</button>
+    </nav>
+    <div class="dk-topbar__actions">
+      <div class="dk-theme-switch" id="swatches"></div>
+      <input class="dk-hue-slider" type="range" min="0" max="360" id="hue" aria-label="自定义色相">
+      <span class="dk-mono" id="hueVal" style="font-size:var(--fs-xs);color:var(--dim);min-width:36px"></span>
+      <button class="dk-mode-toggle" id="modeBtn">🌙</button>
+    </div>
+  </header>
+
+  <div class="dk-body">
+    <main class="dk-main">
+      <!-- ① 部门战况区 -->
+      <section class="dk-grid dk-grid--4" id="kpis"></section>
+
+      <div class="dk-grid dk-grid--2">
+        <!-- ③ 时间线流 -->
+        <div class="dk-panel">
+          <div class="dk-panel__title">③ 时间线流 Timeline</div>
+          <div id="timeline"></div>
+        </div>
+        <!-- ⑦ 图表壳 -->
+        <div id="chartHost"></div>
+      </div>
+
+      <!-- ④ 任务卡表 -->
+      <div class="dk-panel">
+        <div class="dk-panel__title">④ 任务卡表 TaskTable（状态胶囊全联邦统一语义）</div>
+        <div id="table"></div>
+      </div>
+
+      <div class="dk-grid dk-grid--2">
+        <!-- ⑤ 收发件 -->
+        <div class="dk-panel">
+          <div class="dk-panel__title">⑤ 收发件 InboxList</div>
+          <div id="inbox"></div>
+        </div>
+        <!-- ⑥ 资产卡 -->
+        <div class="dk-panel">
+          <div class="dk-panel__title">⑥ 资产卡 AssetCard</div>
+          <div class="dk-grid dk-grid--3" id="assets"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <footer class="dk-footer">
+    <span>数据新鲜度：</span>
+    <span class="dk-badge-data dk-badge-data--real">REAL</span>
+    <span class="dk-badge-data dk-badge-data--mock">MOCK</span>
+    <span class="dk-badge-data dk-badge-data--stale">STALE</span>
+    <span class="dk-badge-data dk-badge-data--na">N/A</span>
+    <span style="margin-left:auto" id="footNote"></span>
+  </footer>
+</div>
+
+<script type="module">
+import DK from './components.js';
+import Theme, { PRESET_THEMES } from '../themes.js';
+
+Theme.initTheme();
+
+/* 主题开关 */
+const sw = document.getElementById('swatches');
+PRESET_THEMES.forEach(t => {
+  const b = document.createElement('button');
+  b.className = 'dk-swatch';
+  b.title = `${t.name} · ${t.dept}`;
+  b.setAttribute('aria-label', t.name);
+  b.style.background = `oklch(70% 0.16 ${t.hue})`;
+  b.onclick = () => Theme.applyHue(t.hue);
+  sw.appendChild(b);
+});
+const hue = document.getElementById('hue');
+const hueVal = document.getElementById('hueVal');
+hue.oninput = e => Theme.applyHue(+e.target.value);
+document.getElementById('modeBtn').onclick = () => Theme.toggleMode();
+
+function syncUI({ hue: h, mode }) {
+  hue.value = h;
+  hueVal.textContent = `${h}°`;
+  document.getElementById('modeBtn').textContent = mode === 'dark' ? '🌙' : '☀️';
+  [...sw.children].forEach((b, i) =>
+    b.setAttribute('aria-pressed', String(PRESET_THEMES[i].hue === h)));
+  document.getElementById('footNote').textContent =
+    `hue=${h}° · mode=${mode} · 底座恒定中性，仅强调组随主题`;
+}
+Theme.onThemeChange(syncUI);
+syncUI({ hue: Theme.getHue(), mode: Theme.getMode() });
+
+/* ① 宫格卡 */
+const kpis = document.getElementById('kpis');
+[
+  { label: '在办任务', value: 12, delta: 3, accent: true, dataStatus: 'REAL' },
+  { label: '本周发布', value: 47, unit: '篇', delta: -2, dataStatus: 'REAL' },
+  { label: '平均排名', value: 8.4, delta: 0, dataStatus: 'STALE' },
+  { label: '外链新增', value: null, dataStatus: 'DATA_UNAVAILABLE' },
+].forEach(k => kpis.appendChild(DK.KpiCard(k)));
+
+/* ③ 时间线 */
+document.getElementById('timeline').appendChild(DK.Timeline([
+  { time: '20:41:02', title: 'G1-F 迁移 audit 通过', desc: '6/6 门禁全绿', kind: 'ok' },
+  { time: '20:12:55', title: 'dashboard-kit 标准件出包', desc: 'tokens/themes/components/layout/audit', kind: 'accent' },
+  { time: '19:58:10', title: '关键词池刷新', desc: 'DataForSEO 真实量价入池', kind: 'accent' },
+  { time: '18:30:41', title: '外链探测超时', desc: '第三方接口 504，已退避重试', kind: 'warn' },
+]));
+
+/* ⑦ 图表壳 */
+const chart = DK.ChartShell({ title: '⑦ 图表壳 ChartShell（同源着色）', extra: '近 7 日' });
+document.getElementById('chartHost').appendChild(chart);
+const bars = document.createElement('div');
+bars.style.cssText = 'display:flex;align-items:flex-end;gap:8px;height:100%;min-height:180px;padding-top:8px';
+const colors = Theme.seriesColors(7);
+[62, 48, 75, 90, 55, 83, 70].forEach((v, i) => {
+  const b = document.createElement('div');
+  b.className = 'dk-grow-y';
+  b.style.cssText = `flex:1;height:${v}%;min-height:4px;border-radius:var(--r-ctrl) var(--r-ctrl) 0 0;background:${colors[i]}`;
+  bars.appendChild(b);
+});
+chart.body.appendChild(bars);
+Theme.onThemeChange(() => {
+  const c = Theme.seriesColors(7);
+  [...bars.children].forEach((b, i) => { b.style.background = c[i]; });
+});
+
+/* ④ 任务卡表 */
+document.getElementById('table').appendChild(DK.TaskTable({
+  columns: [
+    { key: 'id', title: '卡号', mono: true },
+    { key: 'title', title: '任务' },
+    { key: 'owner', title: '负责方' },
+    { key: 'status', title: '状态' },
+    { key: 'evidence', title: '证据行', numeric: true },
+  ],
+  rows: [
+    { id: 'T20260812-07', title: 'G1-F 前端迁移 dashboard-kit', owner: 'Hermes', status: 'IN_PROGRESS', evidence: 6 },
+    { id: 'T20260812-05', title: 'G1-D content_publisher 解耦', owner: 'SEO HM', status: 'PASSED', evidence: 11 },
+    { id: 'T20260815-03', title: '四方联调', owner: '创作部', status: 'REVIEW', evidence: 4 },
+    { id: 'T20260814-02', title: '外链探测接口对接', owner: 'SEO HM', status: 'BLOCKED', evidence: 2 },
+    { id: 'T20260816-01', title: '资产中心血缘补全', owner: '资产中心', status: 'ASSIGNED', evidence: 0 },
+  ],
+}));
+
+/* ⑤ 收发件 */
+document.getElementById('inbox').appendChild(DK.InboxList([
+  { direction: 'in', subject: '资讯包交付：西班牙 IPTV 市场', from: '情报部', time: '20:31', status: 'PASSED' },
+  { direction: 'out', subject: '撰文请求：mejorsiptv 长尾 12 篇', to: '创作部', time: '19:44', status: 'IN_PROGRESS' },
+  { direction: 'in', subject: '母语审校回执', from: '本土化部', time: '18:02', status: 'REVIEW' },
+]));
+
+/* ⑥ 资产卡 */
+const assets = document.getElementById('assets');
+[
+  { name: 'brief-T07.md', kind: 'SPEC', size: '4.2KB', dataStatus: 'REAL' },
+  { name: 'hero-iptv.webp', kind: 'IMG', size: '182KB', dataStatus: 'REAL' },
+  { name: 'serp-snapshot.json', kind: 'DATA', size: '31KB', dataStatus: 'MOCK' },
+].forEach(a => assets.appendChild(DK.AssetCard(a)));
+</script>
+</body>
+</html>

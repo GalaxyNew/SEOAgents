@@ -102,7 +102,7 @@ export const Modal: React.FC<{
         if (closeOnBackdrop && event.target === event.currentTarget) onClose()
       }}
       style={{
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex,
+        position: 'fixed', inset: 0, background: 'oklch(0% 0 0 / .78)', zIndex,
         display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 14,
       }}
     >
@@ -114,23 +114,23 @@ export const Modal: React.FC<{
         tabIndex={-1}
         onMouseDown={(event) => event.stopPropagation()}
         style={{
-          background: '#111827', border: '1px solid #334155', borderRadius: 12,
+          background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12,
           width: fullscreen ? 'calc(100vw - 16px)' : '100%',
           maxWidth: fullscreen ? 'none' : width,
           height: fullscreen ? 'calc(100vh - 16px)' : undefined,
           maxHeight: fullscreen ? 'none' : '86vh',
           display: 'flex', flexDirection: 'column',
-          boxShadow: '0 24px 60px rgba(0,0,0,0.7)', outline: 'none',
+          boxShadow: '0 24px 60px oklch(0% 0 0 / .7)', outline: 'none',
         }}
       >
         <div style={{
-          padding: '13px 16px', borderBottom: '1px solid #1f2937',
+          padding: '13px 16px', borderBottom: '1px solid var(--panel)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10,
         }}>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#f3f4f6' }}>{title}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>{title}</div>
             {subtitle && (
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 3 }}>{subtitle}</div>
+              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3 }}>{subtitle}</div>
             )}
           </div>
           <button
@@ -141,7 +141,7 @@ export const Modal: React.FC<{
             aria-label="关闭"
             style={{
               minWidth: 44, minHeight: 44,
-              background: 'transparent', border: 0, color: '#94a3b8',
+              background: 'transparent', border: 0, color: 'var(--dim)',
               fontSize: 17, cursor: 'pointer', padding: 8, lineHeight: 1,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}
@@ -152,7 +152,7 @@ export const Modal: React.FC<{
 
         {footer && (
           <div style={{
-            padding: '11px 16px', borderTop: '1px solid #1f2937',
+            padding: '11px 16px', borderTop: '1px solid var(--panel)',
             display: 'flex', justifyContent: 'flex-end', gap: 7, flexWrap: 'wrap',
           }}>{footer}</div>
         )}
@@ -165,10 +165,10 @@ export const Modal: React.FC<{
 export type AlertTone = 'info' | 'success' | 'warning' | 'error'
 
 const ALERT_STYLE: Record<AlertTone, { bg: string; border: string; color: string; icon: string }> = {
-  info: { bg: 'rgba(30,58,138,.28)', border: '#3b82f6', color: '#bfdbfe', icon: 'i' },
-  success: { bg: 'rgba(6,78,59,.28)', border: '#10b981', color: '#a7f3d0', icon: '✓' },
-  warning: { bg: 'rgba(120,53,15,.28)', border: '#f59e0b', color: '#fde68a', icon: '!' },
-  error: { bg: 'rgba(127,29,29,.28)', border: '#ef4444', color: '#fecaca', icon: '×' },
+  info: { bg: 'var(--accent-soft)', border: 'var(--accent)', color: 'var(--accent)', icon: 'i' },
+  success: { bg: 'var(--ok-soft)', border: 'var(--ok)', color: 'var(--ok)', icon: '✓' },
+  warning: { bg: 'var(--warn-soft)', border: 'var(--warn)', color: 'var(--warn)', icon: '!' },
+  error: { bg: 'var(--bad-soft)', border: 'var(--bad)', color: 'var(--bad)', icon: '×' },
 }
 
 export const Alert: React.FC<{
@@ -186,7 +186,7 @@ export const Alert: React.FC<{
     }}>
       <span aria-hidden="true" style={{
         flexShrink: 0, width: 18, height: 18, borderRadius: 9, background: style.border,
-        color: '#08101f', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        color: 'var(--bg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 11, fontWeight: 800,
       }}>{style.icon}</span>
       <div style={{ flex: 1, minWidth: 0, wordBreak: 'break-word' }}>
@@ -211,23 +211,23 @@ export const Field: React.FC<{
   children: React.ReactNode
 }> = ({ label, hint, required, error, children }) => (
   <div style={{ marginBottom: 11 }}>
-    <label style={{ display: 'block', fontSize: 11, color: '#94a3b8', marginBottom: 4, fontWeight: 600 }}>
-      {label}{required && <span style={{ color: '#f87171' }}> *</span>}
+    <label style={{ display: 'block', fontSize: 11, color: 'var(--dim)', marginBottom: 4, fontWeight: 600 }}>
+      {label}{required && <span style={{ color: 'var(--bad)' }}> *</span>}
     </label>
     {children}
     {error
-      ? <div style={{ fontSize: 10, color: '#f87171', marginTop: 3 }}>{error}</div>
-      : hint && <div style={{ fontSize: 10, color: '#64748b', marginTop: 3 }}>{hint}</div>}
+      ? <div style={{ fontSize: 10, color: 'var(--bad)', marginTop: 3 }}>{error}</div>
+      : hint && <div style={{ fontSize: 10, color: 'var(--faint)', marginTop: 3 }}>{hint}</div>}
   </div>
 )
 
 export const inputStyle: React.CSSProperties = {
-  background: '#0f172a', border: '1px solid #334155', borderRadius: 6,
-  color: '#e2e8f0', fontSize: 12, padding: '7px 9px',
+  background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6,
+  color: 'var(--text)', fontSize: 12, padding: '7px 9px',
   boxSizing: 'border-box', width: '100%', outline: 'none',
 }
 
-export const btn = (bg: string, fg = '#fff'): React.CSSProperties => ({
+export const btn = (bg: string, fg = 'var(--text)'): React.CSSProperties => ({
   background: bg, color: fg, border: 0, borderRadius: 6,
   padding: '6px 13px', fontSize: 12, fontWeight: 600, cursor: 'pointer',
 })
@@ -255,10 +255,10 @@ const normalizeToastKind = (kind: ToastKindInput): ToastKind => (
 )
 
 const TOAST_STYLE: Record<ToastKind, { bg: string; border: string; color: string; icon: string }> = {
-  error: { bg: 'rgba(127,29,29,.94)', border: '#ef4444', color: '#fecaca', icon: '✕' },
-  success: { bg: 'rgba(6,78,59,.94)', border: '#10b981', color: '#a7f3d0', icon: '✓' },
-  warning: { bg: 'rgba(120,53,15,.94)', border: '#f59e0b', color: '#fde68a', icon: '!' },
-  info: { bg: 'rgba(30,58,138,.94)', border: '#3b82f6', color: '#dbeafe', icon: 'i' },
+  error: { bg: 'var(--bad-soft)', border: 'var(--bad)', color: 'var(--bad)', icon: '✕' },
+  success: { bg: 'var(--ok-soft)', border: 'var(--ok)', color: 'var(--ok)', icon: '✓' },
+  warning: { bg: 'var(--warn-soft)', border: 'var(--warn)', color: 'var(--warn)', icon: '!' },
+  info: { bg: 'var(--accent-soft)', border: 'var(--accent)', color: 'var(--accent)', icon: 'i' },
 }
 
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -322,8 +322,8 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         }}>
           {toasts.length > 1 && (
             <button onClick={clear} style={{
-              alignSelf: 'flex-end', pointerEvents: 'auto', background: '#1f2937',
-              color: '#cbd5e1', border: '1px solid #334155', borderRadius: 6,
+              alignSelf: 'flex-end', pointerEvents: 'auto', background: 'var(--panel)',
+              color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6,
               padding: '2px 9px', fontSize: 11, cursor: 'pointer',
             }}>全部关闭（{toasts.length}）</button>
           )}
@@ -334,11 +334,11 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                 pointerEvents: 'auto', display: 'flex', gap: 10, alignItems: 'flex-start',
                 background: style.bg, border: `1px solid ${style.border}`, color: style.color,
                 borderRadius: 10, padding: '10px 12px', fontSize: 12.5, lineHeight: 1.55,
-                boxShadow: '0 8px 24px rgba(0,0,0,.45)', backdropFilter: 'blur(6px)',
+                boxShadow: '0 8px 24px oklch(0% 0 0 / .45)', backdropFilter: 'blur(6px)',
               }}>
                 <span aria-hidden="true" style={{
                   flexShrink: 0, width: 18, height: 18, borderRadius: 9, marginTop: 1,
-                  background: style.border, color: '#0b1020', fontSize: 11, fontWeight: 700,
+                  background: style.border, color: 'var(--bg)', fontSize: 11, fontWeight: 700,
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
                 }}>{style.icon}</span>
                 <span style={{ flex: 1, minWidth: 0, wordBreak: 'break-word', maxHeight: 200, overflow: 'auto' }}>
@@ -415,14 +415,14 @@ export const ConfirmDialog: React.FC<{
     zIndex={400000}
     footer={(
       <>
-        <button onClick={onCancel} style={btn('#334155')}>{options.cancelLabel || '取消'}</button>
-        <button data-autofocus="true" onClick={onConfirm} style={btn(options.tone === 'danger' ? '#b91c1c' : '#2563eb')}>
+        <button onClick={onCancel} style={btn('var(--border)')}>{options.cancelLabel || '取消'}</button>
+        <button data-autofocus="true" onClick={onConfirm} style={btn(options.tone === 'danger' ? 'var(--bad)' : 'var(--accent2)')}>
           {options.confirmLabel || '确认'}
         </button>
       </>
     )}
   >
-    <div style={{ color: '#cbd5e1', fontSize: 13, lineHeight: 1.65 }}>{options.message}</div>
+    <div style={{ color: 'var(--text)', fontSize: 13, lineHeight: 1.65 }}>{options.message}</div>
     {options.consequence && (
       <div style={{ marginTop: 12 }}>
         <Alert tone={options.tone === 'danger' ? 'error' : 'warning'} title="操作后果">
@@ -476,8 +476,8 @@ export const FormModal: React.FC<{
       zIndex={400000}
       footer={(
         <>
-          <button onClick={onCancel} style={btn('#334155')}>{options.cancelLabel || '取消'}</button>
-          <button onClick={submit} style={btn(options.tone === 'danger' ? '#b91c1c' : '#2563eb')}>
+          <button onClick={onCancel} style={btn('var(--border)')}>{options.cancelLabel || '取消'}</button>
+          <button onClick={submit} style={btn(options.tone === 'danger' ? 'var(--bad)' : 'var(--accent2)')}>
             {options.submitLabel || '提交'}
           </button>
         </>

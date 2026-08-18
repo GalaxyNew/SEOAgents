@@ -64,21 +64,21 @@ const CustomChartTooltip = ({ active, payload, label }: any) => {
     return (
       <div
         style={{
-          background: 'rgba(15, 23, 42, 0.95)',
-          border: '1px solid #3b82f6',
+          background: 'var(--surface)',
+          border: '1px solid var(--accent)',
           borderRadius: 8,
           padding: '8px 12px',
           fontSize: 11,
-          color: '#f8fafc',
-          boxShadow: '0 8px 20px rgba(0,0,0,0.6)',
+          color: 'var(--text)',
+          boxShadow: '0 8px 20px oklch(0% 0 0 / .6)',
         }}
       >
-        <div style={{ fontWeight: 700, color: '#60a5fa', marginBottom: 4 }}>
+        <div style={{ fontWeight: 700, color: 'var(--accent)', marginBottom: 4 }}>
           📅 {item.full_date || label} (点击可锁定/查看当天全量数据)
         </div>
-        <div style={{ color: '#3b82f6', fontWeight: 600 }}>🖱️ 自然点击: {item.clicks}</div>
-        <div style={{ color: '#eab308', fontWeight: 600 }}>👁️ 展示量: {item.impressions}</div>
-        <div style={{ color: '#c084fc', fontWeight: 600 }}>
+        <div style={{ color: 'var(--accent)', fontWeight: 600 }}>🖱️ 自然点击: {item.clicks}</div>
+        <div style={{ color: 'var(--warn)', fontWeight: 600 }}>👁️ 展示量: {item.impressions}</div>
+        <div style={{ color: 'var(--rev)', fontWeight: 600 }}>
           📍 平均排名: {item.position !== null ? `P${item.position}` : '— (零展现)'}
         </div>
       </div>
@@ -199,7 +199,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
 
   if (loading && !data) {
     return (
-      <div style={{ background: '#0b0f19', borderRadius: 12, padding: 24, textAlign: 'center', color: '#9ca3af' }}>
+      <div style={{ background: 'var(--bg)', borderRadius: 12, padding: 24, textAlign: 'center', color: 'var(--dim)' }}>
         🔄 正在计算全屏 GSC 视图...
       </div>
     )
@@ -233,11 +233,11 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
     <div
       className="gsc-panel-container"
       style={{
-        background: '#090d16',
-        color: '#e5e7eb',
+        background: 'var(--bg)',
+        color: 'var(--text)',
         borderRadius: 14,
         padding: '12px 16px',
-        border: '1px solid #1e293b',
+        border: '1px solid var(--panel)',
         position: 'relative',
         height: '100%',
         maxHeight: '100%',
@@ -252,7 +252,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginBottom: 8, flexShrink: 0 }}>
         {/* Title & Site Switcher */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h2 style={{ fontSize: 17, fontWeight: 800, color: '#f8fafc', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <h2 style={{ fontSize: 17, fontWeight: 800, color: 'var(--text)', margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
             📊 SEO 数据大屏
           </h2>
 
@@ -260,9 +260,9 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
             value={selectedSiteUrl || data?.site_url || ''}
             onChange={handleSiteChange}
             style={{
-              background: '#1e293b',
-              color: '#f8fafc',
-              border: '1px solid #334155',
+              background: 'var(--panel)',
+              color: 'var(--text)',
+              border: '1px solid var(--border)',
               borderRadius: 6,
               padding: '3px 8px',
               fontSize: 13,
@@ -285,9 +285,9 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
           {isInsufficient && (
             <span
               style={{
-                background: '#7c2d12',
-                color: '#ff8c00',
-                border: '1px solid #c2410c',
+                background: 'var(--warn-soft)',
+                color: 'var(--warn)',
+                border: '1px solid var(--warn)',
                 padding: '2px 8px',
                 borderRadius: 10,
                 fontSize: 10,
@@ -301,7 +301,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
         </div>
 
         {/* Time Range Switcher Pills */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#1e293b', padding: 2, borderRadius: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, background: 'var(--panel)', padding: 2, borderRadius: 6 }}>
           {['24h', '7d', '30d', '3m', 'custom'].map((r) => {
             const labelMap: Record<string, string> = { '24h': '24小时', '7d': '7日', '30d': '30日', '3m': '3个月', 'custom': '📅 自定义' }
             const active = rangeType === r
@@ -318,8 +318,8 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   }
                 }}
                 style={{
-                  background: active ? '#3b82f6' : 'transparent',
-                  color: active ? '#fff' : '#94a3b8',
+                  background: active ? 'var(--accent)' : 'transparent',
+                  color: active ? 'var(--text)' : 'var(--dim)',
                   border: 0,
                   borderRadius: 4,
                   padding: '3px 10px',
@@ -327,7 +327,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   fontWeight: 600,
                   cursor: 'pointer',
                   transition: 'all 0.15s',
-                  boxShadow: active ? '0 2px 6px rgba(59,130,246,0.4)' : 'none',
+                  boxShadow: active ? '0 2px 6px var(--accent-line)' : 'none',
                 }}
               >
                 {labelMap[r]}
@@ -338,22 +338,22 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
 
         {/* 自定义日期区间 */}
         {showCustom && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#1e293b', border: '1px solid #334155', borderRadius: 6, padding: '4px 8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'var(--panel)', border: '1px solid var(--border)', borderRadius: 6, padding: '4px 8px' }}>
             <input
               type="date"
               value={customStart}
               max={customEnd || undefined}
               onChange={(e) => setCustomStart(e.target.value)}
-              style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#e2e8f0', fontSize: 11, padding: '2px 6px', colorScheme: 'dark' }}
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 11, padding: '2px 6px', colorScheme: 'dark' }}
             />
-            <span style={{ color: '#64748b', fontSize: 11 }}>~</span>
+            <span style={{ color: 'var(--faint)', fontSize: 11 }}>~</span>
             <input
               type="date"
               value={customEnd}
               min={customStart || undefined}
               max={new Date().toISOString().slice(0, 10)}
               onChange={(e) => setCustomEnd(e.target.value)}
-              style={{ background: '#0f172a', border: '1px solid #334155', borderRadius: 4, color: '#e2e8f0', fontSize: 11, padding: '2px 6px', colorScheme: 'dark' }}
+              style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 4, color: 'var(--text)', fontSize: 11, padding: '2px 6px', colorScheme: 'dark' }}
             />
             <button
               disabled={!customStart || !customEnd}
@@ -362,8 +362,8 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                 loadData(selectedSiteUrl, 'custom', null)
               }}
               style={{
-                background: customStart && customEnd ? '#3b82f6' : '#334155',
-                color: customStart && customEnd ? '#fff' : '#64748b',
+                background: customStart && customEnd ? 'var(--accent)' : 'var(--border)',
+                color: customStart && customEnd ? 'var(--text)' : 'var(--faint)',
                 border: 0, borderRadius: 4, padding: '3px 10px', fontSize: 11, fontWeight: 600,
                 cursor: customStart && customEnd ? 'pointer' : 'not-allowed',
               }}
@@ -371,7 +371,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
               查询
             </button>
             {data?.custom_range_error && (
-              <span style={{ color: '#f87171', fontSize: 10 }}>⚠️ {data.custom_range_error}</span>
+              <span style={{ color: 'var(--bad)', fontSize: 10 }}>⚠️ {data.custom_range_error}</span>
             )}
           </div>
         )}
@@ -380,11 +380,11 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11 }}>
           <span
             style={{
-              background: data?.is_real_gsc ? '#064e3b' : '#78350f',
-              color: data?.is_real_gsc ? '#34d399' : '#fbbf24',
+              background: data?.is_real_gsc ? 'var(--ok-soft)' : 'var(--warn-soft)',
+              color: data?.is_real_gsc ? 'var(--ok)' : 'var(--warn)',
               padding: '2px 8px',
               borderRadius: 10,
-              border: `1px solid ${data?.is_real_gsc ? '#059669' : '#d97706'}`,
+              border: `1px solid ${data?.is_real_gsc ? 'var(--ok)' : 'var(--warn)'}`,
               fontWeight: 600,
               cursor: 'help',
             }}
@@ -397,7 +397,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
             {data?.is_real_gsc ? '🟢 REAL_GSC_API 官方实时' : '🟡 GSC 待授权预览'}
           </span>
 
-          <span style={{ color: selectedSingleDate ? '#60a5fa' : '#94a3b8', fontWeight: selectedSingleDate ? 700 : 400 }}>
+          <span style={{ color: selectedSingleDate ? 'var(--accent)' : 'var(--dim)', fontWeight: selectedSingleDate ? 700 : 400 }}>
             {data?.date_range || '2026-07-22 ~ 2026-07-29'}
           </span>
 
@@ -406,9 +406,9 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
             disabled={syncing || loading}
             title={lastSync ? `上次同步 ${lastSync.toLocaleTimeString('zh-CN', { hour12: false })} · 每 30 分钟自动同步` : '每 30 分钟自动同步'}
             style={{
-              background: syncing ? '#1e3a8a' : '#1e293b',
-              color: syncing ? '#93c5fd' : '#cbd5e1',
-              border: `1px solid ${syncing ? '#3b82f6' : '#334155'}`,
+              background: syncing ? 'var(--accent-soft)' : 'var(--panel)',
+              color: syncing ? 'var(--accent)' : 'var(--text)',
+              border: `1px solid ${syncing ? 'var(--accent)' : 'var(--border)'}`,
               borderRadius: 4, padding: '2px 8px', fontSize: 11,
               cursor: syncing || loading ? 'wait' : 'pointer',
               display: 'inline-flex', alignItems: 'center', gap: 4,
@@ -421,71 +421,71 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
             {syncing ? '同步中' : '同步'}
           </button>
           {syncing && (
-            <span style={{ color: '#60a5fa', fontSize: 10 }}>正在拉取 GSC…</span>
+            <span style={{ color: 'var(--accent)', fontSize: 10 }}>正在拉取 GSC…</span>
           )}
           {!syncing && lastSync && (
-            <span style={{ color: '#475569', fontSize: 10 }}>
+            <span style={{ color: 'var(--border)', fontSize: 10 }}>
               上次 {lastSync.toLocaleTimeString('zh-CN', { hour12: false })}
             </span>
           )}
-          <span style={{ color: '#64748b' }}>{nowStr}</span>
+          <span style={{ color: 'var(--faint)' }}>{nowStr}</span>
         </div>
       </div>
 
       {/* Top 4 Metrics Summary Cards */}
       <div className="gsc-kpi-grid" style={{ marginBottom: 8, flexShrink: 0 }}>
         {/* Card 1: 自然点击 */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #3b82f6' : '1px solid #1f2937', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
-            <span>🖱️</span> 自然点击 {selectedSingleDate && <span style={{ color: '#60a5fa', fontWeight: 700 }}>(当日)</span>}
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--accent)' : '1px solid var(--panel)', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--dim)', marginBottom: 2 }}>
+            <span>🖱️</span> 自然点击 {selectedSingleDate && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>(当日)</span>}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', lineHeight: 1 }}>{summary.clicks.value}</div>
-          <div style={{ fontSize: 10, color: summary.clicks.is_down ? '#f87171' : '#34d399', marginTop: 2, fontWeight: 600 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{summary.clicks.value}</div>
+          <div style={{ fontSize: 10, color: summary.clicks.is_down ? 'var(--bad)' : 'var(--ok)', marginTop: 2, fontWeight: 600 }}>
             {selectedSingleDate ? `日期: ${selectedSingleDate}` : `${summary.clicks.change} vs 上${rangeType === '7d' ? '7 日' : '周期'}`}
           </div>
         </div>
 
         {/* Card 2: 展示量 */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #eab308' : '1px solid #1f2937', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
-            <span>👁️</span> 展示量 {selectedSingleDate && <span style={{ color: '#eab308', fontWeight: 700 }}>(当日)</span>}
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--warn)' : '1px solid var(--panel)', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--dim)', marginBottom: 2 }}>
+            <span>👁️</span> 展示量 {selectedSingleDate && <span style={{ color: 'var(--warn)', fontWeight: 700 }}>(当日)</span>}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', lineHeight: 1 }}>{summary.impressions.value}</div>
-          <div style={{ fontSize: 10, color: summary.impressions.is_down ? '#f87171' : '#34d399', marginTop: 2, fontWeight: 600 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{summary.impressions.value}</div>
+          <div style={{ fontSize: 10, color: summary.impressions.is_down ? 'var(--bad)' : 'var(--ok)', marginTop: 2, fontWeight: 600 }}>
             {selectedSingleDate ? `日期: ${selectedSingleDate}` : `${summary.impressions.change} vs 上${rangeType === '7d' ? '7 日' : '周期'}`}
           </div>
         </div>
 
         {/* Card 3: 点击率 CTR */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #3b82f6' : '1px solid #1f2937', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
-            <span>🎯</span> 点击率 CTR {selectedSingleDate && <span style={{ color: '#60a5fa', fontWeight: 700 }}>(当日)</span>}
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--accent)' : '1px solid var(--panel)', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--dim)', marginBottom: 2 }}>
+            <span>🎯</span> 点击率 CTR {selectedSingleDate && <span style={{ color: 'var(--accent)', fontWeight: 700 }}>(当日)</span>}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', lineHeight: 1 }}>{summary.ctr.value}</div>
-          <div style={{ fontSize: 10, color: summary.ctr.is_down ? '#f87171' : '#34d399', marginTop: 2, fontWeight: 600 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>{summary.ctr.value}</div>
+          <div style={{ fontSize: 10, color: summary.ctr.is_down ? 'var(--bad)' : 'var(--ok)', marginTop: 2, fontWeight: 600 }}>
             {selectedSingleDate ? `日期: ${selectedSingleDate}` : `${summary.ctr.change} vs 上${rangeType === '7d' ? '7 日' : '周期'}`}
           </div>
         </div>
 
         {/* Card 4: 平均排名 */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #c084fc' : '1px solid #1f2937', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#94a3b8', marginBottom: 2 }}>
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--rev)' : '1px solid var(--panel)', borderRadius: 8, padding: '8px 12px', position: 'relative', overflow: 'hidden', transition: 'all 0.2s' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--dim)', marginBottom: 2 }}>
             <span>📍</span> 平均排名 {selectedSingleDate ? '(当日)' : '(加权)'}
           </div>
-          <div style={{ fontSize: 20, fontWeight: 800, color: '#f8fafc', lineHeight: 1 }}>
+          <div style={{ fontSize: 20, fontWeight: 800, color: 'var(--text)', lineHeight: 1 }}>
             {summary.avg_position.value ?? '—'}
           </div>
-          <div style={{ fontSize: 10, color: summary.avg_position.is_up ? '#34d399' : '#f87171', marginTop: 2, fontWeight: 600 }}>
+          <div style={{ fontSize: 10, color: summary.avg_position.is_up ? 'var(--ok)' : 'var(--bad)', marginTop: 2, fontWeight: 600 }}>
             {selectedSingleDate ? `日期: ${selectedSingleDate}` : `${summary.avg_position.change} vs 上${rangeType === '7d' ? '7 日' : '周期'}`}
           </div>
         </div>
       </div>
 
       {/* Middle Section: Recharts Trend Line Chart (2.5x height: 360px) */}
-      <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #3b82f6' : '1px solid #1f2937', borderRadius: 10, padding: '10px 14px', marginBottom: 8, height: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'all 0.2s' }}>
+      <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--accent)' : '1px solid var(--panel)', borderRadius: 10, padding: '10px 14px', marginBottom: 8, height: '360px', flexShrink: 0, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', transition: 'all 0.2s' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 13, fontWeight: 700, color: '#f3f4f6' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
               📈 点击 / 展示趋势 {rangeType === 'custom' ? (data?.date_range || '自定义区间') : rangeType === '24h' ? '24 小时' : rangeType === '7d' ? '7 日' : rangeType === '30d' ? '30 日' : '3 个月'}
             </span>
 
@@ -498,9 +498,9 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                 loadData(selectedSiteUrl, rangeType, val)
               }}
               style={{
-                background: selectedSingleDate ? '#1e3a8a' : '#1e293b',
-                color: selectedSingleDate ? '#60a5fa' : '#cbd5e1',
-                border: `1px solid ${selectedSingleDate ? '#3b82f6' : '#334155'}`,
+                background: selectedSingleDate ? 'var(--accent-soft)' : 'var(--panel)',
+                color: selectedSingleDate ? 'var(--accent)' : 'var(--text)',
+                border: `1px solid ${selectedSingleDate ? 'var(--accent)' : 'var(--border)'}`,
                 borderRadius: 6,
                 padding: '2px 8px',
                 fontSize: 11,
@@ -525,8 +525,8 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   loadData(selectedSiteUrl, rangeType, null)
                 }}
                 style={{
-                  background: '#3b82f6',
-                  color: '#ffffff',
+                  background: 'var(--accent)',
+                  color: 'var(--text)',
                   border: 0,
                   borderRadius: 4,
                   padding: '2px 8px',
@@ -536,20 +536,20 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   display: 'flex',
                   alignItems: 'center',
                   gap: 4,
-                  boxShadow: '0 2px 6px rgba(59,130,246,0.4)',
+                  boxShadow: '0 2px 6px var(--accent-line)',
                 }}
               >
                 ✕ 解锁全周期
               </button>
             ) : (
-              <span style={{ fontSize: 10, color: '#64748b', fontWeight: 400 }}>
+              <span style={{ fontSize: 10, color: 'var(--faint)', fontWeight: 400 }}>
                 (💡 点击图中任意点或下拉框选单日，全屏各板块锁定显示该日数据)
               </span>
             )}
           </div>
 
-          <div style={{ fontSize: 10, color: '#94a3b8' }}>
-            <span style={{ background: '#1e293b', color: '#cbd5e1', padding: '2px 8px', borderRadius: 4 }}>
+          <div style={{ fontSize: 10, color: 'var(--dim)' }}>
+            <span style={{ background: 'var(--panel)', color: 'var(--text)', padding: '2px 8px', borderRadius: 4 }}>
               {series.length} 天中 {zeroDaysCount} 天零展现 (零展现日断开)
             </span>
           </div>
@@ -566,29 +566,29 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
             >
               <defs>
                 <linearGradient id="colorImpr" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#eab308" stopOpacity={0.35} />
-                  <stop offset="95%" stopColor="#eab308" stopOpacity={0.0} />
+                  <stop offset="5%" stopColor="var(--warn)" stopOpacity={0.35} />
+                  <stop offset="95%" stopColor="var(--warn)" stopOpacity={0.0} />
                 </linearGradient>
               </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-              <XAxis dataKey="date" stroke="#94a3b8" fontSize={10} interval="preserveStartEnd" />
-              <YAxis yAxisId="left" stroke="#94a3b8" fontSize={10} />
-              <YAxis yAxisId="right" orientation="right" reversed domain={[1, 100]} stroke="#c084fc" fontSize={10} />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--panel)" />
+              <XAxis dataKey="date" stroke="var(--dim)" fontSize={10} interval="preserveStartEnd" />
+              <YAxis yAxisId="left" stroke="var(--dim)" fontSize={10} />
+              <YAxis yAxisId="right" orientation="right" reversed domain={[1, 100]} stroke="var(--rev)" fontSize={10} />
               <Tooltip content={<CustomChartTooltip />} />
               <Legend wrapperStyle={{ fontSize: 10, paddingTop: 4 }} />
-              <Area yAxisId="left" type="monotone" dataKey="impressions" name="展示量" stroke="#eab308" fill="url(#colorImpr)" strokeWidth={2} />
-              <Line yAxisId="left" type="monotone" dataKey="clicks" name="自然点击" stroke="#3b82f6" strokeWidth={2.5} dot={{ r: 3.5 }} activeDot={{ r: 7 }} />
-              <Line yAxisId="right" type="monotone" dataKey="position" name="平均排名 (零展现日断开)" stroke="#c084fc" strokeWidth={2} strokeDasharray="4 4" connectNulls={false} dot={{ r: 3.5 }} />
+              <Area yAxisId="left" type="monotone" dataKey="impressions" name="展示量" stroke="var(--warn)" fill="url(#colorImpr)" strokeWidth={2} />
+              <Line yAxisId="left" type="monotone" dataKey="clicks" name="自然点击" stroke="var(--accent)" strokeWidth={2.5} dot={{ r: 3.5 }} activeDot={{ r: 7 }} />
+              <Line yAxisId="right" type="monotone" dataKey="position" name="平均排名 (零展现日断开)" stroke="var(--rev)" strokeWidth={2} strokeDasharray="4 4" connectNulls={false} dot={{ r: 3.5 }} />
               
               {/* Highlight Blue Vertical Dashed Line for Clicked/Selected Date */}
               {shortSelectedDateKey && (
                 <ReferenceLine
                   yAxisId="left"
                   x={shortSelectedDateKey}
-                  stroke="#3b82f6"
+                  stroke="var(--accent)"
                   strokeWidth={2}
                   strokeDasharray="4 4"
-                  label={{ value: `📍 锁定 ${shortSelectedDateKey}`, fill: '#60a5fa', fontSize: 11, position: 'top', fontWeight: 800 }}
+                  label={{ value: `📍 锁定 ${shortSelectedDateKey}`, fill: 'var(--accent)', fontSize: 11, position: 'top', fontWeight: 800 }}
                 />
               )}
             </ComposedChart>
@@ -599,17 +599,17 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
       {/* Bottom 3-Column Detailed Metrics Section */}
       <div className="gsc-bottom-grid" style={{ flex: 1, minHeight: 120, overflow: isMobile ? 'visible' : 'hidden' }}>
         {/* Col 1: 📌 关键词 */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #334155' : '1px solid #1f2937', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--border)' : '1px solid var(--panel)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>📌</span> 关键词 {selectedSingleDate && <span style={{ color: '#60a5fa', fontSize: 10 }}>({selectedSingleDate})</span>}
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>📌</span> 关键词 {selectedSingleDate && <span style={{ color: 'var(--accent)', fontSize: 10 }}>({selectedSingleDate})</span>}
             </div>
             <button
               onClick={() => setModalType('keywords')}
               style={{
-                background: '#1e293b',
-                color: '#60a5fa',
-                border: '1px solid #334155',
+                background: 'var(--panel)',
+                color: 'var(--accent)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
                 padding: '1px 6px',
                 fontSize: 10,
@@ -632,8 +632,8 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                 key={f.id}
                 onClick={() => setKwFilter(f.id as any)}
                 style={{
-                  background: kwFilter === f.id ? '#1e293b' : 'transparent',
-                  color: kwFilter === f.id ? '#60a5fa' : '#64748b',
+                  background: kwFilter === f.id ? 'var(--panel)' : 'transparent',
+                  color: kwFilter === f.id ? 'var(--accent)' : 'var(--faint)',
                   border: 0,
                   borderRadius: 4,
                   padding: '2px 6px',
@@ -663,15 +663,15 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                 return true
               })
             ).map((kw, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid #1f2937' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid var(--panel)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 14, flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ color: '#e2e8f0', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kw.keyword}</span>
-                  {kw.is_new && <span style={{ background: '#1e3a8a', color: '#60a5fa', padding: '1px 4px', borderRadius: 3, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>NEW</span>}
+                  <span style={{ color: 'var(--faint)', fontSize: 10, minWidth: 14, flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kw.keyword}</span>
+                  {kw.is_new && <span style={{ background: 'var(--accent-soft)', color: 'var(--accent)', padding: '1px 4px', borderRadius: 3, fontSize: 9, fontWeight: 700, flexShrink: 0 }}>NEW</span>}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
-                  <span style={{ color: '#64748b', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {kw.ctr}</span>
-                  <span style={{ background: '#1e293b', color: '#94a3b8', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600, width: 42, textAlign: 'center', boxSizing: 'border-box' }}>
+                  <span style={{ color: 'var(--faint)', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {kw.ctr}</span>
+                  <span style={{ background: 'var(--panel)', color: 'var(--dim)', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600, width: 42, textAlign: 'center', boxSizing: 'border-box' }}>
                     P{kw.position}
                   </span>
                 </div>
@@ -681,17 +681,17 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
         </div>
 
         {/* Col 2: 📄 落地页面 */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #334155' : '1px solid #1f2937', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--border)' : '1px solid var(--panel)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>📄</span> 落地页面 {selectedSingleDate && <span style={{ color: '#60a5fa', fontSize: 10 }}>({selectedSingleDate})</span>}
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>📄</span> 落地页面 {selectedSingleDate && <span style={{ color: 'var(--accent)', fontSize: 10 }}>({selectedSingleDate})</span>}
             </div>
             <button
               onClick={() => setModalType('pages')}
               style={{
-                background: '#1e293b',
-                color: '#60a5fa',
-                border: '1px solid #334155',
+                background: 'var(--panel)',
+                color: 'var(--accent)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
                 padding: '1px 6px',
                 fontSize: 10,
@@ -705,15 +705,15 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1 }}>
             {(data?.landing_pages || []).map((page, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid #1f2937' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid var(--panel)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ color: '#64748b', fontSize: 10, minWidth: 14, flexShrink: 0 }}>{i + 1}</span>
-                  <span style={{ color: '#60a5fa', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace' }}>{page.path}</span>
+                  <span style={{ color: 'var(--faint)', fontSize: 10, minWidth: 14, flexShrink: 0 }}>{i + 1}</span>
+                  <span style={{ color: 'var(--accent)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', fontFamily: 'monospace' }}>{page.path}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0, marginLeft: 8 }}>
-                  <span style={{ color: page.delta.includes('+') ? '#34d399' : '#94a3b8', fontSize: 10, fontWeight: 600, width: 34, textAlign: 'right' }}>{page.delta}</span>
-                  <span style={{ color: '#64748b', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {page.ctr}</span>
-                  <span style={{ background: '#1e293b', color: '#94a3b8', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600, width: 42, textAlign: 'center', boxSizing: 'border-box' }}>
+                  <span style={{ color: page.delta.includes('+') ? 'var(--ok)' : 'var(--dim)', fontSize: 10, fontWeight: 600, width: 34, textAlign: 'right' }}>{page.delta}</span>
+                  <span style={{ color: 'var(--faint)', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {page.ctr}</span>
+                  <span style={{ background: 'var(--panel)', color: 'var(--dim)', padding: '1px 4px', borderRadius: 3, fontSize: 10, fontWeight: 600, width: 42, textAlign: 'center', boxSizing: 'border-box' }}>
                     P{page.position}
                   </span>
                 </div>
@@ -723,17 +723,17 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
         </div>
 
         {/* Col 3: 🌍 点击国家 */}
-        <div style={{ background: '#111827', border: selectedSingleDate ? '1px solid #334155' : '1px solid #1f2937', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: selectedSingleDate ? '1px solid var(--border)' : '1px solid var(--panel)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, flexShrink: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#f3f4f6', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span>🌍</span> 点击国家 {selectedSingleDate && <span style={{ color: '#60a5fa', fontSize: 10 }}>({selectedSingleDate})</span>}
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span>🌍</span> 点击国家 {selectedSingleDate && <span style={{ color: 'var(--accent)', fontSize: 10 }}>({selectedSingleDate})</span>}
             </div>
             <button
               onClick={() => setModalType('countries')}
               style={{
-                background: '#1e293b',
-                color: '#60a5fa',
-                border: '1px solid #334155',
+                background: 'var(--panel)',
+                color: 'var(--accent)',
+                border: '1px solid var(--border)',
                 borderRadius: 4,
                 padding: '1px 6px',
                 fontSize: 10,
@@ -747,19 +747,19 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto', flex: 1 }}>
             {(data?.countries || []).map((country, i) => (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid #1f2937' }}>
+              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, paddingBottom: 4, borderBottom: '1px solid var(--panel)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0, overflow: 'hidden' }}>
-                  <span style={{ background: '#1e293b', color: '#38bdf8', padding: '1px 5px', borderRadius: 3, fontSize: 9, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
+                  <span style={{ background: 'var(--panel)', color: 'var(--accent2)', padding: '1px 5px', borderRadius: 3, fontSize: 9, fontWeight: 700, minWidth: 28, textAlign: 'center' }}>
                     {country.code}
                   </span>
-                  <span style={{ color: '#e2e8f0' }}>{country.name}</span>
+                  <span style={{ color: 'var(--text)' }}>{country.name}</span>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0, marginLeft: 8, justifyContent: 'flex-end' }}>
-                  <div style={{ width: 35, background: '#1f2937', height: 4, borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
-                    <div style={{ width: `${Math.min(country.clicks * 20, 100)}%`, background: '#eab308', height: '100%' }} />
+                  <div style={{ width: 35, background: 'var(--panel)', height: 4, borderRadius: 2, overflow: 'hidden', flexShrink: 0 }}>
+                    <div style={{ width: `${Math.min(country.clicks * 20, 100)}%`, background: 'var(--warn)', height: '100%' }} />
                   </div>
-                  <span style={{ color: '#f8fafc', fontWeight: 700, width: 18, textAlign: 'right' }}>{country.clicks}</span>
-                  <span style={{ color: '#64748b', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {country.ctr}</span>
+                  <span style={{ color: 'var(--text)', fontWeight: 700, width: 18, textAlign: 'right' }}>{country.clicks}</span>
+                  <span style={{ color: 'var(--faint)', fontSize: 10, width: 62, textAlign: 'right' }}>CTR {country.ctr}</span>
                 </div>
               </div>
             ))}
@@ -768,30 +768,30 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
       </div>
 
       {/* Footer Agent Task Status Bar */}
-      <div style={{ marginTop: 6, paddingTop: 4, borderTop: '1px solid #1e293b', display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#64748b', flexShrink: 0 }}>
+      <div style={{ marginTop: 6, paddingTop: 4, borderTop: '1px solid var(--panel)', display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--faint)', flexShrink: 0 }}>
         <div>⚙️ {data?.footer_status?.tasks_summary || 'SEO 运营 2存活 · 2执行 · 0等待 · 0阻塞'}</div>
         <div>数据源: {data?.footer_status?.datasource || 'Google Search Console 真实采样引擎'} · {nowStr}</div>
       </div>
 
       {/* Full Detailed Modal Popup */}
       {modalType && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div style={{ background: '#111827', border: '1px solid #374151', borderRadius: 14, width: '100%', maxWidth: 840, maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px rgba(0,0,0,0.8)' }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'oklch(0% 0 0 / .8)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 14, width: '100%', maxWidth: 840, maxHeight: '85vh', overflow: 'hidden', display: 'flex', flexDirection: 'column', boxShadow: '0 20px 40px oklch(0% 0 0 / .8)' }}>
             {/* Modal Header */}
-            <div style={{ padding: '14px 20px', borderBottom: '1px solid #1f2937', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--panel)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <h3 style={{ fontSize: 16, fontWeight: 700, color: '#f3f4f6', margin: 0 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: 0 }}>
                   {modalType === 'keywords' && '🔑 关键词全量'}
                   {modalType === 'pages' && '📄 落地页面全量'}
                   {modalType === 'countries' && '🌍 点击国家全量'}
                 </h3>
-                <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: 'var(--dim)', marginTop: 2 }}>
                   {rangeType} · {data?.date_range}
                 </div>
               </div>
               <button
                 onClick={() => setModalType(null)}
-                style={{ background: 'transparent', color: '#9ca3af', border: 0, fontSize: 18, cursor: 'pointer' }}
+                style={{ background: 'transparent', color: 'var(--dim)', border: 0, fontSize: 18, cursor: 'pointer' }}
               >
                 ✕
               </button>
@@ -802,7 +802,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
               {modalType === 'keywords' && (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #374151', color: '#9ca3af' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--dim)' }}>
                       <th style={{ padding: '8px 10px' }}>关键词</th>
                       <th style={{ padding: '8px 10px' }}>点击</th>
                       <th style={{ padding: '8px 10px' }}>Δ点击</th>
@@ -814,16 +814,16 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   </thead>
                   <tbody>
                     {(data?.top_keywords || []).map((kw, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1f2937', color: '#e5e7eb' }}>
+                      <tr key={i} style={{ borderBottom: '1px solid var(--panel)', color: 'var(--text)' }}>
                         <td style={{ padding: '10px', fontWeight: 600 }}>
-                          {kw.keyword} {kw.is_new && <span style={{ background: '#1e3a8a', color: '#60a5fa', padding: '1px 5px', borderRadius: 3, fontSize: 9, marginLeft: 4 }}>NEW</span>}
+                          {kw.keyword} {kw.is_new && <span style={{ background: 'var(--accent-soft)', color: 'var(--accent)', padding: '1px 5px', borderRadius: 3, fontSize: 9, marginLeft: 4 }}>NEW</span>}
                         </td>
                         <td style={{ padding: '10px' }}>{kw.clicks}</td>
-                        <td style={{ padding: '10px', color: '#34d399' }}>{kw.delta_clicks}</td>
+                        <td style={{ padding: '10px', color: 'var(--ok)' }}>{kw.delta_clicks}</td>
                         <td style={{ padding: '10px' }}>{kw.impressions}</td>
                         <td style={{ padding: '10px' }}>{kw.ctr}</td>
                         <td style={{ padding: '10px', fontWeight: 700 }}>{kw.position}</td>
-                        <td style={{ padding: '10px', color: '#f87171' }}>{kw.delta_position}</td>
+                        <td style={{ padding: '10px', color: 'var(--bad)' }}>{kw.delta_position}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -833,7 +833,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
               {modalType === 'pages' && (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #374151', color: '#9ca3af' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--dim)' }}>
                       <th style={{ padding: '8px 10px' }}>页面路径</th>
                       <th style={{ padding: '8px 10px' }}>点击</th>
                       <th style={{ padding: '8px 10px' }}>变动</th>
@@ -844,10 +844,10 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   </thead>
                   <tbody>
                     {(data?.landing_pages || []).map((p, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1f2937', color: '#e5e7eb' }}>
-                        <td style={{ padding: '10px', color: '#60a5fa', fontFamily: 'monospace' }}>{p.path}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid var(--panel)', color: 'var(--text)' }}>
+                        <td style={{ padding: '10px', color: 'var(--accent)', fontFamily: 'monospace' }}>{p.path}</td>
                         <td style={{ padding: '10px' }}>{p.clicks}</td>
-                        <td style={{ padding: '10px', color: p.delta.includes('+') ? '#34d399' : '#9ca3af' }}>{p.delta}</td>
+                        <td style={{ padding: '10px', color: p.delta.includes('+') ? 'var(--ok)' : 'var(--dim)' }}>{p.delta}</td>
                         <td style={{ padding: '10px' }}>{p.impressions}</td>
                         <td style={{ padding: '10px' }}>{p.ctr}</td>
                         <td style={{ padding: '10px', fontWeight: 700 }}>{p.position}</td>
@@ -860,7 +860,7 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
               {modalType === 'countries' && (
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
                   <thead>
-                    <tr style={{ borderBottom: '1px solid #374151', color: '#9ca3af' }}>
+                    <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--dim)' }}>
                       <th style={{ padding: '8px 10px' }}>代码</th>
                       <th style={{ padding: '8px 10px' }}>国家 / 地区</th>
                       <th style={{ padding: '8px 10px' }}>点击数</th>
@@ -869,8 +869,8 @@ export const GscOverviewPanel: React.FC<GscOverviewPanelProps> = ({ monitoredSit
                   </thead>
                   <tbody>
                     {(data?.countries || []).map((c, i) => (
-                      <tr key={i} style={{ borderBottom: '1px solid #1f2937', color: '#e5e7eb' }}>
-                        <td style={{ padding: '10px', fontWeight: 700, color: '#38bdf8' }}>{c.code}</td>
+                      <tr key={i} style={{ borderBottom: '1px solid var(--panel)', color: 'var(--text)' }}>
+                        <td style={{ padding: '10px', fontWeight: 700, color: 'var(--accent2)' }}>{c.code}</td>
                         <td style={{ padding: '10px' }}>{c.name}</td>
                         <td style={{ padding: '10px', fontWeight: 700 }}>{c.clicks}</td>
                         <td style={{ padding: '10px' }}>{c.ctr}</td>

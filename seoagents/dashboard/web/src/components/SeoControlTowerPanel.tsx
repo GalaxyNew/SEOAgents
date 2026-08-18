@@ -145,8 +145,8 @@ type TimelineItem = {
 }
 
 const C = {
-  bg: '#06101e', panel: '#0d192b', panel2: '#101e33', line: '#20324c', text: '#eaf2ff', muted: '#8296b0',
-  blue: '#4b8dff', cyan: '#22d3ee', green: '#2dd4a6', yellow: '#f5c451', red: '#ff6577', purple: '#a78bfa',
+  bg: 'var(--bg)', panel: 'var(--surface)', panel2: 'var(--surface)', line: 'var(--panel2)', text: 'var(--text)', muted: 'var(--dim)',
+  blue: 'var(--accent)', cyan: 'var(--accent2)', green: 'var(--ok)', yellow: 'var(--warn)', red: 'var(--bad)', purple: 'var(--rev)',
 }
 
 const COUNTRY_POINTS: Record<string, { x: number; y: number; label: string }> = {
@@ -180,7 +180,7 @@ function Badge({ status }: { status: DataStatus }) {
 }
 
 function Panel({ title, subtitle, status, children, id }: { title: string; subtitle?: string; status?: DataStatus; children: React.ReactNode; id?: string }) {
-  return <section id={id} style={{ background: `linear-gradient(155deg,${C.panel2},${C.panel})`, border: `1px solid ${C.line}`, borderRadius: 13, padding: 14, minWidth: 0, boxShadow: '0 12px 28px #0004' }}>
+  return <section id={id} style={{ background: `linear-gradient(155deg,${C.panel2},${C.panel})`, border: `1px solid ${C.line}`, borderRadius: 13, padding: 14, minWidth: 0, boxShadow: '0 12px 28px var(--bg)' }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 10 }}>
       <div><div style={{ fontSize: 14, fontWeight: 850 }}>{title}</div>{subtitle && <div style={{ color: C.muted, fontSize: 10, marginTop: 2 }}>{subtitle}</div>}</div>
       {status && <Badge status={status} />}
@@ -218,7 +218,7 @@ function SourceNote({ source, window, limitations }: { source: string; window: s
 function TrendTooltip({ active, payload }: any) {
   if (!active || !payload?.length) return null
   const row = payload[0].payload
-  return <div style={{ background: '#071120f2', border: `1px solid ${C.blue}`, borderRadius: 8, padding: '8px 10px', color: C.text, fontSize: 10 }}>
+  return <div style={{ background: 'var(--bg)', border: `1px solid ${C.blue}`, borderRadius: 8, padding: '8px 10px', color: C.text, fontSize: 10 }}>
     <b style={{ color: C.blue }}>{row.date}</b><br />
     自然点击 {formatNumber(row.clicks)}<br />展示 {formatNumber(row.impressions)}<br />加权排名 {row.position == null ? '—（零展现）' : `P${row.position.toFixed(1)}`}
   </div>
@@ -226,14 +226,14 @@ function TrendTooltip({ active, payload }: any) {
 
 function GscTrend({ data }: { data: Overview['gsc'] }) {
   const [lockedDate, setLockedDate] = useState<string>('')
-  const locked = data.trend.find(row => row.date === lockedDate)
+  const locked = (data.trend || []).find(row => row.date === lockedDate)
   return <Panel title="GSC 点击 / 展示 / 加权排名趋势" subtitle="双轴 · 零展现排名断开 · 点击图中日期可锁定/解锁" status={data.data_status}>
     <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', flexWrap: 'wrap', minHeight: 25 }}>
-      <select value={lockedDate} onChange={event => setLockedDate(event.target.value)} style={{ background: '#0a1627', color: C.text, border: `1px solid ${C.line}`, borderRadius: 6, padding: '4px 7px', fontSize: 10 }}>
+      <select value={lockedDate} onChange={event => setLockedDate(event.target.value)} style={{ background: 'var(--surface)', color: C.text, border: `1px solid ${C.line}`, borderRadius: 6, padding: '4px 7px', fontSize: 10 }}>
         <option value="">全周期 · 点击或选择锁定单日</option>
-        {data.trend.map(row => <option key={row.date} value={row.date}>{row.date} · {row.clicks} 点击 / {row.impressions} 展示</option>)}
+        {(data.trend || []).map(row => <option key={row.date} value={row.date}>{row.date} · {row.clicks} 点击 / {row.impressions} 展示</option>)}
       </select>
-      {locked && <button onClick={() => setLockedDate('')} style={{ background: C.blue, color: '#fff', border: 0, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 10 }}>✕ 解锁 {locked.date}</button>}
+      {locked && <button onClick={() => setLockedDate('')} style={{ background: C.blue, color: 'var(--text)', border: 0, borderRadius: 6, padding: '4px 8px', cursor: 'pointer', fontSize: 10 }}>✕ 解锁 {locked.date}</button>}
     </div>
     <div style={{ width: '100%', height: 310, marginTop: 4 }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -254,22 +254,22 @@ function GscTrend({ data }: { data: Overview['gsc'] }) {
         </ComposedChart>
       </ResponsiveContainer>
     </div>
-    {locked && <div style={{ background: '#0a1627', border: `1px solid ${C.blue}55`, borderRadius: 8, padding: 8, fontSize: 10 }}>锁定 {locked.date}：<b>{formatNumber(locked.clicks)}</b> 点击 · <b>{formatNumber(locked.impressions)}</b> 展示 · <b>{locked.position == null ? '排名无定义' : `P${locked.position.toFixed(1)}`}</b></div>}
+    {locked && <div style={{ background: 'var(--surface)', border: `1px solid ${C.blue}55`, borderRadius: 8, padding: 8, fontSize: 10 }}>锁定 {locked.date}：<b>{formatNumber(locked.clicks)}</b> 点击 · <b>{formatNumber(locked.impressions)}</b> 展示 · <b>{locked.position == null ? '排名无定义' : `P${locked.position.toFixed(1)}`}</b></div>}
     <SourceNote source={data.source} window={data.data_window} limitations={data.known_limitations} />
   </Panel>
 }
 
 function Ga4WorldMap({ data }: { data: Overview['ga4'] }) {
-  const maxSessions = Math.max(1, ...data.countries.map(row => row.sessions || 0))
+  const maxSessions = Math.max(1, ...(data.countries || []).map(row => row.sessions || 0))
   const [selected, setSelected] = useState<string>(data.countries[0]?.country || '')
-  const selectedRow = data.countries.find(row => row.country === selected)
+  const selectedRow = (data.countries || []).find(row => row.country === selected)
   return <Panel title="GA4 世界来访地图" subtitle="国家标签 = GA4 全站 sessions / users，不是 GSC 国家点击" status={data.data_status}>
-    <div style={{ position: 'relative', minHeight: 305, background: 'radial-gradient(circle at center,#102a47,#07121f 70%)', border: `1px solid ${C.line}`, borderRadius: 10, overflow: 'hidden' }}>
+    <div style={{ position: 'relative', minHeight: 305, background: 'radial-gradient(circle at center,var(--panel),var(--bg) 70%)', border: `1px solid ${C.line}`, borderRadius: 10, overflow: 'hidden' }}>
       <svg viewBox="0 0 760 320" role="img" aria-label="GA4 visitor world map" style={{ width: '100%', height: 'auto', display: 'block' }}>
-        <defs><pattern id="towerGrid" width="38" height="32" patternUnits="userSpaceOnUse"><path d="M38 0H0V32" fill="none" stroke="#27415e" strokeWidth=".5" opacity=".45" /></pattern></defs>
+        <defs><pattern id="towerGrid" width="38" height="32" patternUnits="userSpaceOnUse"><path d="M38 0H0V32" fill="none" stroke="var(--panel2)" strokeWidth=".5" opacity=".45" /></pattern></defs>
         <rect width="760" height="320" fill="url(#towerGrid)" />
-        {WORLD_PATHS.map((path, index) => <path key={index} d={path} fill="#183451" stroke="#31577d" strokeWidth="1.2" />)}
-        {data.countries.map((country, index) => {
+        {WORLD_PATHS.map((path, index) => <path key={index} d={path} fill="var(--panel2)" stroke="var(--border)" strokeWidth="1.2" />)}
+        {(data.countries || []).map((country, index) => {
           const point = COUNTRY_POINTS[country.country]
           if (!point) return null
           const r = 5 + ((country.sessions || 0) / maxSessions) * 10
@@ -278,16 +278,16 @@ function Ga4WorldMap({ data }: { data: Overview['ga4'] }) {
           const active = selected === country.country
           return <g key={country.country} onClick={() => setSelected(country.country)} style={{ cursor: 'pointer' }}>
             <circle cx={cx} cy={cy} r={r + 6} fill={C.cyan} opacity={.08} />
-            <circle cx={cx} cy={cy} r={r} fill={active ? C.yellow : C.cyan} opacity={.85} stroke="#fff" strokeWidth={active ? 1.8 : .7} />
-            <text x={cx + r + 5} y={cy - 3} fill="#eaf2ff" fontSize="11" fontWeight="700">{point.label}</text>
-            <text x={cx + r + 5} y={cy + 10} fill="#93a9c3" fontSize="9">{country.sessions ?? '—'} sessions</text>
+            <circle cx={cx} cy={cy} r={r} fill={active ? C.yellow : C.cyan} opacity={.85} stroke="var(--text)" strokeWidth={active ? 1.8 : .7} />
+            <text x={cx + r + 5} y={cy - 3} fill="var(--text)" fontSize="11" fontWeight="700">{point.label}</text>
+            <text x={cx + r + 5} y={cy + 10} fill="var(--dim)" fontSize="9">{country.sessions ?? '—'} sessions</text>
           </g>
         })}
       </svg>
-      {data.countries.some(row => !COUNTRY_POINTS[row.country]) && <div style={{ position: 'absolute', left: 8, bottom: 8, fontSize: 9, color: C.muted }}>未定位：{data.countries.filter(row => !COUNTRY_POINTS[row.country]).map(row => `${row.country} ${row.sessions ?? '—'}`).join(' · ')}</div>}
+      {(data.countries || []).some(row => !COUNTRY_POINTS[row.country]) && <div style={{ position: 'absolute', left: 8, bottom: 8, fontSize: 9, color: C.muted }}>未定位：{data.countries.filter(row => !COUNTRY_POINTS[row.country]).map(row => `${row.country} ${row.sessions ?? '—'}`).join(' · ')}</div>}
     </div>
     {selectedRow && <div style={{ marginTop: 8, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 6 }}>
-      {[['国家', selectedRow.country], ['会话', formatNumber(selectedRow.sessions)], ['用户', formatNumber(selectedRow.users)], ['参与率', formatPct(selectedRow.engagement_rate)]].map(([label, value]) => <div key={label} style={{ background: '#0a1627', border: `1px solid ${C.line}`, borderRadius: 8, padding: 8 }}><div style={{ color: C.muted, fontSize: 9 }}>{label}</div><b style={{ fontSize: 12 }}>{value}</b></div>)}
+      {[['国家', selectedRow.country], ['会话', formatNumber(selectedRow.sessions)], ['用户', formatNumber(selectedRow.users)], ['参与率', formatPct(selectedRow.engagement_rate)]].map(([label, value]) => <div key={label} style={{ background: 'var(--surface)', border: `1px solid ${C.line}`, borderRadius: 8, padding: 8 }}><div style={{ color: C.muted, fontSize: 9 }}>{label}</div><b style={{ fontSize: 12 }}>{value}</b></div>)}
     </div>}
     <SourceNote source={data.source} window={data.data_window} limitations={data.known_limitations} />
   </Panel>
@@ -299,9 +299,9 @@ function MetricTable({ rows }: { rows: Array<[string, React.ReactNode, React.Rea
 
 function PsiCard({ label, device }: { label: string; device: PsiDevice | null }) {
   if (!device) return <div style={{ color: C.muted }}>DATA_UNAVAILABLE</div>
-  return <div style={{ background: '#0a1627', border: `1px solid ${C.line}`, borderRadius: 10, padding: 11 }}>
+  return <div style={{ background: 'var(--surface)', border: `1px solid ${C.line}`, borderRadius: 10, padding: 11 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}><b>{label}</b><Badge status={device.data_status} /></div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '9px 0' }}><div style={{ width: 58, height: 58, borderRadius: '50%', display: 'grid', placeItems: 'center', background: '#091523', border: `6px solid ${(device.performance || 0) >= 90 ? C.green : C.yellow}`, fontSize: 20, fontWeight: 900 }}>{device.performance ?? '—'}</div><div style={{ fontSize: 9, color: C.muted }}>Lighthouse 实验室分数<br />{device.run_count} 次记录 / {device.unique_fetch_times} 个 fetchTime</div></div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '9px 0' }}><div style={{ width: 58, height: 58, borderRadius: '50%', display: 'grid', placeItems: 'center', background: 'var(--bg)', border: `6px solid ${(device.performance || 0) >= 90 ? C.green : C.yellow}`, fontSize: 20, fontWeight: 900 }}>{device.performance ?? '—'}</div><div style={{ fontSize: 9, color: C.muted }}>Lighthouse 实验室分数<br />{device.run_count} 次记录 / {device.unique_fetch_times} 个 fetchTime</div></div>
     <MetricTable rows={[["FCP", formatMs(device.fcp_ms)], ["LCP", formatMs(device.lcp_ms), device.lcp_ms != null && device.lcp_ms > 4000 ? <Badge status="DEGRADED" /> : undefined], ["CLS", formatNumber(device.cls, 3)], ["TBT（非 INP）", formatMs(device.tbt_ms)], ["载荷", device.payload_kb == null ? '—' : `${device.payload_kb} KB`]]} />
   </div>
 }
@@ -353,11 +353,11 @@ export function SeoControlTowerPanel() {
           <span style={{ border: `1px solid ${C.line}`, padding: '6px 9px', borderRadius: 8, fontSize: 10 }}>GSC_D0 {data.gsc.d0 || 'UNAVAILABLE'}</span>
           <span style={{ border: `1px solid ${C.line}`, padding: '6px 9px', borderRadius: 8, fontSize: 10 }}>GA4_D0 {data.ga4.d0 || 'UNAVAILABLE'}</span>
           <span style={{ border: `1px solid ${C.line}`, padding: '6px 9px', borderRadius: 8, fontSize: 10 }}>PSI {data.psi.tested_at ? data.psi.tested_at.slice(0, 16).replace('T', ' ') : 'UNAVAILABLE'}</span>
-          <button onClick={load} disabled={loading} style={{ background: C.blue, color: '#fff', border: 0, borderRadius: 8, padding: '6px 10px', cursor: loading ? 'wait' : 'pointer' }}>{loading ? '刷新中…' : '↻ 刷新'}</button>
+          <button onClick={load} disabled={loading} style={{ background: C.blue, color: 'var(--text)', border: 0, borderRadius: 8, padding: '6px 10px', cursor: loading ? 'wait' : 'pointer' }}>{loading ? '刷新中…' : '↻ 刷新'}</button>
         </div>
       </header>
 
-      {error && <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9500, color: C.yellow, border: `1px solid ${C.yellow}55`, borderRadius: 8, padding: '8px 14px', background: 'rgba(20,20,30,.9)', boxShadow: '0 8px 24px rgba(0,0,0,.4)', maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', backdropFilter: 'blur(8px)' }}>⚠ 刷新失败，保留旧数据</div>}
+      {error && <div style={{ position: 'fixed', top: 16, right: 16, zIndex: 9500, color: C.yellow, border: `1px solid ${C.yellow}55`, borderRadius: 8, padding: '8px 14px', background: 'oklch(12% 0.01 260 / .9)', boxShadow: '0 8px 24px oklch(0% 0 0 / .4)', maxWidth: 'calc(100vw - 32px)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', backdropFilter: 'blur(8px)' }}>⚠ 刷新失败，保留旧数据</div>}
 
       <div className="tower-kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,minmax(0,1fr))', gap: 10 }}>
         <Kpi label={`GSC 自然点击 · D0 ${data.gsc.d0}`} value={formatNumber(g0?.clicks)} detail={deltaText(g0?.clicks, g1?.clicks)} color={C.blue} />
@@ -421,7 +421,7 @@ export function SeoControlTowerPanel() {
               ['缺失 Title', formatNumber(data.technical.missing_titles)],
               ['重复 Title 组', formatNumber(data.technical.duplicate_title_groups)],
               ['Published / Draft', `${formatNumber(data.technical.content.published)} / ${formatNumber(data.technical.content.draft)}`],
-            ].map(([label, value]) => <div key={label} style={{ background: '#0a1627', border: `1px solid ${C.line}`, borderRadius: 8, padding: 9 }}><div style={{ color: C.muted, fontSize: 9 }}>{label}</div><b style={{ fontSize: 14 }}>{value}</b></div>)}
+            ].map(([label, value]) => <div key={label} style={{ background: 'var(--surface)', border: `1px solid ${C.line}`, borderRadius: 8, padding: 9 }}><div style={{ color: C.muted, fontSize: 9 }}>{label}</div><b style={{ fontSize: 14 }}>{value}</b></div>)}
           </div>
           <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: `${C.yellow}12`, border: `1px solid ${C.yellow}55`, fontSize: 10 }}><Badge status={data.technical.indexing.data_status} />　收录：{data.technical.indexing.reason}</div>
           {data.technical.suspected_broken_links && <div style={{ marginTop: 8, padding: 8, borderRadius: 8, background: `${C.red}10`, border: `1px solid ${C.red}55`, fontSize: 10 }}><Badge status={data.technical.suspected_broken_links.data_status} />　疑似断链来源 {data.technical.suspected_broken_links.source_rows}，唯一目标 {data.technical.suspected_broken_links.unique_targets}；{data.technical.suspected_broken_links.reason}</div>}
@@ -435,16 +435,16 @@ export function SeoControlTowerPanel() {
             {data.report.gates.map(gate => <div key={gate.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, borderTop: `1px solid ${C.line}`, padding: '7px 0', fontSize: 10 }}><span>{gate.name}</span><Badge status={gate.status} /></div>)}
           </div>
           <div style={{ marginTop: 8, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <a href={data.report.feishu_url} target="_blank" rel="noreferrer" style={{ color: '#fff', background: C.blue, textDecoration: 'none', padding: '7px 10px', borderRadius: 7, fontSize: 10 }}>打开飞书巡检报告 ↗</a>
+            <a href={data.report.feishu_url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)', background: C.blue, textDecoration: 'none', padding: '7px 10px', borderRadius: 7, fontSize: 10 }}>打开飞书巡检报告 ↗</a>
             <span title={data.report.asset_id} style={{ border: `1px solid ${C.line}`, padding: '7px 10px', borderRadius: 7, fontSize: 10, color: C.green }}>Asset Hub：{data.report.asset_status}</span>
           </div>
           <div style={{ marginTop: 8, color: C.muted, fontSize: 9, wordBreak: 'break-all' }}>asset_id: {data.report.asset_id}</div>
         </Panel>
 
         <Panel title="Workflow / Timeline 真实进度" subtitle="系统状态、Hermes 进程与业务证据分开" status={data.execution.workflow.data_status} id="execution">
-          {workflowItems.length === 0 ? <div style={{ color: C.muted }}>Workflow DATA_UNAVAILABLE</div> : workflowItems.map(item => <div key={item.instance_id} style={{ background: '#0a1627', border: `1px solid ${C.line}`, borderRadius: 9, padding: 10, marginBottom: 8 }}>
+          {workflowItems.length === 0 ? <div style={{ color: C.muted }}>Workflow DATA_UNAVAILABLE</div> : workflowItems.map(item => <div key={item.instance_id} style={{ background: 'var(--surface)', border: `1px solid ${C.line}`, borderRadius: 9, padding: 10, marginBottom: 8 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}><div><b>{item.name}</b><div style={{ color: C.muted, fontFamily: 'monospace', fontSize: 9 }}>{item.instance_id}</div></div><div style={{ display: 'flex', gap: 5 }}><Badge status={item.system_status} /><Badge status={item.business_status} /></div></div>
-            <div style={{ height: 5, background: '#192a42', borderRadius: 4, margin: '8px 0', overflow: 'hidden' }}><div style={{ width: `${item.total_nodes ? (item.completed_nodes / item.total_nodes) * 100 : 0}%`, height: '100%', background: item.business_status === 'BLOCKED' ? C.red : C.blue }} /></div>
+            <div style={{ height: 5, background: 'var(--panel)', borderRadius: 4, margin: '8px 0', overflow: 'hidden' }}><div style={{ width: `${item.total_nodes ? (item.completed_nodes / item.total_nodes) * 100 : 0}%`, height: '100%', background: item.business_status === 'BLOCKED' ? C.red : C.blue }} /></div>
             <div style={{ color: C.muted, fontSize: 9 }}>节点 {item.completed_nodes}/{item.total_nodes} · 当前 {item.current_node || '—'} · Hermes {item.hermes_run_id || '—'} {item.runtime_status || ''} · 业务证据 {item.evidence_present ? '有' : '待确认'}</div>
           </div>)}
           <div style={{ marginTop: 6, color: C.muted, fontSize: 10, fontWeight: 700 }}>Timeline · 固定站点只读投影</div>

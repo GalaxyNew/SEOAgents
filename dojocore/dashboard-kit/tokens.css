@@ -1,0 +1,232 @@
+/* ============================================================
+   dashboard-kit · tokens.css
+   联邦前端标准件 ⑦ —— design tokens 单一事实源
+   依据：22 号文《前端技术与主题应用统一标准》v1.1
+
+   分层铁律（§2.1）：
+     底座组（中性）  —— 恒定冷灰，禁止引用 var(--hue)
+     主题强调组      —— 单变量 --hue 驱动整组（accent / accent2 / accent3）
+     语义组          —— 全局恒定（ok / warn / bad / rev）
+
+   本文件是唯一允许出现字面量色值的地方（audit.mjs 白名单）。
+   页面与组件层只允许引用 var(--token)，出现 #hex/rgb()/hsl() 即门禁不过。
+   ============================================================ */
+
+/* ── @property 注册：让 hue 可动画、可 calc ── */
+@property --hue {
+  syntax: '<number>';
+  initial-value: 285;
+  inherits: true;
+}
+
+/* ── 回退字体度量对齐（CLS 防抖）──
+   font-display:swap 先用系统字体渲染，Web 字体到达后换字。若两者行高/字宽
+   不一致，整段文本会重排 → 计入 CLS。用 size-adjust 把回退字体调到与
+   Inter/JetBrains Mono 相同度量，换字时几乎无位移。 */
+@font-face {
+  font-family: "Inter Fallback";
+  src: local("Helvetica Neue"), local("Arial"), local("Segoe UI");
+  size-adjust: 107%;
+  ascent-override: 90%;
+  descent-override: 22.5%;
+  line-gap-override: 0%;
+}
+@font-face {
+  font-family: "Mono Fallback";
+  src: local("SF Mono"), local("Menlo"), local("Consolas"), local("Courier New");
+  size-adjust: 100%;
+  ascent-override: 102%;
+  descent-override: 30%;
+  line-gap-override: 0%;
+}
+
+:root {
+  /* ══ 主题变量（唯一）══ */
+  --hue: 285;
+
+  /* ══ 底座组：中性冷灰，恒定不随主题 ══
+     hue 260 微量彩度 ≤0.014（22 号文硬约束），深色模式 L 阶梯 */
+  --bg:       oklch(15% 0.008 260);
+  --surface:  oklch(19% 0.009 260);
+  --panel:    oklch(22.5% 0.01 260);
+  --panel2:   oklch(26.5% 0.012 260);
+  --border:   oklch(33% 0.014 260);
+  --text:     oklch(93% 0.005 260);
+  --dim:      oklch(67% 0.01 260);
+  --faint:    oklch(50% 0.01 260);
+
+  /* ══ 主题强调组：单变量 --hue 驱动 ══
+     accent  = 主强调（≤10% 屏幕面积）
+     accent2 = 邻近辅助 hue+45°
+     accent3 = 对景点缀 hue-150° */
+  --accent:      oklch(70% 0.16  var(--hue));
+  --accent2:     oklch(76% 0.125 calc(var(--hue) + 45));
+  --accent3:     oklch(67% 0.135 calc(var(--hue) - 150));
+  --accent-soft: oklch(70% 0.16 var(--hue) / .13);
+  --accent-line: oklch(70% 0.16 var(--hue) / .34);
+
+  /* ══ 语义组：全局恒定 ══ */
+  --ok:   oklch(72% 0.17 150);
+  --warn: oklch(78% 0.15 85);
+  --bad:  oklch(66% 0.19 25);
+  --rev:  oklch(70% 0.16 300);
+  --ok-soft:   oklch(72% 0.17 150 / .14);
+  --warn-soft: oklch(78% 0.15 85  / .14);
+  --bad-soft:  oklch(66% 0.19 25  / .14);
+  --rev-soft:  oklch(70% 0.16 300 / .14);
+
+  /* ══ 字体（§三，三字体白名单）══ */
+  --font-ui:   "Inter Variable", "Inter", "Inter Fallback", system-ui, -apple-system, "PingFang SC",
+               "Microsoft YaHei", "Noto Sans CJK SC", sans-serif;
+  --font-mono: "JetBrains Mono", "Mono Fallback", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --font-cn:   "Source Han Sans CN VF", "Noto Sans CJK SC", "PingFang SC",
+               "Microsoft YaHei", sans-serif;
+
+  /* 字阶：模数 1.25 */
+  --fs-xs:   12px;
+  --fs-sm:   13px;
+  --fs-base: 14px;
+  --fs-md:   16px;
+  --fs-lg:   19px;
+  --fs-xl:   24px;
+  --fs-kpi:  32px;
+
+  /* 字重语义 */
+  --fw-body:  400;
+  --fw-label: 500;
+  --fw-title: 640;
+  --fw-kpi:   760;
+
+  /* ══ 间距 4px 网格（§四）══ */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-6: 24px;
+  --sp-8: 32px;
+  --pad-panel: 16px;
+  --gap-grid:  12px;
+
+  /* ══ 圆角 ══ */
+  --r-panel: 10px;
+  --r-ctrl:  7px;
+  --r-pill:  999px;
+
+  /* ══ 阴影（中性，不随 hue）══ */
+  --shadow-1: 0 1px 2px oklch(0% 0 0 / .3);
+  --shadow-2: 0 4px 14px oklch(0% 0 0 / .38);
+  --shadow-3: 0 8px 30px oklch(0% 0 0 / .5);
+
+  /* ══ 布局骨架 ══ */
+  --topbar-h: 48px;
+  --sidebar-w: 200px;
+
+  /* ══ 动效（§四 动效四件，同屏 ≤3 种）══ */
+  --dur-fast:  .2s;
+  --dur-base:  .35s;
+  --dur-slow:  .8s;
+  --ease: cubic-bezier(.4, 0, .2, 1);
+}
+
+/* ============================================================
+   浅色模式：翻转底座 L 阶梯 / 强调组降 L 提对比 / 语义组加深一档
+   ============================================================ */
+[data-mode="light"] {
+  --bg:       oklch(98% 0.004 260);
+  --surface:  oklch(95.5% 0.005 260);
+  --panel:    oklch(100% 0 0);
+  --panel2:   oklch(96.5% 0.006 260);
+  --border:   oklch(87% 0.008 260);
+  --text:     oklch(22% 0.012 260);
+  --dim:      oklch(45% 0.012 260);
+  --faint:    oklch(58% 0.01 260);
+
+  --accent:      oklch(52% 0.17  var(--hue));
+  --accent2:     oklch(56% 0.14  calc(var(--hue) + 45));
+  --accent3:     oklch(50% 0.145 calc(var(--hue) - 150));
+  --accent-soft: oklch(52% 0.17 var(--hue) / .12);
+  --accent-line: oklch(52% 0.17 var(--hue) / .3);
+
+  --ok:   oklch(50% 0.15 150);
+  --warn: oklch(53% 0.13 85);
+  --bad:  oklch(50% 0.19 25);
+  --rev:  oklch(50% 0.17 300);
+  --ok-soft:   oklch(50% 0.15 150 / .13);
+  --warn-soft: oklch(53% 0.13 85  / .13);
+  --bad-soft:  oklch(50% 0.19 25  / .13);
+  --rev-soft:  oklch(50% 0.17 300 / .13);
+
+  --shadow-1: 0 1px 2px oklch(0% 0 0 / .07);
+  --shadow-2: 0 4px 14px oklch(0% 0 0 / .1);
+  --shadow-3: 0 8px 30px oklch(0% 0 0 / .14);
+}
+
+/* ============================================================
+   基础重置（kit 壳层）
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-body);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 数字与 ID 一律等宽（§三硬要求） */
+.dk-num, .dk-id, .dk-mono, code, kbd, samp, pre {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+::selection { background: var(--accent-soft); color: var(--text); }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: var(--r-pill); }
+::-webkit-scrollbar-thumb:hover { background: var(--faint); }
+* { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+p { text-wrap: pretty; }
+
+/* ============================================================
+   动效四件（§四）—— prefers-reduced-motion 全部关停
+   ============================================================ */
+/* 入场动画用 transform（合成层）而非 translate 属性——
+   transform 不参与布局，不计入 CLS；translate 属性会被判定为布局偏移。 */
+@keyframes dk-cardin {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes dk-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: .45; }
+}
+@keyframes dk-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+@keyframes dk-grow-y {
+  from { transform: scaleY(0); }
+  to   { transform: scaleY(1); }
+}
+
+.dk-cardin { animation: dk-cardin var(--dur-base) var(--ease) both; }
+.dk-pulse  { animation: dk-pulse 2.2s var(--ease) infinite; }
+.dk-grow   { transform-origin: left; animation: dk-grow var(--dur-slow) var(--ease) both; }
+.dk-grow-y { transform-origin: bottom; animation: dk-grow-y var(--dur-slow) var(--ease) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -51,7 +51,7 @@ type Asset = {
 }
 
 const LEVEL_COLOR: Record<string, string> = {
-  L0: '#6b7280', L1: '#3b82f6', L2: '#f59e0b', L3: '#ef4444',
+  L0: 'var(--faint)', L1: 'var(--accent)', L2: 'var(--warn)', L3: 'var(--bad)',
 }
 const LEVEL_HINT: Record<string, string> = {
   L1: '临时产出,可再生',
@@ -449,12 +449,12 @@ export const StoragePanel: React.FC = () => {
   // ── 渲染 ──────────────────────────────────────────────────
   const chip = (active: boolean, label: string, n: number, onClick: () => void, color?: string) => (
     <button key={label} onClick={onClick} style={{
-      ...btn(active ? '#2563eb' : '#1f2937', active ? '#fff' : (color || '#e2e8f0')),
+      ...btn(active ? 'var(--accent2)' : 'var(--panel)', active ? 'var(--text)' : (color || 'var(--text)')),
       padding: '4px 10px', fontSize: 12,
     }}>
       {label}<span style={{
         marginLeft: 6, padding: '0 5px', borderRadius: 9, fontSize: 11,
-        background: 'rgba(255,255,255,.14)',
+        background: 'oklch(100% 0 0 / .14)',
       }}>{n}</span>
     </button>
   )
@@ -463,8 +463,8 @@ export const StoragePanel: React.FC = () => {
     <div style={{ display: 'grid', gap: 14 }}>
       {/* 模式开关 —— 迁移期必须一眼看出走的是哪条路 */}
       <div style={{
-        border: '1px solid #262b36', borderRadius: 10, padding: 12,
-        background: hubMode ? 'rgba(63,185,80,.08)' : 'rgba(210,153,34,.08)',
+        border: '1px solid var(--panel)', borderRadius: 10, padding: 12,
+        background: hubMode ? 'var(--ok-soft)' : 'var(--warn-soft)',
       }}>
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           <strong>{hubMode ? '🌐 中心模式' : '💻 本地模式'}</strong>
@@ -477,10 +477,10 @@ export const StoragePanel: React.FC = () => {
           {/* 显式切换按钮 */}
           {hubBase && hubToken && (
             <button onClick={toggleHub} style={{
-              ...btn(hubMode ? '#10b981' : '#1f2937', hubMode ? '#0b1020' : '#cbd5e1'),
+              ...btn(hubMode ? 'var(--ok)' : 'var(--panel)', hubMode ? 'var(--bg)' : 'var(--text)'),
               padding: '5px 14px', fontSize: 12, fontWeight: 600,
               borderRadius: 8, cursor: 'pointer',
-              border: hubMode ? '1px solid #10b981' : '1px solid #334155',
+              border: hubMode ? '1px solid var(--ok)' : '1px solid var(--border)',
             }}>
               {hubMode ? '● 中心模式已开启' : '○ 点击开启中心模式'}
             </button>
@@ -517,7 +517,7 @@ export const StoragePanel: React.FC = () => {
             return (
               <span style={{ fontSize: 12, opacity: .75, display: 'flex', gap: 10, alignItems: 'center' }}>
                 <span>
-                  合计 <strong style={{ color: pct >= 90 ? '#f85149' : pct >= 70 ? '#d29922' : '#3fb950' }}>
+                  合计 <strong style={{ color: pct >= 90 ? 'var(--bad)' : pct >= 70 ? 'var(--warn)' : 'var(--ok)' }}>
                     {fmtSize(used)}
                   </strong> / {cap ? fmtSize(cap) : '—'}
                   {cap ? `（${pct}%，剩 ${fmtSize(Math.max(0, cap - used))}）` : ''}
@@ -531,7 +531,7 @@ export const StoragePanel: React.FC = () => {
         <div style={{ display: 'grid', gap: 10, gridTemplateColumns: `repeat(auto-fill,minmax(${isMobile ? 150 : 220}px,1fr))` }}>
           {quota.map(n => {
             const pct = Math.round((n.ratio || (n.capacity ? n.used / n.capacity : 0)) * 100)
-            const col = pct >= 90 ? '#f85149' : pct >= 70 ? '#d29922' : '#3fb950'
+            const col = pct >= 90 ? 'var(--bad)' : pct >= 70 ? 'var(--warn)' : 'var(--ok)'
             const on = fNode === n.node
             const cnt = counts.node[n.node] || 0
             // 月底预估:按本月速率外推。超过容量时提前标红 ——
@@ -542,8 +542,8 @@ export const StoragePanel: React.FC = () => {
                 onClick={() => setFNode(on ? '' : n.node)}
                 title={on ? '再点一次取消筛选' : `只看存在 ${n.label} 上的资产`}
                 style={{
-                  border: `1px solid ${on ? '#2563eb' : '#262b36'}`,
-                  background: on ? 'rgba(37,99,235,.12)' : undefined,
+                  border: `1px solid ${on ? 'var(--accent2)' : 'var(--panel)'}`,
+                  background: on ? 'var(--accent-soft)' : undefined,
                   borderRadius: 8, padding: 10, cursor: 'pointer',
                 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 6 }}>
@@ -552,10 +552,10 @@ export const StoragePanel: React.FC = () => {
                     {cnt > 0 && (
                       <span style={{
                         fontSize: 11, padding: '0 6px', borderRadius: 9,
-                        background: on ? 'rgba(37,99,235,.45)' : 'rgba(148,163,184,.16)',
+                        background: on ? 'var(--accent-line)' : 'var(--border)',
                       }}>{cnt}</span>
                     )}
-                    <span style={{ fontSize: 11, color: n.writable ? '#94a3b8' : '#f59e0b' }}
+                    <span style={{ fontSize: 11, color: n.writable ? 'var(--dim)' : 'var(--warn)' }}
                       title={n.blockReason || undefined}>
                       {n.writable ? '可写' : '只读'}
                     </span>
@@ -563,14 +563,14 @@ export const StoragePanel: React.FC = () => {
                 </div>
 
                 <div style={{
-                  position: 'relative', height: 6, background: '#0d1017',
+                  position: 'relative', height: 6, background: 'var(--bg)',
                   borderRadius: 3, overflow: 'hidden', margin: '7px 0 4px',
                 }}>
                   <i style={{ display: 'block', height: '100%', width: `${Math.min(pct, 100)}%`, background: col }} />
                   {/* 90% 停写线 —— 让人一眼看出离限制还有多远,而不是等它变红 */}
                   <i style={{
                     position: 'absolute', left: '90%', top: 0, bottom: 0, width: 1,
-                    background: 'rgba(248,81,73,.55)',
+                    background: 'var(--bad)',
                   }} />
                 </div>
 
@@ -581,13 +581,13 @@ export const StoragePanel: React.FC = () => {
                 <div style={{ fontSize: 11, opacity: .5, marginTop: 2 }}>
                   剩余 {n.capacity ? fmtSize(Math.max(0, n.capacity - n.used)) : '—'}
                   {fPct > 0 && (
-                    <span style={{ color: fPct >= 90 ? '#f85149' : undefined }}>
+                    <span style={{ color: fPct >= 90 ? 'var(--bad)' : undefined }}>
                       {' · '}月底预估 {fPct}%
                     </span>
                   )}
                 </div>
                 {(n.warnings || []).map((w, i) => (
-                  <div key={i} style={{ fontSize: 11, color: '#f0cd7a', marginTop: 4 }}>⚠ {w}</div>
+                  <div key={i} style={{ fontSize: 11, color: 'var(--warn)', marginTop: 4 }}>⚠ {w}</div>
                 ))}
               </div>
             )
@@ -621,8 +621,8 @@ export const StoragePanel: React.FC = () => {
               <button key={c.id || 'all'} onClick={() => setFClass(c.id)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap',
-                  background: on ? '#2563eb' : 'transparent',
-                  color: on ? '#fff' : '#cbd5e1',
+                  background: on ? 'var(--accent2)' : 'transparent',
+                  color: on ? 'var(--text)' : 'var(--text)',
                   border: 0, borderRadius: 7, padding: '7px 10px',
                   fontSize: 13, cursor: 'pointer', textAlign: 'left',
                   width: isMobile ? undefined : '100%',
@@ -631,7 +631,7 @@ export const StoragePanel: React.FC = () => {
                 <span style={{ flex: 1 }}>{c.label}</span>
                 <span style={{
                   fontSize: 11, padding: '0 6px', borderRadius: 9,
-                  background: on ? 'rgba(255,255,255,.22)' : 'rgba(148,163,184,.16)',
+                  background: on ? 'oklch(100% 0 0 / .22)' : 'var(--border)',
                 }}>{n}</span>
               </button>
             )
@@ -642,7 +642,7 @@ export const StoragePanel: React.FC = () => {
         <div>
           <div style={{
             display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center',
-            marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid #262b36',
+            marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid var(--panel)',
           }}>
             <select style={{ ...inputStyle, width: 120 }} value={fLevel}
               onChange={e => setFLevel(e.target.value)}
@@ -674,24 +674,24 @@ export const StoragePanel: React.FC = () => {
             <input style={{ ...inputStyle, width: isMobile ? '100%' : 180 }} placeholder="搜索名称"
               value={q} onChange={e => setQ(e.target.value)} />
             {(fLevel || fStatus || fDept || fNode || fKind || q) && (
-              <button style={{ ...btn('#1f2937'), padding: '5px 10px' }}
+              <button style={{ ...btn('var(--panel)'), padding: '5px 10px' }}
                 onClick={() => { setFLevel(''); setFStatus(''); setFDept(''); setFNode(''); setFKind(''); setQ('') }}>清空筛选</button>
             )}
             <span style={{ flex: 1 }} />
             <span style={{ fontSize: 12, opacity: .55 }}>{shown.length} / {assets.length}</span>
-            <span style={{ display: 'flex', border: '1px solid #334155', borderRadius: 6, overflow: 'hidden' }}>
+            <span style={{ display: 'flex', border: '1px solid var(--border)', borderRadius: 6, overflow: 'hidden' }}>
               {([['list', '☰', '列表'], ['card', '▦', '卡片']] as const).map(([v, icon, label]) => (
                 <button key={v} onClick={() => switchView(v)} title={label}
                   style={{
-                    background: view === v ? '#2563eb' : 'transparent',
-                    color: view === v ? '#fff' : '#94a3b8',
+                    background: view === v ? 'var(--accent2)' : 'transparent',
+                    color: view === v ? 'var(--text)' : 'var(--dim)',
                     border: 0, padding: '5px 9px', fontSize: 12, cursor: 'pointer',
                   }}>{icon}</button>
               ))}
             </span>
-            <button style={{ ...btn('#1f2937'), padding: '5px 10px' }}
+            <button style={{ ...btn('var(--panel)'), padding: '5px 10px' }}
               onClick={() => void load()} disabled={busy}>{busy ? '…' : '刷新'}</button>
-            <button style={{ ...btn('#2563eb'), padding: '5px 10px' }}
+            <button style={{ ...btn('var(--accent2)'), padding: '5px 10px' }}
               onClick={() => setCreating(true)}>上传资产</button>
           </div>
 
@@ -714,7 +714,7 @@ export const StoragePanel: React.FC = () => {
                     const cls = effectiveClass(a)
                     const nav = CLASS_NAV.find(c => c.id === cls)
                     return (
-                      <tr key={a.asset_id} style={{ borderTop: '1px solid #262b36' }}>
+                      <tr key={a.asset_id} style={{ borderTop: '1px solid var(--panel)' }}>
                         <td style={{ padding: 8 }}>
                           <span onClick={() => void open(a)} title="点击在本页查看"
                             style={{ cursor: 'pointer', fontWeight: 500, textDecoration: 'underline dotted' }}>
@@ -730,29 +730,29 @@ export const StoragePanel: React.FC = () => {
                         <td style={{ padding: 8 }}>
                           <span title={LEVEL_HINT[a.level]} style={{
                             padding: '1px 7px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                            border: `1px solid ${LEVEL_COLOR[a.level] || '#6b7280'}`,
-                            color: LEVEL_COLOR[a.level] || '#6b7280',
+                            border: `1px solid ${LEVEL_COLOR[a.level] || 'var(--faint)'}`,
+                            color: LEVEL_COLOR[a.level] || 'var(--faint)',
                           }}>{a.level}</span>
                         </td>
                         <td style={{ padding: 8 }}>
                           <span title={STATUS_HINT[a.status]} style={{
-                            fontSize: 12, color: a.status === 'ACTIVE' ? '#3fb950' : '#d29922',
+                            fontSize: 12, color: a.status === 'ACTIVE' ? 'var(--ok)' : 'var(--warn)',
                           }}>{STATUS_LABEL[a.status] || a.status}</span>
                         </td>
                         {!isMobile && <td style={{ padding: 8, opacity: .7 }}>{fmtSize(a.size_bytes)}</td>}
                         {!isMobile && (
                           <td style={{ padding: 8, fontSize: 12 }}>
                             {a.level !== 'L3' ? <span style={{ opacity: .4 }}>—</span>
-                              : a.backup_location ? <span style={{ color: '#3fb950' }}>✓ {a.backup_location.split(':')[0]}</span>
-                                : <span style={{ color: '#f85149' }}>✗ 缺备份</span>}
+                              : a.backup_location ? <span style={{ color: 'var(--ok)' }}>✓ {a.backup_location.split(':')[0]}</span>
+                                : <span style={{ color: 'var(--bad)' }}>✗ 缺备份</span>}
                           </td>
                         )}
                         <td style={{ padding: 8, whiteSpace: 'nowrap' }}>
-                          <button style={{ ...btn('#1f2937'), padding: '3px 8px' }}
+                          <button style={{ ...btn('var(--panel)'), padding: '3px 8px' }}
                             onClick={() => void download(a)}>下载</button>
-                          <button style={{ ...btn('#1f2937'), padding: '3px 8px', marginLeft: 6 }}
+                          <button style={{ ...btn('var(--panel)'), padding: '3px 8px', marginLeft: 6 }}
                             onClick={() => void copyLink(a)}>{hubMode ? '链接' : '落点'}</button>
-                          <button style={{ ...btn('#1f2937'), padding: '3px 8px', marginLeft: 6 }}
+                          <button style={{ ...btn('var(--panel)'), padding: '3px 8px', marginLeft: 6 }}
                             onClick={() => setDetail(a)}>详情</button>
                         </td>
                       </tr>
@@ -779,19 +779,19 @@ export const StoragePanel: React.FC = () => {
                 const missingBackup = a.level === 'L3' && !a.backup_location
                 return (
                   <div key={a.asset_id} style={{
-                    border: `1px solid ${missingBackup ? '#7f1d1d' : '#262b36'}`,
+                    border: `1px solid ${missingBackup ? 'var(--bad-soft)' : 'var(--panel)'}`,
                     borderRadius: 9, padding: 11, display: 'flex', flexDirection: 'column', gap: 7,
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <span style={{ fontSize: 15 }}>{nav?.icon}</span>
                       <span title={LEVEL_HINT[a.level]} style={{
                         padding: '0 6px', borderRadius: 20, fontSize: 10, fontWeight: 700,
-                        border: `1px solid ${LEVEL_COLOR[a.level] || '#6b7280'}`,
-                        color: LEVEL_COLOR[a.level] || '#6b7280',
+                        border: `1px solid ${LEVEL_COLOR[a.level] || 'var(--faint)'}`,
+                        color: LEVEL_COLOR[a.level] || 'var(--faint)',
                       }}>{a.level}</span>
                       <span style={{ flex: 1 }} />
                       <span title={STATUS_HINT[a.status]} style={{
-                        fontSize: 11, color: a.status === 'ACTIVE' ? '#3fb950' : '#d29922',
+                        fontSize: 11, color: a.status === 'ACTIVE' ? 'var(--ok)' : 'var(--warn)',
                       }}>{STATUS_LABEL[a.status] || a.status}</span>
                     </div>
 
@@ -812,18 +812,18 @@ export const StoragePanel: React.FC = () => {
                     <div style={{ fontSize: 11, opacity: .5, marginTop: 'auto' }}>
                       {fmtSize(a.size_bytes)} · {a.owner_department || '—'}
                       {a.level === 'L3' && (
-                        <span style={{ color: a.backup_location ? '#3fb950' : '#f85149' }}>
+                        <span style={{ color: a.backup_location ? 'var(--ok)' : 'var(--bad)' }}>
                           {' · '}{a.backup_location ? '有备份' : '缺备份'}
                         </span>
                       )}
                     </div>
 
                     <div style={{ display: 'flex', gap: 5 }}>
-                      <button style={{ ...btn('#1f2937'), padding: '3px 8px', flex: 1 }}
+                      <button style={{ ...btn('var(--panel)'), padding: '3px 8px', flex: 1 }}
                         onClick={() => void download(a)}>下载</button>
-                      <button style={{ ...btn('#1f2937'), padding: '3px 8px' }}
+                      <button style={{ ...btn('var(--panel)'), padding: '3px 8px' }}
                         onClick={() => void copyLink(a)}>{hubMode ? '链接' : '落点'}</button>
-                      <button style={{ ...btn('#1f2937'), padding: '3px 8px' }}
+                      <button style={{ ...btn('var(--panel)'), padding: '3px 8px' }}
                         onClick={() => setDetail(a)}>…</button>
                     </div>
                   </div>
@@ -846,7 +846,7 @@ export const StoragePanel: React.FC = () => {
         <Modal open title="上传资产" onClose={() => setCreating(false)} width={620}>
           <div style={{ display: 'grid', gap: 10 }}>
             {!hubMode && (
-              <div style={{ fontSize: 12, padding: 8, borderRadius: 6, border: '1px solid #d29922', color: '#f0cd7a' }}>
+              <div style={{ fontSize: 12, padding: 8, borderRadius: 6, border: '1px solid var(--warn)', color: 'var(--warn)' }}>
                 本地模式只能存**文本**。要传图片、压缩包等二进制,先在页面顶部接上调度中心。
               </div>
             )}
@@ -897,7 +897,7 @@ export const StoragePanel: React.FC = () => {
             )}
             <Field label="说明"><input style={inputStyle} value={form.summary}
               onChange={e => setForm(s => ({ ...s, summary: e.target.value }))} /></Field>
-            <button style={btn('#2563eb')} disabled={busy} onClick={() => void submit()}>{busy ? '上传中…' : '上传'}</button>
+            <button style={btn('var(--accent2)')} disabled={busy} onClick={() => void submit()}>{busy ? '上传中…' : '上传'}</button>
           </div>
         </Modal>
       )}
@@ -909,14 +909,14 @@ export const StoragePanel: React.FC = () => {
           onClose={() => setPreview(null)} width={900}>
           <div style={{ display: 'grid', gap: 10 }}>
             {preview.warn && (
-              <div style={{ padding: 8, borderRadius: 6, border: '1px solid #d29922', color: '#f0cd7a', fontSize: 12 }}>
+              <div style={{ padding: 8, borderRadius: 6, border: '1px solid var(--warn)', color: 'var(--warn)', fontSize: 12 }}>
                 ⚠ {preview.warn}
               </div>
             )}
             {preview.kind === 'text' && (
               <pre style={{
-                margin: 0, maxHeight: '60vh', overflow: 'auto', background: '#0f172a',
-                border: '1px solid #334155', borderRadius: 6, padding: 12,
+                margin: 0, maxHeight: '60vh', overflow: 'auto', background: 'var(--surface)',
+                border: '1px solid var(--border)', borderRadius: 6, padding: 12,
                 fontSize: 12, lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
               }}>{preview.text}</pre>
             )}
@@ -926,7 +926,7 @@ export const StoragePanel: React.FC = () => {
             )}
             {preview.kind === 'pdf' && preview.url && (
               <iframe src={preview.url} title={preview.asset.name}
-                style={{ width: '100%', height: '60vh', border: '1px solid #334155', borderRadius: 6 }} />
+                style={{ width: '100%', height: '60vh', border: '1px solid var(--border)', borderRadius: 6 }} />
             )}
             {preview.kind === 'binary' && (
               <div style={{ padding: 12, opacity: .75, fontSize: 13 }}>
@@ -935,14 +935,14 @@ export const StoragePanel: React.FC = () => {
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {preview.url && (
-                <button style={btn('#1f2937')}
+                <button style={btn('var(--panel)')}
                   onClick={() => window.open(preview.url, '_blank')}>新窗口打开</button>
               )}
-              <button style={btn('#1f2937')} onClick={() => void download(preview.asset)}>下载</button>
-              <button style={btn('#1f2937')} onClick={() => void copyLink(preview.asset)}>
+              <button style={btn('var(--panel)')} onClick={() => void download(preview.asset)}>下载</button>
+              <button style={btn('var(--panel)')} onClick={() => void copyLink(preview.asset)}>
                 {hubMode ? '复制链接' : '复制落点'}
               </button>
-              <button style={btn('#1f2937')} onClick={() => { setDetail(preview.asset); setPreview(null) }}>
+              <button style={btn('var(--panel)')} onClick={() => { setDetail(preview.asset); setPreview(null) }}>
                 看详情
               </button>
               <span style={{ flex: 1 }} />
@@ -963,7 +963,7 @@ export const StoragePanel: React.FC = () => {
             <div>校验和 <code style={{ wordBreak: 'break-all' }}>{detail.checksum || '—'}</code></div>
             <div style={{ opacity: .7 }}>{detail.summary}</div>
             {detail.status === 'DECLARED' && (
-              <div style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid #d29922', color: '#f0cd7a' }}>
+              <div style={{ marginTop: 6, padding: 8, borderRadius: 6, border: '1px solid var(--warn)', color: 'var(--warn)' }}>
                 这条只是**已声明**,没有验证过字节真的落地。台账里「说了要做」和「做完了」
                 必须分得开,否则台账就失去意义了。
               </div>

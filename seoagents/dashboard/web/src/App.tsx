@@ -1,16 +1,40 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { SeoAuditPanel } from './components/SeoAuditPanel'
 import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
-import { ConfigPanel } from './components/ConfigPanel'
-import { AgentCopilotDrawer } from './components/AgentCopilotDrawer'
-import { GscOverviewPanel } from './components/GscOverviewPanel'
-import { KanbanPanel } from './components/KanbanPanel'
-import { TimelinePanel } from './components/TimelinePanel'
-import { WorkflowPanel } from './components/WorkflowPanel'
-import { CapabilityPanel } from './components/CapabilityPanel'
-import { StoragePanel } from './components/StoragePanel'
-import { DepartmentPanel } from './components/DepartmentPanel'
 import { useIsMobile } from './hooks'
+import {
+  PRESET_THEMES,
+  initTheme,
+  applyHue as kitApplyHue,
+  getMode,
+  toggleMode,
+  onThemeChange,
+  type ThemeMode,
+} from './theme'
+
+/* 路由级懒加载（22 号文 §六 首屏体积门禁）
+   ────────────────────────────────────────────────────────────
+   这些面板各自只在对应 tab 打开时才需要，但同步 import 会把 recharts（331KB）、
+   react-grid-layout（38KB）等全部塞进首屏。Lighthouse 实测：首屏 952KB JS 中
+   692KB 未被使用，FCP/LCP 被拖到 6.3s。
+   改为 lazy() 后 vendor-charts / vendor-grid 变成按需 chunk，不再阻塞首屏。
+   dashboard 首页只保留 MetricsPanel + SeoAuditPanel（默认 tab 立即要用）。 */
+const ConfigPanel = lazy(() => import('./components/ConfigPanel').then(m => ({ default: m.ConfigPanel })))
+const AgentCopilotDrawer = lazy(() => import('./components/AgentCopilotDrawer').then(m => ({ default: m.AgentCopilotDrawer })))
+const GscOverviewPanel = lazy(() => import('./components/GscOverviewPanel').then(m => ({ default: m.GscOverviewPanel })))
+const KanbanPanel = lazy(() => import('./components/KanbanPanel').then(m => ({ default: m.KanbanPanel })))
+const TimelinePanel = lazy(() => import('./components/TimelinePanel').then(m => ({ default: m.TimelinePanel })))
+const WorkflowPanel = lazy(() => import('./components/WorkflowPanel').then(m => ({ default: m.WorkflowPanel })))
+const CapabilityPanel = lazy(() => import('./components/CapabilityPanel').then(m => ({ default: m.CapabilityPanel })))
+const StoragePanel = lazy(() => import('./components/StoragePanel').then(m => ({ default: m.StoragePanel })))
+const DepartmentPanel = lazy(() => import('./components/DepartmentPanel').then(m => ({ default: m.DepartmentPanel })))
+
+/** 懒加载面板的占位骨架 —— 预留高度，避免 chunk 到达时撑开页面产生 CLS */
+const PanelFallback = () => (
+  <div className="dk-panel" style={{ minHeight: 220, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--dim)', fontSize: 'var(--fs-sm)' }}>
+    <span className="dk-pulse">载入中…</span>
+  </div>
+)
 
 export type TabId = 'dashboard' | 'gsc_overview' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
 
@@ -40,6 +64,17 @@ export default function App() {
   const [configData, setConfigData] = useState<any>(null)
   const [seonautEndpoint, setSeonautEndpoint] = useState<string>('')
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(window.innerWidth >= 820)
+  // Copilot 抽屉延后挂载：首屏绘制完成后再拉它的 chunk（见下方渲染处注释）
+  const [copilotMounted, setCopilotMounted] = useState<boolean>(false)
+  useEffect(() => {
+    const idle = (window as any).requestIdleCallback
+      ? (window as any).requestIdleCallback(() => setCopilotMounted(true), { timeout: 1500 })
+      : window.setTimeout(() => setCopilotMounted(true), 300)
+    return () => {
+      if ((window as any).cancelIdleCallback) (window as any).cancelIdleCallback(idle)
+      else window.clearTimeout(idle)
+    }
+  }, [])
   const [copilotWidth, setCopilotWidth] = useState<number>(460)
   const [viewportHeight, setViewportHeight] = useState<number>(() => window.visualViewport?.height ?? window.innerHeight)
 
@@ -48,18 +83,18 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false)
   const settingsRef = useRef<HTMLDivElement>(null)
 
-  // Theme hue (shared with login page via localStorage)
-  const [themeHue, setThemeHue] = useState<number>(() => {
-    const saved = localStorage.getItem('themeHue')
-    const h = saved ? parseInt(saved, 10) : 220
-    document.documentElement.style.setProperty('--hue', String(h))
-    return isNaN(h) ? 220 : h
-  })
+  // 主题：交给 dashboard-kit themes.js（22 号文 §2.2）
+  // hue 只驱动强调组；底座中性恒定；明暗模式翻转 L 阶梯
+  const [themeHue, setThemeHue] = useState<number>(() => initTheme().hue)
+  const [themeMode, setThemeMode] = useState<ThemeMode>(() => getMode())
   const applyHue = (h: number) => {
-    setThemeHue(h)
-    document.documentElement.style.setProperty('--hue', String(h))
-    localStorage.setItem('themeHue', String(h))
+    setThemeHue(kitApplyHue(h))
   }
+  // 跨页/跨标签同步（另一个标签改了主题，本页跟随）
+  useEffect(() => onThemeChange(({ hue, mode }) => {
+    setThemeHue(hue)
+    setThemeMode(mode)
+  }), [])
 
   const refresh = async () => {
     try {
@@ -139,14 +174,14 @@ export default function App() {
   const reserveCopilotSpace = !isMobile && isCopilotOpen
 
   return (
-    <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)' }}>
+    <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
       {/* Ch.1: Pointer Aura */}
       <div id="aura" />
       {/* Header */}
       <header
         style={{
           background: 'var(--panel)',
-          borderBottom: '1px solid var(--line)',
+          borderBottom: '1px solid var(--border)',
           padding: isMobile ? '8px 10px 6px' : '14px 24px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -166,30 +201,30 @@ export default function App() {
               width: isMobile ? '32px' : '36px',
               height: isMobile ? '32px' : '36px',
               borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--acc), var(--acc-2))',
+              background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 'bold',
               fontSize: '18px',
-              color: 'var(--ink)',
-              boxShadow: '0 2px 8px rgba(59,130,246,0.3)',
+              color: 'var(--text)',
+              boxShadow: '0 2px 8px var(--accent-line)',
             }}
           >
             S
           </div>
           <div>
-            <h1 style={{ fontSize: isMobile ? '15px' : '18px', fontWeight: '700', margin: 0, color: 'var(--ink)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
+            <h1 style={{ fontSize: isMobile ? '15px' : '18px', fontWeight: '700', margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
               {isMobile ? 'SEOAgents' : 'SEOAgents · 自进化智能体集群'}
             </h1>
-            <div style={{ display: isMobile ? 'none' : 'block', fontSize: '12px', color: 'var(--ink-faint)', marginTop: '2px' }}>
+            <div style={{ display: isMobile ? 'none' : 'block', fontSize: '12px', color: 'var(--faint)', marginTop: '2px' }}>
               {summary?.site || 'https://example.com'} · DojoAgents 七层架构
             </div>
           </div>
         </div>
 
         {/* Center Nav: Quick View Switcher */}
-        <nav aria-label="主导航" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', overflowX: 'auto', width: isMobile ? '100%' : 'auto', maxWidth: '100%', order: isMobile ? 3 : 'initial', padding: isMobile ? '6px 0 2px' : '0 0 2px', borderTop: isMobile ? '1px solid var(--line)' : 'none', scrollbarWidth: 'thin' }}>
+        <nav aria-label="主导航" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', overflowX: 'auto', width: isMobile ? '100%' : 'auto', maxWidth: '100%', order: isMobile ? 3 : 'initial', padding: isMobile ? '6px 0 2px' : '0 0 2px', borderTop: isMobile ? '1px solid var(--border)' : 'none', scrollbarWidth: 'thin' }}>
           {([
             ['dashboard', '📊 监控大屏'],
             ['gsc_overview', '📈 GSC 大屏'],
@@ -204,8 +239,8 @@ export default function App() {
               onClick={() => switchTab(id)}
               style={{
                 background: activeTab === id ? 'oklch(0.22 0.02 var(--hue))' : 'transparent',
-                color: activeTab === id ? 'var(--acc)' : 'var(--ink-dim)',
-                border: `1px solid activeTab === id ? 'var(--acc)' : 'transparent'}`,
+                color: activeTab === id ? 'var(--accent)' : 'var(--dim)',
+                border: `1px solid activeTab === id ? 'var(--accent)' : 'transparent'}`,
                 borderRadius: '8px',
                 padding: isMobile ? '9px 10px' : '6px 12px',
                 minHeight: isMobile ? 44 : undefined,
@@ -228,7 +263,7 @@ export default function App() {
             <span
               style={{
                 fontSize: '12px',
-                color: 'var(--acc)',
+                color: 'var(--accent)',
                 background: 'oklch(0.22 0.03 280)',
                 padding: '4px 10px',
                 borderRadius: '6px',
@@ -264,9 +299,9 @@ export default function App() {
             <button
               onClick={() => setIsSettingsOpen(!isSettingsOpen)}
               style={{
-                background: isSettingsOpen ? 'var(--panel-2)' : 'var(--panel)',
-                color: 'var(--ink)',
-                border: '1px solid var(--panel-2)',
+                background: isSettingsOpen ? 'var(--panel2)' : 'var(--panel)',
+                color: 'var(--text)',
+                border: '1px solid var(--panel2)',
                 borderRadius: '8px',
                 padding: isMobile ? '8px 10px' : '7px 14px',
                 minWidth: isMobile ? 44 : undefined,
@@ -278,7 +313,7 @@ export default function App() {
                 alignItems: 'center',
                 gap: '6px',
                 transition: 'background-color 0.2s',
-                boxShadow: isSettingsOpen ? '0 0 0 2px rgba(59,130,246,0.4)' : 'none',
+                boxShadow: isSettingsOpen ? '0 0 0 2px var(--accent-line)' : 'none',
               }}
             >
               <span>{isMobile ? '⚙️' : '⚙️ 设置'}</span>
@@ -294,10 +329,10 @@ export default function App() {
                   top: 'calc(100% + 8px)',
                   width: '200px',
                   background: 'var(--panel)',
-                  border: '1px solid var(--panel-2)',
+                  border: '1px solid var(--panel2)',
                   borderRadius: '10px',
                   padding: '6px',
-                  boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+                  boxShadow: '0 10px 25px -5px oklch(0% 0 0 / .5), 0 8px 10px -6px oklch(0% 0 0 / .5)',
                   zIndex: 1000,
                   display: 'flex',
                   flexDirection: 'column',
@@ -311,7 +346,7 @@ export default function App() {
                   }}
                   style={{
                     background: 'transparent',
-                    color: 'var(--ink)',
+                    color: 'var(--text)',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -342,7 +377,7 @@ export default function App() {
                   }}
                   style={{
                     background: activeTab === 'departments' ? 'var(--panel)' : 'transparent',
-                    color: activeTab === 'departments' ? 'var(--acc)' : 'var(--ink)',
+                    color: activeTab === 'departments' ? 'var(--accent)' : 'var(--text)',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -363,7 +398,7 @@ export default function App() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     🏢 部门管理
                   </span>
-                  {activeTab === 'departments' && <span style={{ fontSize: '12px', color: 'var(--acc)' }}>✓</span>}
+                  {activeTab === 'departments' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>✓</span>}
                 </button>
 
                 <button
@@ -373,7 +408,7 @@ export default function App() {
                   }}
                   style={{
                     background: activeTab === 'config' ? 'var(--panel)' : 'transparent',
-                    color: activeTab === 'config' ? 'var(--acc)' : 'var(--ink)',
+                    color: activeTab === 'config' ? 'var(--accent)' : 'var(--text)',
                     border: 0,
                     borderRadius: '6px',
                     padding: '10px 12px',
@@ -394,29 +429,51 @@ export default function App() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     ⚙️ 系统配置中心
                   </span>
-                  {activeTab === 'config' && <span style={{ fontSize: '12px', color: 'var(--acc)' }}>✓</span>}
+                  {activeTab === 'config' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>✓</span>}
                 </button>
 
                 <div style={{ height: 1, background: 'var(--panel)', margin: '6px 0' }} />
 
-                {/* Theme Hue Slider */}
+                {/* dashboard-kit 主题引擎：6 预设主题环 + 自定义 hue + 明暗模式 */}
                 <div style={{ padding: '10px 12px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--ink-dim)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>🎨 主题色相</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--acc)', fontSize: '11px' }}>{themeHue}°</span>
+                  <div style={{ fontSize: '11px', color: 'var(--dim)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>🎨 主题</span>
+                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: '11px' }}>{themeHue}°</span>
+                  </div>
+                  <div className="dk-theme-switch" style={{ marginBottom: '10px', flexWrap: 'wrap' }}>
+                    {PRESET_THEMES.map(t => (
+                      <button
+                        key={t.id}
+                        className="dk-swatch"
+                        aria-pressed={themeHue === t.hue}
+                        aria-label={`${t.name}（${t.dept}）`}
+                        title={`${t.name} · ${t.dept}`}
+                        onClick={() => applyHue(t.hue)}
+                        style={{ background: `oklch(70% 0.16 ${t.hue})` }}
+                      />
+                    ))}
+                    <button
+                      className="dk-mode-toggle"
+                      onClick={() => setThemeMode(toggleMode())}
+                      title="明暗模式切换"
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      {themeMode === 'dark' ? '🌙 深色' : '☀️ 浅色'}
+                    </button>
                   </div>
                   <input
                     type="range"
                     min={0}
                     max={360}
                     value={themeHue}
+                    aria-label="自定义主题色相"
                     onChange={e => applyHue(parseInt(e.target.value, 10))}
                     style={{
                       width: '100%',
                       height: '6px',
                       appearance: 'none',
                       WebkitAppearance: 'none',
-                      background: 'linear-gradient(90deg, oklch(0.7 0.2 0), oklch(0.7 0.2 60), oklch(0.7 0.2 120), oklch(0.7 0.2 180), oklch(0.7 0.2 240), oklch(0.7 0.2 300), oklch(0.7 0.2 360))',
+                      background: 'linear-gradient(90deg, oklch(0.7 0.16 0), oklch(0.7 0.16 60), oklch(0.7 0.16 120), oklch(0.7 0.16 180), oklch(0.7 0.16 240), oklch(0.7 0.16 300), oklch(0.7 0.16 360))',
                       borderRadius: '3px',
                       outline: 'none',
                       cursor: 'pointer',
@@ -452,7 +509,7 @@ export default function App() {
                   onClick={() => setIsSettingsOpen(false)}
                   style={{
                     background: 'transparent',
-                    color: 'var(--ink)',
+                    color: 'var(--text)',
                     borderRadius: '6px',
                     padding: '10px 12px',
                     fontSize: '13px',
@@ -470,7 +527,7 @@ export default function App() {
                   <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     📚 API 接口文档
                   </span>
-                  <span style={{ fontSize: '11px', color: 'var(--ink-dim)' }}>↗</span>
+                  <span style={{ fontSize: '11px', color: 'var(--dim)' }}>↗</span>
                 </a>
 
                 {activeTab === 'config' && (
@@ -483,7 +540,7 @@ export default function App() {
                       }}
                       style={{
                         background: 'transparent',
-                        color: 'var(--ink-dim)',
+                        color: 'var(--dim)',
                         border: 0,
                         borderRadius: '6px',
                         padding: '8px 12px',
@@ -531,6 +588,8 @@ export default function App() {
         }}
       >
 
+        {/* 懒加载面板统一挂 Suspense —— fallback 预留高度，chunk 到达不产生 CLS */}
+        <Suspense fallback={<PanelFallback />}>
 
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -558,8 +617,8 @@ export default function App() {
         {activeTab === 'departments' && (
           <div style={{ maxWidth: '1100px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>
             <div style={{ marginBottom: '16px' }}>
-              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ink)', margin: 0 }}>🏢 部门管理</h2>
-              <p style={{ fontSize: '12px', color: 'var(--ink-dim)', margin: '6px 0 0' }}>
+              <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>🏢 部门管理</h2>
+              <p style={{ fontSize: '12px', color: 'var(--dim)', margin: '6px 0 0' }}>
                 登记本联邦里其他部门实例的端点与能力。跨部门工作流节点靠它找到对方。
               </p>
             </div>
@@ -571,28 +630,36 @@ export default function App() {
 
           <div style={{ maxWidth: '960px', margin: '0 auto', width: '100%', paddingBottom: '32px' }}>
             <div style={{ marginBottom: '24px', textAlign: 'center' }}>
-              <h2 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--ink)', marginBottom: '8px' }}>
+              <h2 style={{ fontSize: '22px', fontWeight: '700', color: 'var(--text)', marginBottom: '8px' }}>
                 ⚙️ 系统配置中心 (Config Portal)
               </h2>
-              <p style={{ fontSize: '14px', color: 'var(--ink-dim)', margin: '0 auto', maxWidth: '680px', lineHeight: '1.6' }}>
+              <p style={{ fontSize: '14px', color: 'var(--dim)', margin: '0 auto', maxWidth: '680px', lineHeight: '1.6' }}>
                 在这里可视化管理目标站点、LLM 智能体 API Key、演化打分权重与飞书通知网关，配置改动将自动持久化至本地配置文件。
               </p>
             </div>
             <ConfigPanel onConfigSaved={refresh} />
           </div>
         )}
+
+        </Suspense>
       </main>
 
-      {/* Persistent Right Side Copilot Drawer */}
-      <AgentCopilotDrawer
-        isOpen={isCopilotOpen}
-        onClose={() => setIsCopilotOpen(false)}
-        activeTab={activeTab}
-        summary={summary}
-        configData={configData}
-        drawerWidth={copilotWidth}
-        onWidthChange={setCopilotWidth}
-      />
+      {/* Persistent Right Side Copilot Drawer（懒加载，且延到首屏绘制后再挂载）
+          桌面端默认 isOpen=true，若直接渲染会在首屏就拉取它的 chunk，把 FCP/LCP 拖慢。
+          用 copilotMounted 推迟一帧，视觉行为不变（用户看到的仍是默认展开）。 */}
+      {copilotMounted && (
+        <Suspense fallback={null}>
+          <AgentCopilotDrawer
+            isOpen={isCopilotOpen}
+            onClose={() => setIsCopilotOpen(false)}
+            activeTab={activeTab}
+            summary={summary}
+            configData={configData}
+            drawerWidth={copilotWidth}
+            onWidthChange={setCopilotWidth}
+          />
+        </Suspense>
+      )}
 
       {/* Floating Trigger Button when Drawer is closed */}
       {!isCopilotOpen && (
@@ -603,7 +670,7 @@ export default function App() {
             position: 'fixed',
             bottom: isMobile ? '16px' : '24px',
             right: isMobile ? '16px' : '24px',
-            color: 'var(--ink)',
+            color: 'var(--text)',
             border: 0,
             borderRadius: isMobile ? '50%' : '28px',
             width: isMobile ? 48 : undefined,
@@ -617,8 +684,8 @@ export default function App() {
             alignItems: 'center',
             justifyContent: 'center',
             gap: '8px',
-            textShadow: '0 1px 3px rgba(0,0,0,0.4)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+            textShadow: '0 1px 3px oklch(0% 0 0 / .4)',
+            boxShadow: '0 4px 16px oklch(0% 0 0 / .3)',
           }}
         >
           <span>{isMobile ? '' : '🤖 SEOAgent'}</span>

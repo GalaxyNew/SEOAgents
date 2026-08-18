@@ -243,13 +243,16 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
       })
   }, [])
 
-  const selectedCapability = modelOptions?.providers
+  // ?. 只保护 modelOptions 为 null，保护不了 providers 字段本身缺失。
+  // 后端返回的 JSON 缺 providers 时 .find() 会抛 "Cannot read properties of
+  // undefined (reading 'find')"，React 整棵树崩 → 全站白屏（实测可复现）。
+  const selectedCapability = (modelOptions?.providers || [])
     .find((p) => p.slug === selectedProvider)
     ?.capabilities?.[selectedModel]
   const selectedReasoningEfforts = ['auto', ...(selectedCapability?.reasoning_efforts || [])]
 
   const modelOptionsSignature = JSON.stringify(
-    modelOptions?.providers.find((p) => p.slug === selectedProvider)?.capabilities?.[selectedModel]?.reasoning_efforts || [],
+    (modelOptions?.providers || []).find((p) => p.slug === selectedProvider)?.capabilities?.[selectedModel]?.reasoning_efforts || [],
   )
 
   useEffect(() => {
@@ -796,7 +799,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
           <button
             type="button"
             onClick={() => void newConv()}
-            style={{ ...smallBtn, ...mobileTarget, background: '#2563eb', color: '#fff' }}
+            style={{ ...smallBtn, ...mobileTarget, background: 'var(--accent2)', color: 'var(--text)' }}
           >✚ 新建对话</button>
         )}
       >
@@ -809,15 +812,15 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               style={{
                 ...smallBtn,
                 ...mobileTarget,
-                background: histTab === tab ? '#1e293b' : 'transparent',
-                color: histTab === tab ? '#60a5fa' : '#94a3b8',
-                border: `1px solid ${histTab === tab ? '#3b82f6' : '#334155'}`,
+                background: histTab === tab ? 'var(--panel)' : 'transparent',
+                color: histTab === tab ? 'var(--accent)' : 'var(--dim)',
+                border: `1px solid ${histTab === tab ? 'var(--accent)' : 'var(--border)'}`,
               }}
             >{tab === 'active' ? '进行中' : '已归档'}</button>
           ))}
         </div>
         {convs.length === 0 && (
-          <div style={{ padding: 24, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+          <div style={{ padding: 24, textAlign: 'center', color: 'var(--faint)', fontSize: 13 }}>
             {histTab === 'archived' ? '没有已归档的对话' : '还没有历史对话'}
           </div>
         )}
@@ -836,36 +839,36 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
             style={{
               padding: '9px 11px', borderRadius: 8, cursor: 'pointer',
               minHeight: isMobile ? 44 : undefined,
-              background: conversation.id === convId ? '#1e293b' : 'transparent',
-              border: `1px solid ${conversation.id === convId ? '#334155' : 'transparent'}`,
+              background: conversation.id === convId ? 'var(--panel)' : 'transparent',
+              border: `1px solid ${conversation.id === convId ? 'var(--border)' : 'transparent'}`,
               marginBottom: 4,
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <span style={{
-                fontSize: 13, color: '#e2e8f0', fontWeight: 500, flex: 1,
+                fontSize: 13, color: 'var(--text)', fontWeight: 500, flex: 1,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }}>{conversation.title}</span>
-              <span style={{ fontSize: 10, color: '#475569' }}>{conversation.message_count} 条</span>
+              <span style={{ fontSize: 10, color: 'var(--border)' }}>{conversation.message_count} 条</span>
               <button
                 type="button"
                 title={histTab === 'archived' ? '取回' : '归档'}
                 onClick={(event) => { event.stopPropagation(); void archiveConv(conversation.id, histTab !== 'archived') }}
-                style={{ ...mobileTarget, background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: isMobile ? 8 : '2px 4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ ...mobileTarget, background: 'transparent', border: 0, color: 'var(--faint)', cursor: 'pointer', fontSize: 12, padding: isMobile ? 8 : '2px 4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >{histTab === 'archived' ? '↩' : '📥'}</button>
               <button
                 type="button"
                 title="删除"
                 onClick={(event) => { event.stopPropagation(); void deleteConv(conversation.id) }}
-                style={{ ...mobileTarget, background: 'transparent', border: 0, color: '#64748b', cursor: 'pointer', fontSize: 12, padding: isMobile ? 8 : '2px 4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
+                style={{ ...mobileTarget, background: 'transparent', border: 0, color: 'var(--faint)', cursor: 'pointer', fontSize: 12, padding: isMobile ? 8 : '2px 4px', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
               >🗑</button>
             </div>
             {conversation.last_text && (
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <div style={{ fontSize: 11, color: 'var(--faint)', marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {conversation.last_text}
               </div>
             )}
-            <div style={{ fontSize: 10, color: '#475569', marginTop: 2 }}>
+            <div style={{ fontSize: 10, color: 'var(--border)', marginTop: 2 }}>
               {new Date(conversation.updated_at).toLocaleString('zh-CN', { hour12: false })}
             </div>
           </div>
@@ -878,8 +881,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
           // 优先用实测可视高度;拿不到时退回 dvh(动态视口),再退回 vh。
           // 直接写 100vh 会让底部输入框沉到移动端可视区外面。
           height: vh ? `${vh}px` : '100dvh',
-          background: '#0f172a', borderLeft: '1px solid #1e293b',
-          boxShadow: '-8px 0 24px rgba(0,0,0,0.5)', zIndex: 9999,
+          background: 'var(--surface)', borderLeft: '1px solid var(--panel)',
+          boxShadow: '-8px 0 24px oklch(0% 0 0 / .5)', zIndex: 9999,
           display: 'flex', flexDirection: 'column',
           fontFamily: 'system-ui, -apple-system, sans-serif',
         }}
@@ -894,24 +897,24 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               display: 'flex', alignItems: 'center', justifyContent: 'center',
             }}
           >
-            <div style={{ width: 3, height: 48, borderRadius: 2, background: isResizing ? '#3b82f6' : '#334155' }} />
+            <div style={{ width: 3, height: 48, borderRadius: 2, background: isResizing ? 'var(--accent)' : 'var(--border)' }} />
           </div>
         )}
 
         {/* 头部 */}
         <div style={{
-          padding: isMobile ? '6px 8px 6px 12px' : '14px 16px', background: '#1e293b', borderBottom: '1px solid #334155',
+          padding: isMobile ? '6px 8px 6px 12px' : '14px 16px', background: 'var(--panel)', borderBottom: '1px solid var(--border)',
           display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <span style={{ fontSize: 20 }}>🧭</span>
             <div>
-              <div style={{ fontWeight: 700, fontSize: 15, color: '#f8fafc' }}>
+              <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--text)' }}>
                 SEOAgent
-                <span style={{ fontSize: 11, color: '#64748b', marginLeft: 8 }}>hm · Hermes</span>
+                <span style={{ fontSize: 11, color: 'var(--faint)', marginLeft: 8 }}>hm · Hermes</span>
               </div>
               <div style={{
-                fontSize: 11, color: '#94a3b8', maxWidth: 180,
+                fontSize: 11, color: 'var(--dim)', maxWidth: 180,
                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
               }} title={convTitle}>
                 {convTitle}
@@ -921,7 +924,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
           <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 0 : 2 }}>
             <button type="button" onClick={() => void newConv()} title="新建对话" aria-label="新建对话" style={{
               ...mobileTarget,
-              background: 'transparent', border: 0, color: '#94a3b8',
+              background: 'transparent', border: 0, color: 'var(--dim)',
               fontSize: 16, cursor: 'pointer', padding: isMobile ? 8 : '4px 7px',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>✚</button>
@@ -930,13 +933,13 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               onClick={() => { setHistTab('active'); void loadConvs(false); setShowHistory(true) }}
               title="历史对话" aria-label="历史对话" style={{
                 ...mobileTarget,
-                background: 'transparent', border: 0, color: '#94a3b8',
+                background: 'transparent', border: 0, color: 'var(--dim)',
                 fontSize: 15, cursor: 'pointer', padding: isMobile ? 8 : '4px 7px',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
               }}>🕘</button>
             <button type="button" onClick={onClose} title={isMobile ? '关闭' : '收起'} aria-label={isMobile ? '关闭聊天' : '收起聊天'} style={{
               ...mobileTarget,
-              background: 'transparent', border: 0, color: '#94a3b8',
+              background: 'transparent', border: 0, color: 'var(--dim)',
               fontSize: 18, cursor: 'pointer', padding: isMobile ? 8 : '4px 8px',
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>✕</button>
@@ -948,29 +951,29 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
           {messages.map((msg) => (
             <div key={msg.id} style={{ alignSelf: msg.sender === 'user' ? 'flex-end' : 'flex-start', maxWidth: '92%' }}>
               <div style={{
-                fontSize: 11, color: '#64748b', marginBottom: 4,
+                fontSize: 11, color: 'var(--faint)', marginBottom: 4,
                 textAlign: msg.sender === 'user' ? 'right' : 'left',
               }}>
                 {msg.sender === 'user' ? '你' : 'hm'} · {msg.ts}
                 {msg.elapsed != null && <span> · 用时 {msg.elapsed}s</span>}
               </div>
               <div style={{
-                background: msg.sender === 'user' ? '#2563eb' : '#1e293b',
-                color: msg.sender === 'user' ? '#fff' : '#e2e8f0',
+                background: msg.sender === 'user' ? 'var(--accent2)' : 'var(--panel)',
+                color: msg.sender === 'user' ? 'var(--text)' : 'var(--text)',
                 padding: '12px 14px',
                 borderRadius: msg.sender === 'user' ? '14px 14px 2px 14px' : '14px 14px 14px 2px',
                 fontSize: 13, lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
-                border: msg.sender === 'user' ? 'none' : '1px solid #334155',
+                border: msg.sender === 'user' ? 'none' : '1px solid var(--border)',
               }}>
                 {msg.text}
                 {msg.trace && msg.trace.length > 0 && (
-                  <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid #334155' }}>
+                  <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--border)' }}>
                     <button
                       type="button"
                       onClick={() => setOpenTrace(openTrace === msg.id ? null : msg.id)}
                       style={{
                         ...mobileTarget,
-                        background: 'transparent', border: 0, color: '#38bdf8',
+                        background: 'transparent', border: 0, color: 'var(--accent2)',
                         fontSize: 12, cursor: 'pointer', padding: isMobile ? 8 : 0,
                         display: 'flex', alignItems: 'center', gap: 4,
                       }}
@@ -979,20 +982,20 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                     </button>
                     {openTrace === msg.id && (
                       <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
-                        {msg.trace.map((step, i) => (
+                        {(msg.trace || []).map((step, i) => (
                           <div key={i} style={{
-                            background: '#0f172a', border: `1px solid ${step.ok ? '#059669' : '#dc2626'}`,
+                            background: 'var(--surface)', border: `1px solid ${step.ok ? 'var(--ok)' : 'var(--bad)'}`,
                             borderRadius: 6, padding: 8, fontSize: 11, fontFamily: 'monospace',
                           }}>
-                            <div style={{ color: step.ok ? '#34d399' : '#f87171', fontWeight: 'bold' }}>
+                            <div style={{ color: step.ok ? 'var(--ok)' : 'var(--bad)', fontWeight: 'bold' }}>
                               #{i + 1} {step.tool} ({step.ok ? 'SUCCESS' : 'FAILED'})
                             </div>
                             {step.arguments && (
-                              <div style={{ color: '#94a3b8', marginTop: 4 }}>
+                              <div style={{ color: 'var(--dim)', marginTop: 4 }}>
                                 Arg: {JSON.stringify(step.arguments)}
                               </div>
                             )}
-                            <div style={{ color: '#cbd5e1', marginTop: 4, maxHeight: 120, overflowY: 'auto' }}>
+                            <div style={{ color: 'var(--text)', marginTop: 4, maxHeight: 120, overflowY: 'auto' }}>
                               {step.output}
                             </div>
                           </div>
@@ -1005,18 +1008,18 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
             </div>
           ))}
           {busy && (
-            <div style={{ alignSelf: 'flex-start', color: '#38bdf8', fontSize: 12, display: 'flex', gap: 6 }}>
+            <div style={{ alignSelf: 'flex-start', color: 'var(--accent2)', fontSize: 12, display: 'flex', gap: 6 }}>
               <span>⏳ hm 正在处理… {elapsed}s</span>
-              <span style={{ color: '#475569' }}>(带工具的任务通常 1-3 分钟)</span>
+              <span style={{ color: 'var(--border)' }}>(带工具的任务通常 1-3 分钟)</span>
             </div>
           )}
           {(busy || progress.length > 0) && (
             <div style={{
-              alignSelf: 'flex-start', maxWidth: '92%', background: '#0b1220',
-              border: '1px solid #1e293b', borderLeft: '3px solid #3b82f6',
+              alignSelf: 'flex-start', maxWidth: '92%', background: 'var(--bg)',
+              border: '1px solid var(--panel)', borderLeft: '3px solid var(--accent)',
               borderRadius: 8, padding: '8px 10px', fontSize: 12,
             }}>
-              <div style={{ color: '#60a5fa', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ color: 'var(--accent)', fontWeight: 600, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span>{busy ? `执行中 · ${elapsed}s` : '本次执行过程'}{queuedCount > 0 ? ` · 待处理 ${queuedCount}` : ''}</span>
                 <button
                   type="button"
@@ -1025,7 +1028,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                   style={{
                     ...mobileTarget,
                     marginLeft: 'auto', background: 'transparent', border: 0,
-                    color: '#93c5fd', fontSize: 11, cursor: 'pointer', padding: isMobile ? 8 : '1px 4px',
+                    color: 'var(--accent)', fontSize: 11, cursor: 'pointer', padding: isMobile ? 8 : '1px 4px',
                   }}
                 >
                   {reasoningOpen ? '▲ 收起' : '▼ 展开'}
@@ -1037,30 +1040,30 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                   style={{ maxHeight: 220, overflowY: 'auto', paddingRight: 4, scrollBehavior: 'smooth' }}
                 >
                   {progress.length === 0 && (
-                    <div style={{ color: '#64748b' }}>正在连接模型…</div>
+                    <div style={{ color: 'var(--faint)' }}>正在连接模型…</div>
                   )}
                   {progress.map((p, i) => (
                     <div key={i} style={{ marginBottom: 3, lineHeight: 1.5 }}>
                       {p.kind === 'thinking' ? (
-                        <div style={{ color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                          <span style={{ color: '#818cf8', marginRight: 5 }}>思考</span>
+                        <div style={{ color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: 'var(--rev)', marginRight: 5 }}>思考</span>
                           {p.text}
                         </div>
                       ) : p.kind === 'assistant' ? (
-                        <div style={{ color: '#e2e8f0', whiteSpace: 'pre-wrap' }}>
-                          <span style={{ color: '#38bdf8', marginRight: 5 }}>输出</span>
+                        <div style={{ color: 'var(--text)', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: 'var(--accent2)', marginRight: 5 }}>输出</span>
                           {p.text}
                         </div>
                       ) : p.kind === 'compacting' ? (
-                        <div style={{ color: '#fbbf24', whiteSpace: 'pre-wrap' }}>
-                          <span style={{ color: '#f59e0b', marginRight: 5 }}>压缩</span>
+                        <div style={{ color: 'var(--warn)', whiteSpace: 'pre-wrap' }}>
+                          <span style={{ color: 'var(--warn)', marginRight: 5 }}>压缩</span>
                           {p.text}
                         </div>
                       ) : (
-                        <div style={{ color: p.kind === 'tool' ? '#94a3b8' : '#64748b' }}>
+                        <div style={{ color: p.kind === 'tool' ? 'var(--dim)' : 'var(--faint)' }}>
                           <span style={{
-                            color: p.kind === 'turn' ? '#f59e0b'
-                                 : p.kind === 'tool_start' ? '#22d3ee' : '#22c55e',
+                            color: p.kind === 'turn' ? 'var(--warn)'
+                                 : p.kind === 'tool_start' ? 'var(--accent2)' : 'var(--ok)',
                             marginRight: 5,
                           }}>
                             {p.kind === 'turn' ? '轮次' : p.kind === 'tool_start' ? '调用' : p.kind === 'status' ? '状态' : '完成'}
@@ -1079,13 +1082,13 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         </div>
 
         {/* 快捷指令 */}
-        <div data-testid="copilot-quick-commands" style={{ padding: isMobile ? '6px 10px' : '8px 16px', background: '#0f172a', borderTop: '1px solid #1e293b', flexShrink: 0 }}>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginBottom: 6, fontWeight: 600 }}>
-            快捷指令 <span style={{ color: '#64748b', fontWeight: 400 }}>· 左右滑动，点选后可编辑</span>
+        <div data-testid="copilot-quick-commands" style={{ padding: isMobile ? '6px 10px' : '8px 16px', background: 'var(--surface)', borderTop: '1px solid var(--panel)', flexShrink: 0 }}>
+          <div style={{ fontSize: 11, color: 'var(--dim)', marginBottom: 6, fontWeight: 600 }}>
+            快捷指令 <span style={{ color: 'var(--faint)', fontWeight: 400 }}>· 左右滑动，点选后可编辑</span>
           </div>
           <div role="list" aria-label="快捷指令" style={{ display: 'flex', gap: 6, overflowX: 'auto', paddingBottom: 4, WebkitOverflowScrolling: 'touch' }}>
             {starters.length === 0 && (
-              <span style={{ fontSize: 11, color: '#475569' }}>正在读取可用工具…</span>
+              <span style={{ fontSize: 11, color: 'var(--border)' }}>正在读取可用工具…</span>
             )}
             {starters.map((s: any) => (
               <button
@@ -1099,9 +1102,9 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 title={s.prompt}
                 style={{
                   ...mobileTarget,
-                  background: s.custom ? '#1e3a8a' : '#1e293b',
-                  border: `1px solid ${s.custom ? '#3b82f6' : '#334155'}`,
-                  borderRadius: 12, color: '#93c5fd', fontSize: 11,
+                  background: s.custom ? 'var(--accent-soft)' : 'var(--panel)',
+                  border: `1px solid ${s.custom ? 'var(--accent)' : 'var(--border)'}`,
+                  borderRadius: 12, color: 'var(--accent)', fontSize: 11,
                   padding: isMobile ? '8px 11px' : '3px 8px 3px 10px', whiteSpace: 'nowrap',
                   cursor: 'pointer', flexShrink: 0,
                   display: 'inline-flex', alignItems: 'center', gap: 5,
@@ -1121,7 +1124,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                       }
                     }}
                     title="从快捷指令移除"
-                    style={{ color: '#94a3b8', fontSize: 12, lineHeight: 1, padding: isMobile ? 8 : 0, margin: isMobile ? '-8px -8px -8px 0' : 0 }}
+                    style={{ color: 'var(--dim)', fontSize: 12, lineHeight: 1, padding: isMobile ? 8 : 0, margin: isMobile ? '-8px -8px -8px 0' : 0 }}
                   >×</span>
                 )}
               </button>
@@ -1130,11 +1133,11 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         </div>
 
         {/* 输入区 */}
-        <div style={{ padding: isMobile ? '8px 10px 10px' : '12px 16px', background: '#1e293b', borderTop: '1px solid #334155', flexShrink: 0 }}>
+        <div style={{ padding: isMobile ? '8px 10px 10px' : '12px 16px', background: 'var(--panel)', borderTop: '1px solid var(--border)', flexShrink: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6, gap: isMobile ? 6 : 8, flexWrap: 'wrap' }}>
             <button type="button" aria-label={`页面上下文 (${TAB_LABEL[activeTab] || activeTab})`} onClick={openContextPicker} style={{
               ...mobileTarget,
-              background: '#334155', border: 0, borderRadius: 4, color: '#38bdf8',
+              background: 'var(--border)', border: 0, borderRadius: 4, color: 'var(--accent2)',
               fontSize: 11, padding: isMobile ? '8px 10px' : '4px 10px', cursor: 'pointer', fontWeight: 500,
               display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
             }}>
@@ -1146,7 +1149,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                   aria-label="执行中指令方式"
                   value={busyInputMode}
                   onChange={(e) => setBusyInputMode(e.target.value as 'steer' | 'queue')}
-                  style={{ ...modelSelect, ...mobileSelect, maxWidth: 118, borderColor: '#7c3aed' }}
+                  style={{ ...modelSelect, ...mobileSelect, maxWidth: 118, borderColor: 'var(--rev)' }}
                   title="插入当前轮：下一次工具返回后生效；排队下一轮：当前回答结束后继续"
                 >
                   <option value="steer">插入当前轮</option>
@@ -1159,7 +1162,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 disabled={busy || !modelOptions}
                 onChange={(e) => {
                   const provider = e.target.value
-                  const row = modelOptions?.providers.find((p) => p.slug === provider)
+                  const row = (modelOptions?.providers || []).find((p) => p.slug === provider)
                   setSelectedProvider(provider)
                   setSelectedModel(row?.models?.[0] || '')
                 }}
@@ -1176,7 +1179,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 onChange={(e) => setSelectedModel(e.target.value)}
                 style={{ ...modelSelect, ...mobileSelect, maxWidth: 180, minWidth: isMobile ? 0 : undefined, flex: isMobile ? '1 1 0' : undefined }}
               >
-                {(modelOptions?.providers.find((p) => p.slug === selectedProvider)?.models || []).map((m) => (
+                {((modelOptions?.providers || []).find((p) => p.slug === selectedProvider)?.models || []).map((m) => (
                   <option key={m} value={m}>{m}</option>
                 ))}
               </select>
@@ -1197,7 +1200,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 ))}
               </select>
             </div>
-            {!isMobile && <span style={{ fontSize: 11, color: '#64748b' }}>Enter 发送 · Shift+Enter 换行</span>}
+            {!isMobile && <span style={{ fontSize: 11, color: 'var(--faint)' }}>Enter 发送 · Shift+Enter 换行</span>}
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
             <textarea
@@ -1210,8 +1213,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
                 if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
               }}
               style={{
-                flex: 1, background: '#0f172a', border: '1px solid #334155', borderRadius: 8,
-                color: '#f8fafc', padding: isMobile ? '10px' : '8px 10px', fontSize: 12, lineHeight: 1.4,
+                flex: 1, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8,
+                color: 'var(--text)', padding: isMobile ? '10px' : '8px 10px', fontSize: 12, lineHeight: 1.4,
                 outline: 'none', resize: 'vertical', minHeight: 60, maxHeight: 280, boxSizing: 'border-box',
               }}
             />
@@ -1222,8 +1225,8 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
               disabled={!input.trim()}
               style={{
                 ...mobileTarget,
-                height: isMobile ? 44 : 42, background: !input.trim() ? '#334155' : busy ? 'linear-gradient(135deg, #7c3aed, #6d28d9)' : 'linear-gradient(135deg, #2563eb, #1d4ed8)',
-                color: '#fff', border: 0, borderRadius: 8, padding: '0 16px',
+                height: isMobile ? 44 : 42, background: !input.trim() ? 'var(--border)' : busy ? 'linear-gradient(135deg, var(--rev), var(--rev))' : 'linear-gradient(135deg, var(--accent2), var(--accent2))',
+                color: 'var(--text)', border: 0, borderRadius: 8, padding: '0 16px',
                 fontWeight: 600, fontSize: 13,
                 cursor: !input.trim() ? 'not-allowed' : 'pointer',
               }}
@@ -1250,7 +1253,7 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
             <button type="button" onClick={() => setCtxPicked({})} style={{ ...smallBtn, ...mobileTarget }}>全不选</button>
             <span style={{ flex: 1 }} />
             <button type="button" onClick={() => setShowCtx(false)} style={{ ...smallBtn, ...mobileTarget }}>取消</button>
-            <button type="button" onClick={applyContext} style={{ ...smallBtn, ...mobileTarget, background: '#2563eb', color: '#fff' }}>
+            <button type="button" onClick={applyContext} style={{ ...smallBtn, ...mobileTarget, background: 'var(--accent2)', color: 'var(--text)' }}>
               加入输入框 ({ctxItems.filter((item) => ctxPicked[item.key]).length} 项 ·{' '}
               {(() => {
                 const payload: Record<string, unknown> = {}
@@ -1263,24 +1266,24 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
         )}
       >
         {ctxItems.length === 0 && (
-          <div style={{ color: '#475569', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>
+          <div style={{ color: 'var(--border)', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>
             当前页面没有可提取的数据（可能还没加载完，或该页无结构化数据）
           </div>
         )}
         {ctxItems.map((item) => (
           <label key={item.key} style={{
             display: 'flex', alignItems: 'flex-start', gap: 8, padding: isMobile ? '10px 0' : '7px 0', minHeight: isMobile ? 44 : undefined,
-            borderBottom: '1px solid #1f2937', cursor: 'pointer',
+            borderBottom: '1px solid var(--panel)', cursor: 'pointer',
           }}>
             <input
               type="checkbox"
               checked={!!ctxPicked[item.key]}
               onChange={(event) => setCtxPicked((current) => ({ ...current, [item.key]: event.target.checked }))}
-              style={{ marginTop: 3, accentColor: '#3b82f6', flexShrink: 0, width: isMobile ? 24 : undefined, height: isMobile ? 24 : undefined }}
+              style={{ marginTop: 3, accentColor: 'var(--accent)', flexShrink: 0, width: isMobile ? 24 : undefined, height: isMobile ? 24 : undefined }}
             />
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontSize: 12, color: '#e2e8f0', fontWeight: 600 }}>{item.label}</div>
-              <div style={{ fontSize: 11, color: '#64748b', wordBreak: 'break-word', maxHeight: 44, overflow: 'hidden' }}>
+              <div style={{ fontSize: 12, color: 'var(--text)', fontWeight: 600 }}>{item.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--faint)', wordBreak: 'break-word', maxHeight: 44, overflow: 'hidden' }}>
                 {item.preview}
               </div>
             </div>
@@ -1292,11 +1295,11 @@ export const AgentCopilotDrawer: React.FC<AgentCopilotDrawerProps> = ({
 }
 
 const modelSelect: React.CSSProperties = {
-  background: '#0f172a', color: '#cbd5e1', border: '1px solid #334155',
+  background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)',
   borderRadius: 5, padding: '4px 7px', fontSize: 10, maxWidth: 130,
 }
 
 const smallBtn: React.CSSProperties = {
-  background: '#334155', color: '#cbd5e1', border: 0, borderRadius: 5,
+  background: 'var(--border)', color: 'var(--text)', border: 0, borderRadius: 5,
   padding: '5px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer',
 }
