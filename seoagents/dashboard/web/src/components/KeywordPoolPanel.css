@@ -1,0 +1,25 @@
+/* 关键词池面板 — DataForSEO 全量词表（1420 词）只读浏览。 */
+.dk-kw-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.dk-kw-toolbar input[type='search'] {
+  flex: 1 1 200px;
+  min-width: 160px;
+}
+.dk-kw-toolbar select { flex: 0 0 auto; }
+.dk-kw-meta {
+  font-size: 12px;
+  color: var(--dim);
+  margin: 8px 0;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.dk-kw-pager { display: flex; gap: 8px; align-items: center; justify-content: center; margin-top: 12px; }
+.dk-kw-vol { font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.dk-kw-kd { text-align: right; white-space: nowrap; }
