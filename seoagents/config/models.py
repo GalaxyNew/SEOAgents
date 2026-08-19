@@ -72,9 +72,13 @@ class SeoCredentialsConfig:
     dataforseo_api_key: str = ""
     dataforseo_base_url: str = "https://api.dataforseo.com"
     cms_publish_token: str = ""
+    # GA4：property 数字 ID（按站点域名映射），SA 复用 GSC 的 service account
+    ga4_properties: Mapping[str, str] = field(default_factory=dict)
 
     @classmethod
     def from_dict(cls, d: Mapping[str, Any] | None) -> SeoCredentialsConfig:
+        raw_ga4 = _get(d, "ga4_properties", {}) or {}
+        ga4 = {str(k): str(v) for k, v in raw_ga4.items()} if isinstance(raw_ga4, Mapping) else {}
         return cls(
             google_search_console=GSCCredentialsConfig.from_dict(_get(d, "google_search_console")),
             google_pagespeed_api_key=str(_get(d, "google_pagespeed_api_key", "") or ""),
@@ -83,6 +87,7 @@ class SeoCredentialsConfig:
             dataforseo_api_key=str(_get(d, "dataforseo_api_key", "") or ""),
             dataforseo_base_url=str(_get(d, "dataforseo_base_url", cls.dataforseo_base_url)),
             cms_publish_token=str(_get(d, "cms_publish_token", "") or ""),
+            ga4_properties=ga4,
         )
 
 

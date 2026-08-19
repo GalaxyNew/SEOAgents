@@ -23,6 +23,17 @@ type WfInstance = { id?: string; name?: string; status?: string; progress?: numb
 type DrawerId =
   | null | 'health' | 'serp' | 'deadlinks' | 'skills'
   | 'sweet' | 'trans' | 'pipeline'
+  | 'ga4-users' | 'ga4-organic' | 'ga4-engage' | 'ga4-events' | 'ga4-channels' | 'ga4-pages'
+
+type Ga4Overview = {
+  available: boolean; reason?: string; days?: number
+  active_users?: number; sessions?: number; engagement_rate?: number
+  key_events?: number; organic_sessions?: number
+  trend?: { date: string; users: number; key_events: number }[]
+}
+type Ga4Channels = { available: boolean; items?: { channel: string; sessions: number; engagement_rate: number; key_events: number }[] }
+type Ga4Pages = { available: boolean; items?: { page: string; sessions: number; engagement_rate: number; key_events: number }[] }
+type Ga4Users = { available: boolean; new_vs_returning?: { name: string; users: number }[]; devices?: { name: string; users: number }[]; countries?: { name: string; users: number }[] }
 
 const fmtInt = (n: number | null | undefined) => (n ?? 0).toLocaleString('es-ES')
 
@@ -145,6 +156,10 @@ export function OverviewPanel({ summary }: { summary: MetricsSummary | null }) {
   const [transTotal, setTransTotal] = useState(0)
   const [wf, setWf] = useState<WfInstance[]>([])
   const [poolTotal, setPoolTotal] = useState<number | null>(null)
+  const [ga4, setGa4] = useState<Ga4Overview | null>(null)
+  const [ga4Ch, setGa4Ch] = useState<Ga4Channels | null>(null)
+  const [ga4Pg, setGa4Pg] = useState<Ga4Pages | null>(null)
+  const [ga4Us, setGa4Us] = useState<Ga4Users | null>(null)
 
   const load = useCallback(async () => {
     // 机会词：难度升序 + 量下限（甜点区）
@@ -156,6 +171,23 @@ export function OverviewPanel({ summary }: { summary: MetricsSummary | null }) {
     fetch('/api/keywords/pool?intent=Transactional&min_vol=100&sort=volume&limit=12')
       .then(r => (r.ok ? r.json() : null))
       .then(d => { if (d) { setTrans(d.items || []); setTransTotal(d.total || 0) } })
+      .catch(() => {})
+    // GA4（不可用时后端回 available:false，渲染空态）
+    fetch('/api/ga4/overview')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setGa4(d) })
+      .catch(() => setGa4({ available: false, reason: 'network' }))
+    fetch('/api/ga4/channels')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setGa4Ch(d) })
+      .catch(() => {})
+    fetch('/api/ga4/pages?limit=10')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setGa4Pg(d) })
+      .catch(() => {})
+    fetch('/api/ga4/detail/users')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d) setGa4Us(d) })
       .catch(() => {})
     // 产线（workflow instances）
     fetch('/api/workflows/instances?limit=8')
@@ -212,12 +244,23 @@ export function OverviewPanel({ summary }: { summary: MetricsSummary | null }) {
         />
       </div>
 
-      {/* ── KPI 行 2：GA4 占位（PR-D 点亮）── */}
+      {/* ── KPI 行 2：GA4（available:false 时空态）── */}
       <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr 1fr' : 'repeat(4,1fr)', gap: 12 }}>
-        <KpiCard label="活跃用户" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
-        <KpiCard label="自然搜索会话" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
-        <KpiCard label="互动率" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
-        <KpiCard label="关键事件（转化）" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
+        {ga4?.available ? (
+          <>
+            <KpiCard label="活跃用户" value={fmtInt(ga4.active_users)} unit="人" src={`GA4·${ga4.days}d`} onClick={() => setDrawer('ga4-users')} />
+            <KpiCard label="自然搜索会话" value={fmtInt(ga4.organic_sessions)} unit="次" src="GA4" onClick={() => setDrawer('ga4-organic')} />
+            <KpiCard label="互动率" value={((ga4.engagement_rate ?? 0) * 100).toFixed(1)} unit="%" src="GA4" onClick={() => setDrawer('ga4-engage')} />
+            <KpiCard label="关键事件（转化）" value={fmtInt(ga4.key_events)} unit="次" src="GA4" onClick={() => setDrawer('ga4-events')} />
+          </>
+        ) : (
+          <>
+            <KpiCard label="活跃用户" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
+            <KpiCard label="自然搜索会话" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
+            <KpiCard label="互动率" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
+            <KpiCard label="关键事件（转化）" value="—" src="GA4" empty delta="未接入" deltaTone="flat" />
+          </>
+        )}
       </div>
 
       {/* ── 主网格 ── */}
@@ -259,6 +302,37 @@ export function OverviewPanel({ summary }: { summary: MetricsSummary | null }) {
           />
         </ModuleCard>
 
+        {/* GA4 流量渠道 */}
+        {ga4Ch?.available && (
+          <ModuleCard title="流量渠道" hint={`GA4 · 近 ${ga4?.days ?? 28} 天`} onExpand={() => setDrawer('ga4-channels')}>
+            <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+              {(() => {
+                const items = ga4Ch.items || []
+                const max = Math.max(1, ...items.map(i => i.sessions))
+                return items.slice(0, 5).map(i => (
+                  <HBar key={i.channel} label={i.channel} pct={(i.sessions / max) * 100} value={fmtInt(i.sessions)} />
+                ))
+              })()}
+            </div>
+          </ModuleCard>
+        )}
+
+        {/* GA4 热门落地页 */}
+        {ga4Pg?.available && (
+          <ModuleCard title="热门落地页" hint="GA4 · 会话/互动率" onExpand={() => setDrawer('ga4-pages')}>
+            <MiniTable
+              head={['页面', '会话', '互动率']}
+              rows={(ga4Pg.items || []).slice(0, 5).map(pg => [
+                <span key="p" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{pg.page.length > 28 ? pg.page.slice(0, 28) + '…' : pg.page}</span>,
+                fmtInt(pg.sessions),
+                <span key="e" style={{ color: pg.engagement_rate >= .6 ? 'var(--ok)' : pg.engagement_rate >= .5 ? 'var(--text)' : 'var(--warn)' }}>
+                  {(pg.engagement_rate * 100).toFixed(0)}%
+                </span>,
+              ])}
+            />
+          </ModuleCard>
+        )}
+
         {/* 内容产线 */}
         <ModuleCard title="内容产线" hint="工作流实例" onExpand={() => setDrawer('pipeline')}>
           <div style={{ padding: '6px 0 8px' }}>
@@ -286,7 +360,7 @@ export function OverviewPanel({ summary }: { summary: MetricsSummary | null }) {
       <div style={{ display: 'flex', gap: 16, color: 'var(--faint)', fontSize: 10.5, padding: '2px 4px', flexWrap: 'wrap' }}>
         <span>SERP <b style={{ color: 'var(--dim)', fontWeight: 500 }}>{serp.length ? `${serp.length} 词` : 'DATA_UNAVAILABLE'}</b></span>
         <span>词池 <b style={{ color: 'var(--dim)', fontWeight: 500 }}>{poolTotal != null ? fmtInt(poolTotal) : '—'}</b></span>
-        <span>GA4 <b style={{ color: 'var(--dim)', fontWeight: 500 }}>未接入</b></span>
+        <span>GA4 <b style={{ color: 'var(--dim)', fontWeight: 500 }}>{ga4?.available ? `FRESH ${ga4.days}d` : '未接入'}</b></span>
       </div>
 
       {/* ══ 抽屉们 ══ */}
@@ -353,6 +427,133 @@ export function OverviewPanel({ summary }: { summary: MetricsSummary | null }) {
         <DrawerNote>💡 转化词是营收主线——低 KD 高量的词优先补落地页与内链。</DrawerNote>
       </DetailDrawer>
 
+      {/* ══ GA4 抽屉 ══ */}
+      <DetailDrawer open={drawer === 'ga4-users'} title="活跃用户 · GA4" onClose={() => setDrawer(null)}>
+        <DrawerHero value={fmtInt(ga4?.active_users)} unit={`近 ${ga4?.days ?? 28} 天活跃用户`} />
+        <DrawerSection title="日活跃趋势">
+          <div style={{ padding: '10px 13px 6px' }}>
+            <TrendSpark data={(ga4?.trend || []).map(t2 => t2.users)} />
+          </div>
+        </DrawerSection>
+        {ga4Us?.available && (
+          <>
+            <DrawerSection title="新老用户">
+              <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {(() => {
+                  const rows = ga4Us.new_vs_returning || []
+                  const total = Math.max(1, rows.reduce((s, r) => s + r.users, 0))
+                  return rows.map(r => (
+                    <HBar key={r.name} label={r.name === 'new' ? '新用户' : r.name === 'returning' ? '回访用户' : r.name || '未知'} pct={(r.users / total) * 100} value={fmtInt(r.users)} sub={`${Math.round((r.users / total) * 100)}%`} />
+                  ))
+                })()}
+              </div>
+            </DrawerSection>
+            <DrawerSection title="设备分布">
+              <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {(() => {
+                  const rows = ga4Us.devices || []
+                  const total = Math.max(1, rows.reduce((s, r) => s + r.users, 0))
+                  return rows.map(r => (
+                    <HBar key={r.name} label={r.name} pct={(r.users / total) * 100} value={fmtInt(r.users)} sub={`${Math.round((r.users / total) * 100)}%`} color="oklch(76% .13 297)" />
+                  ))
+                })()}
+              </div>
+            </DrawerSection>
+            <DrawerSection title="地区 Top">
+              <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {(() => {
+                  const rows = ga4Us.countries || []
+                  const total = Math.max(1, rows.reduce((s, r) => s + r.users, 0))
+                  return rows.slice(0, 6).map(r => (
+                    <HBar key={r.name} label={r.name} pct={(r.users / total) * 100} value={fmtInt(r.users)} sub={`${Math.round((r.users / total) * 100)}%`} />
+                  ))
+                })()}
+              </div>
+            </DrawerSection>
+          </>
+        )}
+        <DrawerNote>GA4 数据天然延迟 24-48 小时；15 分钟缓存。</DrawerNote>
+      </DetailDrawer>
+
+      <DetailDrawer open={drawer === 'ga4-organic'} title="自然搜索会话 · GA4" onClose={() => setDrawer(null)}>
+        <DrawerHero value={fmtInt(ga4?.organic_sessions)} unit={`近 ${ga4?.days ?? 28} 天 Organic Search 会话`} />
+        <DrawerSection title="渠道对比" hint="自然搜索在全渠道中的占比">
+          <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {(() => {
+              const items = ga4Ch?.items || []
+              const max = Math.max(1, ...items.map(i => i.sessions))
+              return items.map(i => (
+                <HBar key={i.channel} label={i.channel} pct={(i.sessions / max) * 100} value={fmtInt(i.sessions)}
+                  color={i.channel === 'Organic Search' ? 'var(--accent)' : 'var(--faint)'} />
+              ))
+            })()}
+          </div>
+        </DrawerSection>
+        <DrawerNote>💡 自然搜索走势与 SEO 发文节奏对照看——涨幅对应哪批词，去「排名追踪」交叉验证。</DrawerNote>
+      </DetailDrawer>
+
+      <DetailDrawer open={drawer === 'ga4-engage'} title="互动率 · GA4" onClose={() => setDrawer(null)}>
+        <DrawerHero value={`${((ga4?.engagement_rate ?? 0) * 100).toFixed(1)}%`} unit="互动会话占比" />
+        <DrawerSection title="各渠道互动率">
+          <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {(ga4Ch?.items || []).map(i => (
+              <HBar key={i.channel} label={i.channel} pct={i.engagement_rate * 100} value={`${(i.engagement_rate * 100).toFixed(0)}%`}
+                color={i.engagement_rate >= .6 ? 'var(--ok)' : i.engagement_rate >= .45 ? 'var(--accent)' : 'var(--warn)'} />
+            ))}
+          </div>
+        </DrawerSection>
+      </DetailDrawer>
+
+      <DetailDrawer open={drawer === 'ga4-events'} title="关键事件（转化）· GA4" onClose={() => setDrawer(null)}>
+        <DrawerHero value={fmtInt(ga4?.key_events)} unit={`近 ${ga4?.days ?? 28} 天关键事件（WhatsApp 点击）`} />
+        <DrawerSection title="日趋势">
+          <div style={{ padding: '10px 13px 6px' }}>
+            <TrendSpark data={(ga4?.trend || []).map(t2 => t2.key_events)} color="oklch(72% .13 300)" />
+          </div>
+        </DrawerSection>
+        <DrawerSection title="各渠道贡献">
+          <div style={{ padding: '12px 14px 14px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+            {(() => {
+              const items = (ga4Ch?.items || []).filter(i => i.key_events > 0)
+              const max = Math.max(1, ...items.map(i => i.key_events))
+              return items.length
+                ? items.map(i => <HBar key={i.channel} label={i.channel} pct={(i.key_events / max) * 100} value={fmtInt(i.key_events)} color="oklch(72% .13 300)" />)
+                : <div style={{ color: 'var(--faint)', fontSize: 11 }}>暂无转化事件</div>
+            })()}
+          </div>
+        </DrawerSection>
+        <DrawerNote>💡 关键事件口径 = WhatsApp 咨询点击（用户 2026-08-19 确认）。</DrawerNote>
+      </DetailDrawer>
+
+      <DetailDrawer open={drawer === 'ga4-channels'} title="流量渠道 · GA4" onClose={() => setDrawer(null)}>
+        <DrawerSection title="渠道明细" hint="会话 / 互动率 / 关键事件">
+          <MiniTable
+            head={['渠道', '会话', '互动率', '转化']}
+            rows={(ga4Ch?.items || []).map(i => [
+              i.channel,
+              fmtInt(i.sessions),
+              <span key="e" style={{ color: i.engagement_rate >= .6 ? 'var(--ok)' : i.engagement_rate >= .45 ? 'var(--text)' : 'var(--warn)' }}>{(i.engagement_rate * 100).toFixed(0)}%</span>,
+              fmtInt(i.key_events),
+            ])}
+          />
+        </DrawerSection>
+      </DetailDrawer>
+
+      <DetailDrawer open={drawer === 'ga4-pages'} title="热门落地页 · GA4" onClose={() => setDrawer(null)}>
+        <DrawerSection title="落地页明细" hint="会话 / 互动率 / 关键事件">
+          <MiniTable
+            head={['页面', '会话', '互动率', '转化']}
+            rows={(ga4Pg?.items || []).map(pg => [
+              <span key="p" style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{pg.page}</span>,
+              fmtInt(pg.sessions),
+              <span key="e" style={{ color: pg.engagement_rate >= .6 ? 'var(--ok)' : pg.engagement_rate >= .5 ? 'var(--text)' : 'var(--warn)' }}>{(pg.engagement_rate * 100).toFixed(0)}%</span>,
+              fmtInt(pg.key_events),
+            ])}
+          />
+        </DrawerSection>
+        <DrawerNote>⚠️ 高会话低互动/零转化的页面优先补 CTA 与内链。</DrawerNote>
+      </DetailDrawer>
+
       <DetailDrawer open={drawer === 'pipeline'} title="内容产线 · 工作流实例" onClose={() => setDrawer(null)}>
         <DrawerSection title="最近实例">
           <MiniTable
@@ -388,6 +589,25 @@ function MtSpark({ history }: { history: { ts: number; m_t: number | null }[] })
   return (
     <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} aria-label="M_t 历史趋势">
       <path d={d} fill="none" stroke="var(--accent)" strokeWidth="2.2" />
+    </svg>
+  )
+}
+
+
+/* 通用数值序列迷你趋势（GA4 日趋势用） */
+function TrendSpark({ data, color }: { data: number[]; color?: string }) {
+  if (data.length < 2) return <div style={{ color: 'var(--faint)', fontSize: 11, padding: '12px 0' }}>数据不足</div>
+  const min = Math.min(...data), max = Math.max(...data)
+  const span = max - min || 1
+  const W = 420, H = 80
+  const d = data.map((v, i) => {
+    const x = (i / (data.length - 1)) * W
+    const y = H - 8 - (v - min) / span * (H - 20)
+    return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`
+  }).join(' ')
+  return (
+    <svg viewBox={`0 0 ${W} ${H}`} width="100%" height={H} aria-label="趋势">
+      <path d={d} fill="none" stroke={color || 'var(--accent)'} strokeWidth="2.2" />
     </svg>
   )
 }
