@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { SeoAuditPanel } from './components/SeoAuditPanel'
 import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
 import { useIsMobile } from './hooks'
+import { OverviewPanel } from './components/OverviewPanel'
 import { SideNav } from './layout/SideNav'
 import { TopBar } from './layout/TopBar'
 import {
@@ -38,11 +39,11 @@ const PanelFallback = () => (
   </div>
 )
 
-export type TabId = 'dashboard' | 'gsc_overview' | 'keywords' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
+export type TabId = 'dashboard' | 'monitor' | 'gsc_overview' | 'keywords' | 'kanban' | 'timeline' | 'workflow' | 'capability' | 'storage' | 'departments' | 'config'
 
 export default function App() {
   // tab 存进 URL hash:刷新后回到原页面,链接也能直接分享到具体页
-  const VALID_TABS: TabId[] = ['dashboard', 'gsc_overview', 'keywords', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config']
+  const VALID_TABS: TabId[] = ['dashboard', 'monitor', 'gsc_overview', 'keywords', 'kanban', 'timeline', 'workflow', 'capability', 'storage', 'departments', 'config']
   const [activeTab, setActiveTab] = useState<TabId>(() => {
     const h = (window.location.hash || '').replace(/^#\/?/, '') as TabId
     return VALID_TABS.includes(h) ? h : 'dashboard'
@@ -218,7 +219,9 @@ export default function App() {
         {/* 懒加载面板统一挂 Suspense —— fallback 预留高度，chunk 到达不产生 CLS */}
         <Suspense fallback={<PanelFallback />}>
 
-        {activeTab === 'dashboard' && (
+        {activeTab === 'dashboard' && <OverviewPanel summary={summary} />}
+
+        {activeTab === 'monitor' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <MetricsPanel summary={summary} onRefresh={refresh} />
             <SeoAuditPanel seonautEndpoint={seonautEndpoint} />

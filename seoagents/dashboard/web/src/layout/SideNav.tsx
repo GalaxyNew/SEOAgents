@@ -18,6 +18,7 @@ export const NAV_GROUPS: NavGroup[] = [
     title: '工作台',
     items: [
       { id: 'dashboard', label: '总览', icon: '📊' },
+      { id: 'monitor', label: '监控大屏', icon: '🖥️' },
       { id: 'gsc_overview', label: 'GSC 数据', icon: '📈' },
       { id: 'keywords', label: '关键词池', icon: '🔤' },
     ],
@@ -47,7 +48,8 @@ export const NAV_GROUPS: NavGroup[] = [
 ]
 
 export const TAB_TITLES: Record<TabId, { title: string; subtitle: string }> = {
-  dashboard: { title: '总览', subtitle: '今天该关注什么，一屏看完' },
+  dashboard: { title: '总览', subtitle: '今天该关注什么，一屏看完 · 点模块看明细' },
+  monitor: { title: '监控大屏', subtitle: 'M_t 演化评分与 SEO 审计全景' },
   gsc_overview: { title: 'GSC 数据', subtitle: 'Search Console 表现大屏' },
   keywords: { title: '关键词池', subtitle: '双源市场词表 · 搜索量/难度/意图' },
   kanban: { title: '任务卡', subtitle: '部门任务看板' },
