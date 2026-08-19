@@ -67,7 +67,28 @@ export default function App() {
   const [summary, setSummary] = useState<MetricsSummary | null>(null)
   const [configData, setConfigData] = useState<any>(null)
   const [seonautEndpoint, setSeonautEndpoint] = useState<string>('')
-  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(window.innerWidth >= 820)
+  // Copilot 抽屉：桌面端默认展开；但初始就在总览页时收起（决策台要一屏尽览）
+  // 注意空 hash = 默认 tab = dashboard（App 的 tab 初始化逻辑同款判定）
+  const [initialHash] = useState(() => (window.location.hash || '').replace(/^#\/?/, ''))
+  const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(
+    window.innerWidth >= 820 && (initialHash || 'dashboard') !== 'dashboard'
+  )
+  // 联动：切进总览→自动收起；切离总览→自动展开。只在「tab 切换瞬间」动作，
+  // 不监听 isCopilotOpen——用户在当前页手动开/关抽屉不被覆盖。
+  const prevTab = useRef<TabId>(activeTab)
+  const autoCollapsed = useRef<boolean>((initialHash || 'dashboard') === 'dashboard')
+  useEffect(() => {
+    if (isMobile) { prevTab.current = activeTab; return }
+    const entered = prevTab.current !== activeTab
+    prevTab.current = activeTab
+    if (!entered) return
+    if (activeTab === 'dashboard') {
+      if (isCopilotOpen) { setIsCopilotOpen(false); autoCollapsed.current = true }
+    } else if (autoCollapsed.current) {
+      setIsCopilotOpen(true)
+      autoCollapsed.current = false
+    }
+  }, [activeTab, isMobile, isCopilotOpen])
   // Copilot 抽屉延后挂载：首屏绘制完成后再拉它的 chunk（见下方渲染处注释）
   const [copilotMounted, setCopilotMounted] = useState<boolean>(false)
   useEffect(() => {
