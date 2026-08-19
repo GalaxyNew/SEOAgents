@@ -2,8 +2,9 @@ import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { SeoAuditPanel } from './components/SeoAuditPanel'
 import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
 import { useIsMobile } from './hooks'
+import { SideNav } from './layout/SideNav'
+import { TopBar } from './layout/TopBar'
 import {
-  PRESET_THEMES,
   initTheme,
   applyHue as kitApplyHue,
   getMode,
@@ -151,398 +152,47 @@ export default function App() {
   // 与 useIsMobile(820) 同一个阈值：>=820 为 fixed 侧栏并让出等宽正文；<820 为全屏 overlay。
   const reserveCopilotSpace = !isMobile && isCopilotOpen
 
+  // v3 侧导航：移动端 overlay 抽屉开合
+  const [navOpen, setNavOpen] = useState(false)
+  // 侧栏关键词徽标：挂载时拉一次词池总数
+  const [keywordCount, setKeywordCount] = useState<number | null>(null)
+  useEffect(() => {
+    fetch('/api/keywords/pool?limit=1')
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (d?.total) setKeywordCount(d.total) })
+      .catch(() => {})
+  }, [])
+  const handleLogout = async () => {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    window.location.reload()
+  }
+
   return (
-    <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', flexDirection: 'column', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
-      {/* Header */}
-      <header
-        style={{
-          background: 'var(--panel)',
-          borderBottom: '1px solid var(--border)',
-          padding: isMobile ? '8px 10px 6px' : '14px 24px',
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: isMobile ? '8px' : '12px',
-        }}
-      >
-        {/* Left: Brand Logo & Title */}
-        <div
-          onClick={() => switchTab('dashboard')}
-          style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '8px' : '12px', cursor: 'pointer', minWidth: 0 }}
-          title="点击返回监控大屏"
-        >
-          <div
-            style={{
-              width: isMobile ? '32px' : '36px',
-              height: isMobile ? '32px' : '36px',
-              borderRadius: '8px',
-              background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontWeight: 'bold',
-              fontSize: '18px',
-              color: 'var(--text)',
-              boxShadow: '0 2px 8px var(--accent-line)',
-            }}
-          >
-            S
-          </div>
-          <div>
-            <h1 style={{ fontSize: isMobile ? '15px' : '18px', fontWeight: '700', margin: 0, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: '8px', whiteSpace: 'nowrap' }}>
-              {isMobile ? 'SEOAgents' : 'SEOAgents · 自进化智能体集群'}
-            </h1>
-            <div style={{ display: isMobile ? 'none' : 'block', fontSize: '12px', color: 'var(--faint)', marginTop: '2px' }}>
-              {summary?.site || 'https://example.com'} · DojoAgents 七层架构
-            </div>
-          </div>
-        </div>
+    <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
+      {/* v3 侧导航（桌面常驻 216px；移动端 overlay 抽屉） */}
+      <SideNav
+        activeTab={activeTab}
+        onSwitch={switchTab}
+        themeHue={themeHue}
+        themeMode={themeMode}
+        onApplyHue={applyHue}
+        onToggleMode={() => setThemeMode(toggleMode())}
+        keywordCount={keywordCount}
+        isMobile={isMobile}
+        open={navOpen}
+        onClose={() => setNavOpen(false)}
+        onLogout={handleLogout}
+      />
 
-        {/* Center Nav: Quick View Switcher */}
-        <nav aria-label="主导航" style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '6px', overflowX: 'auto', width: isMobile ? '100%' : 'auto', maxWidth: '100%', order: isMobile ? 3 : 'initial', padding: isMobile ? '6px 0 2px' : '0 0 2px', borderTop: isMobile ? '1px solid var(--border)' : 'none', scrollbarWidth: 'thin' }}>
-          {([
-            ['dashboard', '📊 监控大屏'],
-            ['gsc_overview', '📈 GSC 大屏'],
-            ['keywords', '🔤 关键词池'],
-            ['kanban', '📋 任务卡'],
-            ['timeline', '🗓️ 时间规划'],
-            ['workflow', '⚙️ 工作流'],
-            ['capability', '🧭 能力中心'],
-            ['storage', '🗄️ 存储资产'],
-          ] as Array<[TabId, string]>).map(([id, label]) => (
-            <button
-              key={id}
-              onClick={() => switchTab(id)}
-              style={{
-                background: activeTab === id ? 'oklch(0.22 0.02 var(--hue))' : 'transparent',
-                color: activeTab === id ? 'var(--accent)' : 'var(--dim)',
-                border: `1px solid activeTab === id ? 'var(--accent)' : 'transparent'}`,
-                borderRadius: '8px',
-                padding: isMobile ? '9px 10px' : '6px 12px',
-                minHeight: isMobile ? 44 : undefined,
-                minWidth: isMobile ? 44 : undefined,
-                fontSize: isMobile ? '12px' : '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                flexShrink: 0,
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-
-          <a href="/static/preview/seo-control-tower-v1-enhanced.html" target="_blank" rel="noreferrer" style={{ background: 'transparent', color: 'oklch(0.75 0.12 calc(var(--hue) + 70))', border: '1px solid transparent', borderRadius: '8px', padding: isMobile ? '9px 10px' : '6px 12px', minHeight: isMobile ? 44 : undefined, minWidth: isMobile ? 44 : undefined, display:'inline-flex', alignItems:'center', fontSize: isMobile ? '12px' : '13px', fontWeight: '600', cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap', textDecoration: 'none', transition: 'all 0.2s ease' }}>SEO 总控大屏 ↗</a>
-
-          {activeTab === 'config' && (
-            <span
-              style={{
-                fontSize: '12px',
-                color: 'var(--accent)',
-                background: 'oklch(0.22 0.03 280)',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                border: '1px solid oklch(0.45 0.12 270)',
-                fontWeight: '500',
-              }}
-            >
-              ⚙️ 当前位置：配置中心
-            </span>
-          )}
-        </nav>
-
-
-        {/* Right Side Controls & Settings Dropdown */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: isMobile ? '4px' : '10px', fontSize: '12px', marginLeft: isMobile ? 'auto' : 0 }}>
-          <span
-            style={{
-              display: isMobile ? 'none' : 'inline-flex',
-              background: 'oklch(0.30 0.05 155)',
-              color: 'var(--ok)',
-              padding: '4px 10px',
-              borderRadius: '12px',
-              border: '1px solid var(--ok)',
-              fontWeight: '500',
-            }}
-          >
-            ● Active Monitor
-          </span>
-
-
-          {/* Settings Dropdown Button */}
-          <div ref={settingsRef} style={{ position: 'relative' }}>
-            <button
-              onClick={() => setIsSettingsOpen(!isSettingsOpen)}
-              style={{
-                background: isSettingsOpen ? 'var(--panel2)' : 'var(--panel)',
-                color: 'var(--text)',
-                border: '1px solid var(--panel2)',
-                borderRadius: '8px',
-                padding: isMobile ? '8px 10px' : '7px 14px',
-                minWidth: isMobile ? 44 : undefined,
-                minHeight: isMobile ? 44 : undefined,
-                fontSize: '13px',
-                fontWeight: '600',
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                transition: 'background-color 0.2s',
-                boxShadow: isSettingsOpen ? '0 0 0 2px var(--accent-line)' : 'none',
-              }}
-            >
-              <span>{isMobile ? '⚙️' : '⚙️ 设置'}</span>
-              {!isMobile && <span style={{ fontSize: '10px', transition: 'transform 0.2s', transform: isSettingsOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▼</span>}
-            </button>
-
-            {/* Dropdown Menu Popup */}
-            {isSettingsOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  right: 0,
-                  top: 'calc(100% + 8px)',
-                  width: '200px',
-                  background: 'var(--panel)',
-                  border: '1px solid var(--panel2)',
-                  borderRadius: '10px',
-                  padding: '6px',
-                  boxShadow: '0 10px 25px -5px oklch(0% 0 0 / .5), 0 8px 10px -6px oklch(0% 0 0 / .5)',
-                  zIndex: 1000,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '2px',
-                }}
-              >
-                <button
-                  onClick={() => {
-                    setActiveTab('gsc_overview')
-                    setIsSettingsOpen(false)
-                  }}
-                  style={{
-                    background: 'transparent',
-                    color: 'var(--text)',
-                    border: 0,
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    📈 GSC 数据大屏
-                  </span>
-
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('departments')
-                    setIsSettingsOpen(false)
-                  }}
-                  style={{
-                    background: activeTab === 'departments' ? 'var(--panel)' : 'transparent',
-                    color: activeTab === 'departments' ? 'var(--accent)' : 'var(--text)',
-                    border: 0,
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'departments' ? 'var(--panel)' : 'transparent')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    🏢 部门管理
-                  </span>
-                  {activeTab === 'departments' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>✓</span>}
-                </button>
-
-                <button
-                  onClick={() => {
-                    setActiveTab('config')
-                    setIsSettingsOpen(false)
-                  }}
-                  style={{
-                    background: activeTab === 'config' ? 'var(--panel)' : 'transparent',
-                    color: activeTab === 'config' ? 'var(--accent)' : 'var(--text)',
-                    border: 0,
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = activeTab === 'config' ? 'var(--panel)' : 'transparent')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    ⚙️ 系统配置中心
-                  </span>
-                  {activeTab === 'config' && <span style={{ fontSize: '12px', color: 'var(--accent)' }}>✓</span>}
-                </button>
-
-                <div style={{ height: 1, background: 'var(--panel)', margin: '6px 0' }} />
-
-                {/* dashboard-kit 主题引擎：6 预设主题环 + 自定义 hue + 明暗模式 */}
-                <div style={{ padding: '10px 12px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--dim)', marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span>🎨 主题</span>
-                    <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--accent)', fontSize: '11px' }}>{themeHue}°</span>
-                  </div>
-                  <div className="dk-theme-switch" style={{ marginBottom: '10px', flexWrap: 'wrap' }}>
-                    {PRESET_THEMES.map(t => (
-                      <button
-                        key={t.id}
-                        className="dk-swatch"
-                        aria-pressed={themeHue === t.hue}
-                        aria-label={`${t.name}（${t.dept}）`}
-                        title={`${t.name} · ${t.dept}`}
-                        onClick={() => applyHue(t.hue)}
-                        style={{ background: `oklch(70% 0.16 ${t.hue})` }}
-                      />
-                    ))}
-                    <button
-                      className="dk-mode-toggle"
-                      onClick={() => setThemeMode(toggleMode())}
-                      title="明暗模式切换"
-                      style={{ marginLeft: 'auto' }}
-                    >
-                      {themeMode === 'dark' ? '🌙 深色' : '☀️ 浅色'}
-                    </button>
-                  </div>
-                  <input
-                    type="range"
-                    min={0}
-                    max={360}
-                    value={themeHue}
-                    aria-label="自定义主题色相"
-                    onChange={e => applyHue(parseInt(e.target.value, 10))}
-                    style={{
-                      width: '100%',
-                      height: '6px',
-                      appearance: 'none',
-                      WebkitAppearance: 'none',
-                      background: 'linear-gradient(90deg, oklch(0.7 0.16 0), oklch(0.7 0.16 60), oklch(0.7 0.16 120), oklch(0.7 0.16 180), oklch(0.7 0.16 240), oklch(0.7 0.16 300), oklch(0.7 0.16 360))',
-                      borderRadius: '3px',
-                      outline: 'none',
-                      cursor: 'pointer',
-                    }}
-                  />
-                </div>
-
-                <div style={{ height: 1, background: 'var(--panel)', margin: '6px 0' }} />
-
-                <button
-                  onClick={async () => {
-                    await fetch('/api/auth/logout', { method: 'POST' })
-                    window.location.reload()
-                  }}
-                  style={{
-                    background: 'transparent', color: 'oklch(0.72 0.15 20)', border: 0,
-                    borderRadius: '6px', padding: '10px 12px', fontSize: '13px',
-                    fontWeight: '500', textAlign: 'left', cursor: 'pointer',
-                    display: 'flex', alignItems: 'center', gap: '8px',
-                    width: '100%', boxSizing: 'border-box', transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  🚪 退出登录
-                </button>
-
-
-                <a
-                  href="/docs"
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={() => setIsSettingsOpen(false)}
-                  style={{
-                    background: 'transparent',
-                    color: 'var(--text)',
-                    borderRadius: '6px',
-                    padding: '10px 12px',
-                    fontSize: '13px',
-                    fontWeight: '500',
-                    textDecoration: 'none',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    boxSizing: 'border-box',
-                    transition: 'background 0.15s',
-                  }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    📚 API 接口文档
-                  </span>
-                  <span style={{ fontSize: '11px', color: 'var(--dim)' }}>↗</span>
-                </a>
-
-                {activeTab === 'config' && (
-                  <>
-                    <div style={{ height: '1px', background: 'var(--panel)', margin: '4px 0' }} />
-                    <button
-                      onClick={() => {
-                        setActiveTab('dashboard')
-                        setIsSettingsOpen(false)
-                      }}
-                      style={{
-                        background: 'transparent',
-                        color: 'var(--dim)',
-                        border: 0,
-                        borderRadius: '6px',
-                        padding: '8px 12px',
-                        fontSize: '12px',
-                        fontWeight: '500',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        width: '100%',
-                        boxSizing: 'border-box',
-                      }}
-                      onMouseEnter={e => (e.currentTarget.style.background = 'var(--panel)')}
-                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    >
-                      📊 返回监控大屏
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      </header>
+      {/* 主区：顶栏 + 内容 */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <TopBar
+          activeTab={activeTab}
+          site={summary?.site ?? null}
+          onRefresh={refresh}
+          isMobile={isMobile}
+          onOpenNav={() => setNavOpen(true)}
+        />
 
       {/* Main Content Area (uncompressed, full-featured layout) */}
       <main
@@ -622,6 +272,7 @@ export default function App() {
 
         </Suspense>
       </main>
+      </div>{/* 主区 end */}
 
       {/* Persistent Right Side Copilot Drawer（懒加载，且延到首屏绘制后再挂载）
           桌面端默认 isOpen=true，若直接渲染会在首屏就拉取它的 chunk，把 FCP/LCP 拖慢。
