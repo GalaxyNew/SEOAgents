@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { SeoAuditPanel } from './components/SeoAuditPanel'
 import { MetricsPanel, type MetricsSummary } from './components/MetricsPanel'
 import { useIsMobile } from './hooks'
+import { CommandPalette } from './components/CommandPalette'
 import { OverviewPanel } from './components/OverviewPanel'
 import { SideNav } from './layout/SideNav'
 import { TopBar } from './layout/TopBar'
@@ -168,6 +169,19 @@ export default function App() {
     window.location.reload()
   }
 
+  // ⌘K 命令面板
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault()
+        setPaletteOpen(v => !v)
+      }
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div style={{ height: isMobile ? `${viewportHeight}px` : '100vh', minHeight: 0, overflow: 'hidden', display: 'flex', background: 'var(--bg)', color: 'var(--text)', fontFamily: 'var(--font-ui)' }}>
       {/* v3 侧导航（桌面常驻 216px；移动端 overlay 抽屉） */}
@@ -183,6 +197,7 @@ export default function App() {
         open={navOpen}
         onClose={() => setNavOpen(false)}
         onLogout={handleLogout}
+        onOpenPalette={() => setPaletteOpen(true)}
       />
 
       {/* 主区：顶栏 + 内容 */}
@@ -276,6 +291,8 @@ export default function App() {
         </Suspense>
       </main>
       </div>{/* 主区 end */}
+
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} onSwitch={switchTab} />
 
       {/* Persistent Right Side Copilot Drawer（懒加载，且延到首屏绘制后再挂载）
           桌面端默认 isOpen=true，若直接渲染会在首屏就拉取它的 chunk，把 FCP/LCP 拖慢。
