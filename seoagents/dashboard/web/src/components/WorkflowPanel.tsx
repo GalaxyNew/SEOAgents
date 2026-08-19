@@ -87,11 +87,16 @@ export const WorkflowPanel: React.FC = () => {
     if (!silent) setLoading(true)
     setErr('')
     try {
+      // fetch 全部带 20s 超时：网络断/CF 抖动时 Promise 不会永挂（永挂=永远「正在载入」）
+      const ft = (u: string) => Promise.race([
+        fetch(u),
+        new Promise<Response>((_, rej) => setTimeout(() => rej(new Error('请求超时(20s)')), 20_000)),
+      ]) as Promise<Response>
       const responses = await Promise.all([
-        fetch('/api/workflows/templates'),
-        fetch('/api/workflows/node-types'),
-        fetch('/api/workflows/departments'),
-        fetch('/api/workflows/instances'),
+        ft('/api/workflows/templates'),
+        ft('/api/workflows/node-types'),
+        ft('/api/workflows/departments'),
+        ft('/api/workflows/instances'),
       ])
       const [t, nt, d, ins] = await Promise.all([
         parseApiResponse<any>(responses[0], '模板列表读取失败'),
@@ -235,7 +240,14 @@ export const WorkflowPanel: React.FC = () => {
   }
 
   if (loading) return <div style={{ ...card, color: 'var(--dim)', textAlign: 'center' }}>⚙️ 正在载入工作流...</div>
-  if (err) return <Alert tone="error" title="工作流服务不可用">{err}</Alert>
+  if (err) return (
+    <Alert tone="error" title="工作流服务不可用">
+      {err}
+      <div style={{ marginTop: 10 }}>
+        <button onClick={() => load()} style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>↻ 重试</button>
+      </div>
+    </Alert>
+  )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxHeight: '100%', overflowY: 'auto' }}>
