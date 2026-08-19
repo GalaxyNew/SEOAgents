@@ -73,6 +73,7 @@ export function SideNav({
   open,
   onClose,
   onLogout,
+  onOpenPalette,
 }: {
   activeTab: TabId
   onSwitch: (tab: TabId) => void
@@ -85,6 +86,7 @@ export function SideNav({
   open: boolean
   onClose: () => void
   onLogout: () => void
+  onOpenPalette?: () => void
 }) {
   const badgeFor = (id: TabId): string | null => {
     if (id === 'keywords' && keywordCount) {
@@ -129,6 +131,24 @@ export function SideNav({
           <div style={{ color: 'var(--faint)', fontSize: 10 }}>SEO 部 · 联邦节点</div>
         </div>
       </div>
+
+      {/* 搜索 / 命令入口（⌘K） */}
+      <button
+        onClick={onOpenPalette}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 7, margin: '0 4px 10px',
+          padding: '7px 10px', minHeight: isMobile ? 44 : undefined,
+          background: 'var(--panel)', border: '1px solid var(--border)',
+          borderRadius: 8, color: 'var(--faint)', cursor: 'pointer', fontSize: 12,
+          width: 'calc(100% - 8px)', textAlign: 'left',
+        }}
+      >
+        <span>🔍</span>
+        <span style={{ flex: 1 }}>搜索 / 命令…</span>
+        {!isMobile && (
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, background: 'var(--panel2)', border: '1px solid var(--border)', borderRadius: 4, padding: '1px 5px', color: 'var(--dim)' }}>⌘K</span>
+        )}
+      </button>
 
       {/* 分组导航 */}
       {NAV_GROUPS.map(g => (
