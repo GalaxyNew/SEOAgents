@@ -103,9 +103,14 @@ export const TimelinePanel: React.FC = () => {
   const load = async (h = hours) => {
     setLoading(true); setErr('')
     try {
+      // 带超时：网络断/CF 抖动时不会永挂
+      const ft = (u: string) => Promise.race([
+        fetch(u),
+        new Promise<Response>((_, rej) => setTimeout(() => rej(new Error('请求超时(20s)')), 20_000)),
+      ]) as Promise<Response>
       const [a, u] = await Promise.all([
-        (await fetch(`/api/timeline/agenda-v2?hours_ahead=${h}`)).json(),
-        (await fetch('/api/timeline/unread')).json(),
+        (await ft(`/api/timeline/agenda-v2?hours_ahead=${h}`)).json(),
+        (await ft('/api/timeline/unread')).json(),
       ])
       setAgenda(a)
       try {
@@ -176,7 +181,14 @@ export const TimelinePanel: React.FC = () => {
     return <div style={{ ...card, color: 'var(--dim)', textAlign: 'center' }}>🗓️ 正在载入时间线...</div>
   }
   if (err) {
-    return <div style={{ ...card, borderColor: 'var(--bad-soft)', color: 'var(--bad)' }}>⚠️ {err}</div>
+    return (
+      <div style={{ ...card, borderColor: 'var(--bad-soft)', color: 'var(--bad)' }}>
+        ⚠️ {err}
+        <div style={{ marginTop: 10 }}>
+          <button onClick={() => load()} style={{ padding: '8px 18px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--panel)', color: 'var(--text)', cursor: 'pointer', fontWeight: 600 }}>↻ 重试</button>
+        </div>
+      </div>
+    )
   }
 
   const load_pct = Math.round((agenda?.load_ratio || 0) * 100)
