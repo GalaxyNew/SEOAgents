@@ -17,6 +17,11 @@ from fastapi import APIRouter, HTTPException
 
 router = APIRouter(prefix="/api/keywords", tags=["keywords"])
 
+# Agent 专用别名：/api/v1/ 前缀被 AuthMiddleware 划入服务令牌通道
+# （_SERVICE_PREFIXES），SEO HM / cron / 其他 agent 用 x-service-token
+# 即可调用，不需要浏览器登录会话。与 /api/keywords/pool 共用同一实现。
+router_v1 = APIRouter(prefix="/api/v1/keywords", tags=["keywords"])
+
 _DB_FALLBACK = "/data/seo-stack/seoagents-data/keywords.db"
 
 
@@ -75,4 +80,8 @@ def pool(
     }
 
 
-__all__ = ["router"]
+# Agent 专用端点（服务令牌通道，实现与上面完全一致）
+router_v1.get("/pool")(pool)
+
+
+__all__ = ["router", "router_v1"]

@@ -48,6 +48,7 @@ all_routers = [
     conversations.router,
     keywords_api.router,
     keywords_pool_api.router,
+    keywords_pool_api.router_v1,
     seo_tasks_api.router,
     skills_api.router,
     # Must precede the legacy /api/timeline/{...} routes where paths overlap.
