@@ -140,15 +140,11 @@ export default function App() {
     }
   }, [])
 
-  // ── Ch.5: View Transitions — Tab 切换动画 ──
+  // ── Tab 切换：传统直接渲染（用户 2026-08-19 拍板弃用 View Transitions 动画）──
+  // lazy chunk 未就绪时由 Suspense fallback（载入中…）兜底，即传统加载体验。
   const switchTab = (tab: TabId) => {
     if (tab === activeTab) return
-    const swap = () => setActiveTab(tab)
-    if ('startViewTransition' in document) {
-      (document as any).startViewTransition(swap)
-    } else {
-      swap()
-    }
+    setActiveTab(tab)
   }
 
   // 与 useIsMobile(820) 同一个阈值：>=820 为 fixed 侧栏并让出等宽正文；<820 为全屏 overlay。
